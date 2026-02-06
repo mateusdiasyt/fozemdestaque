@@ -30,7 +30,7 @@ export function WordPressImportForm() {
       let totalImported = 0;
       let totalSkipped = 0;
       let offset = 0;
-      const limit = 5;
+      const limit = 2;
       let hasMore = true;
       let categoriesCreated = 0;
       let total = 0;
@@ -40,7 +40,7 @@ export function WordPressImportForm() {
         const res = await fetch("/api/wordpress-import", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: blob.url, offset, limit }),
+          body: JSON.stringify({ url: blob.url, offset, limit, skipImages: true }),
         });
         let data: { ok: boolean; imported?: number; skipped?: number; total?: number; hasMore?: boolean; nextOffset?: number; categoriesCreated?: number; error?: string };
         const text = await res.text();
@@ -126,6 +126,7 @@ export function WordPressImportForm() {
           {result.ok ? (
             <p>
               Importação concluída: <strong>{result.imported ?? 0}</strong> posts importados
+              <span className="block text-xs mt-1 text-amber-700">Imagens mantidas nas URLs originais (evita timeout). Edite os posts para trocar por imagens locais se necessário.</span>
               {typeof result.skipped === "number" && result.skipped > 0 && (
                 <>, {result.skipped} ignorados</>
               )}

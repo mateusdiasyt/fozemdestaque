@@ -57,14 +57,16 @@ export async function POST(request: Request) {
     }
     let xmlText: string;
     let offset = 0;
-    let limit = 5;
+    let limit = 2;
+    let skipImages = true;
 
     const contentType = request.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
-      const body = (await request.json()) as { url?: string; offset?: number; limit?: number };
+      const body = (await request.json()) as { url?: string; offset?: number; limit?: number; skipImages?: boolean };
       const url = body?.url;
       offset = Math.max(0, Number(body?.offset) || 0);
-      limit = Math.min(50, Math.max(1, Number(body?.limit) || 5));
+      limit = Math.min(20, Math.max(1, Number(body?.limit) || 2));
+      skipImages = !!body?.skipImages;
       if (!url || typeof url !== "string" || !url.startsWith("http")) {
         return NextResponse.json({ error: "URL do arquivo XML inválida" }, { status: 400 });
       }
@@ -170,18 +172,22 @@ export async function POST(request: Request) {
       }
 
       let finalContent = content;
-      const contentImgUrls = extractImgUrls(content);
-      const allImgUrls = [...new Set([featuredImageUrl, ...contentImgUrls].filter(Boolean) as string[])];
-
-      for (const oldUrl of allImgUrls) {
-        if (!oldUrl.startsWith("http")) continue;
-        let newUrl = imageCache.get(oldUrl);
-        if (!newUrl) {
-          newUrl = (await downloadAndUploadImage(oldUrl)) ?? oldUrl;
-          imageCache.set(oldUrl, newUrl);
+      let finalFeaturedImage = featuredImageUrl;
+      if (!skipImages) {
+        const contentImgUrls = extractImgUrls(content);
+        const allImgUrls = [...new Set([featuredImageUrl, ...contentImgUrls].filter(Boolean) as string[])];
+        for (const oldUrl of allImgUrls) {
+          if (!oldUrl.startsWith("http")) continue;
+          let newUrl = imageCache.get(oldUrl);
+          if (!newUrl) {
+            newUrl = (await downloadAndUploadImage(oldUrl)) ?? oldUrl;
+            imageCache.set(oldUrl, newUrl);
+          }
+          finalContent = finalContent.split(oldUrl).join(newUrl);
+          if (oldUrl === featuredImageUrl) finalFeaturedImage = newUrl;
         }
-        finalContent = finalContent.split(oldUrl).join(newUrl);
-        if (oldUrl === featuredImageUrl) featuredImageUrl = newUrl;
+      } else {
+        finalFeaturedImage = featuredImageUrl;
       }
 
       let finalSlug = slug;
@@ -203,7 +209,7 @@ export async function POST(request: Request) {
         slug: finalSlug,
         excerpt: excerpt || null,
         content: finalContent,
-        featuredImage: featuredImageUrl,
+        featuredImage: skipImages ? featuredImageUrl : finalFeaturedImage,
         featuredImageAlt: null,
         categoryId: categoryId ?? null,
         status,
