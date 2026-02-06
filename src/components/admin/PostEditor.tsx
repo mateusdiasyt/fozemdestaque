@@ -295,8 +295,8 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const displayDesc = metaDescription || excerpt || "Meta description...";
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col h-full max-w-4xl">
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col h-full w-full max-w-6xl">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-4 gap-4">
         <div className="lg:col-span-2 space-y-3 overflow-y-auto min-h-0">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-0.5">Título</label>
@@ -342,7 +342,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
           </div>
         </div>
 
-        <div className="space-y-3 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-8rem)] overflow-y-auto min-h-0">
+        <div className="lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-8rem)] overflow-y-auto min-h-0 content-start">
           <div className="bg-white p-3 rounded-xl border border-slate-200">
             <h3 className="font-semibold text-slate-800 mb-2 text-sm">Publicação</h3>
             <div className="space-y-2">
@@ -423,6 +423,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             </div>
           </div>
 
+          <div className="space-y-3">
           <div className="bg-white p-3 rounded-xl border border-slate-200">
             <h3 className="font-semibold text-slate-800 mb-2 text-sm">SEO</h3>
             <button
@@ -541,6 +542,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             </button>
             </div>
           </details>
+          </div>
         </div>
       </div>
 
