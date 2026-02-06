@@ -75,11 +75,11 @@ export function PresentationBar() {
   return (
     <div className="bg-white border-b border-[#e8ebed]">
       <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h2 className="font-headline text-xl md:text-2xl font-bold text-[#000000] uppercase tracking-wide">
-            Notícias e Destaque em Foz do Iguaçu
+        <div className="flex flex-col items-center gap-4">
+          <h2 className="font-headline text-center text-lg md:text-xl font-bold text-[#000000] uppercase tracking-wide">
+            Região Trinacional — 🇦🇷 Argentina · 🇧🇷 Brasil · 🇵🇾 Paraguai
           </h2>
-          <form onSubmit={handleSearch} className="flex w-full sm:w-auto sm:min-w-[320px]" ref={wrapperRef}>
+          <form onSubmit={handleSearch} className="flex w-full max-w-xl" ref={wrapperRef}>
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#859eac]" aria-hidden />
               <input
