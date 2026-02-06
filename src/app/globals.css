@@ -67,6 +67,10 @@
   --font-sans: var(--font-source-sans);
 }
 
+.font-poppins {
+  font-family: var(--font-poppins), "Poppins", system-ui, sans-serif;
+}
+
 body {
   background: var(--background);
   color: var(--black);

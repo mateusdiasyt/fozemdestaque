@@ -17,9 +17,9 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex min-h-screen bg-slate-950 font-poppins">
       <AdminSidebar user={session.user} permissions={permissions} />
-      <main className="flex-1 overflow-auto p-6">{children}</main>
+      <main className="flex-1 overflow-auto p-6 bg-slate-900/50">{children}</main>
     </div>
   );
 }

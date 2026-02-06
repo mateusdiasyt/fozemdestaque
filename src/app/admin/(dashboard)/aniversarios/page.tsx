@@ -10,7 +10,7 @@ export default async function AdminAniversariosPage() {
     .orderBy(desc(birthdaySubmissions.createdAt));
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">
+      <h1 className="text-2xl font-bold text-slate-100 mb-6 tracking-tight">
         Inscrições Aniversário / HighSocietyClub
       </h1>
       <AniversariosManager submissions={list} />

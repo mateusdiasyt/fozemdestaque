@@ -21,20 +21,20 @@ export default async function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Dashboard</h1>
+      <h1 className="text-2xl font-bold text-slate-100 mb-6 tracking-tight">Dashboard</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
           <Link
             key={stat.label}
             href={stat.href}
-            className="p-6 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow flex items-center gap-4"
+            className="p-6 rounded-xl border border-slate-700 bg-slate-800/50 hover:bg-slate-800 transition-colors flex items-center gap-4"
           >
             <div className={`p-3 rounded-lg ${stat.color} text-white`}>
               <stat.icon className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
-              <p className="text-sm text-slate-500">{stat.label}</p>
+              <p className="text-2xl font-bold text-slate-100">{stat.value}</p>
+              <p className="text-sm text-slate-400">{stat.label}</p>
             </div>
           </Link>
         ))}
