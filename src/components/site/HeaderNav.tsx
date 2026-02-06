@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Search, Menu, X, ChevronDown, MoreHorizontal } from "lucide-react";
+import { Search, Menu, X, ChevronDown, MoreHorizontal, Home } from "lucide-react";
 import { VisitCounter } from "@/components/site/VisitCounter";
 import { LanguageSwitcher } from "@/components/site/LanguageSwitcher";
 import { MAIN_NAV_ITEMS, MENU_ITEMS } from "@/lib/menu-items";
@@ -101,6 +101,15 @@ export function HeaderNav() {
                 <div className="absolute top-full left-0 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50">
                   <nav className="min-w-[220px] bg-white rounded-lg shadow-lg border border-[#e8ebed] py-2">
                     <ul>
+                      <li>
+                        <Link
+                          href="/"
+                          className="flex items-center gap-3 px-4 py-2.5 text-[#ff751f] font-semibold hover:bg-[#fff5ef] transition-colors border-b border-[#e8ebed]"
+                        >
+                          <Home className="w-4 h-4 shrink-0" strokeWidth={2} />
+                          <span className="text-sm">Início</span>
+                        </Link>
+                      </li>
                       {MAIN_NAV_ITEMS.map((item) => (
                         <li key={item.href}>
                           <Link
@@ -227,6 +236,13 @@ export function HeaderNav() {
       <nav className="bg-white border-b border-[#e8ebed]">
         <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center gap-x-6 text-sm w-full">
           <div className="flex items-center gap-x-6 flex-1 min-w-0 overflow-x-auto overflow-y-visible">
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 text-[#ff751f] font-semibold hover:text-[#e56a1a] transition-colors whitespace-nowrap shrink-0 pr-2 border-r border-slate-200"
+            >
+              <Home className="w-4 h-4" />
+              Início
+            </Link>
             {MENU_ITEMS.slice(0, 11).map((item) => (
               <Link
                 key={item.href}
