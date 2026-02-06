@@ -4,9 +4,7 @@ import { PresentationBar } from "@/components/site/PresentationBar";
 
 export const dynamic = "force-dynamic";
 import { HeaderNav } from "@/components/site/HeaderNav";
-import { Sidebar } from "@/components/site/Sidebar";
 import { FooterBanner } from "@/components/site/FooterBanner";
-import { LateralBanners } from "@/components/site/LateralBanners";
 
 export default function SiteLayout({
   children,
@@ -18,14 +16,10 @@ export default function SiteLayout({
       <HeaderNav />
       <HeaderBanner />
       <PresentationBar />
-      <div className="flex-1 flex gap-6 max-w-7xl mx-auto w-full px-4 py-8">
-        <aside className="hidden lg:block w-60 shrink-0">
-          <Sidebar />
-        </aside>
-        <main className="flex-1 min-w-0 max-w-4xl">{children}</main>
-        <aside className="hidden xl:block w-52 shrink-0">
-          <LateralBanners />
-        </aside>
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto w-full px-4 py-8">
+        <aside className="min-w-0 hidden md:block" />
+        <main className="min-w-0 md:col-span-1">{children}</main>
+        <aside className="min-w-0 hidden md:block" />
       </div>
       <FooterBanner />
       <footer className="bg-black text-slate-400">
