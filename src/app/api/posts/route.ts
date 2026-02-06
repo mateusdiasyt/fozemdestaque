@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { posts } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, ilike, or, and } from "drizzle-orm";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const slug = searchParams.get("slug");
   const category = searchParams.get("category");
   const featured = searchParams.get("featured");
+  const q = searchParams.get("q")?.trim();
   const limit = parseInt(searchParams.get("limit") || "20", 10);
   const offset = parseInt(searchParams.get("offset") || "0", 10);
 
@@ -21,6 +22,18 @@ export async function GET(req: Request) {
     return NextResponse.json(post);
   }
 
+  const baseWhere = eq(posts.status, "publicado");
+  const whereClause = q
+    ? and(
+        baseWhere,
+        or(
+          ilike(posts.title, `%${q}%`),
+          ilike(posts.excerpt, `%${q}%`),
+          ilike(posts.content, `%${q}%`)
+        )
+      )
+    : baseWhere;
+
   let all = await db.select({
     id: posts.id,
     title: posts.title,
@@ -33,7 +46,7 @@ export async function GET(req: Request) {
     createdAt: posts.createdAt,
   })
     .from(posts)
-    .where(eq(posts.status, "publicado"))
+    .where(whereClause)
     .orderBy(desc(posts.publishedAt), desc(posts.createdAt));
 
   if (category) {

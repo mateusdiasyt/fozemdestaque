@@ -1,4 +1,5 @@
 import { HeaderBanner } from "@/components/site/HeaderBanner";
+import { PresentationBar } from "@/components/site/PresentationBar";
 
 export const dynamic = "force-dynamic";
 import { SiteHeader } from "@/components/site/SiteHeader";
@@ -15,6 +16,7 @@ export default function SiteLayout({
     <div className="min-h-screen flex flex-col bg-[#f5f6f7]">
       <SiteHeader />
       <HeaderBanner />
+      <PresentationBar />
       <div className="flex-1 flex gap-6 max-w-7xl mx-auto w-full px-4 py-8">
         <aside className="hidden lg:block w-60 shrink-0">
           <Sidebar />
