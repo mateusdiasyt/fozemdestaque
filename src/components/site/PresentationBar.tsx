@@ -1,3 +1,11 @@
+import { Instagram, Facebook, Twitter } from "lucide-react";
+
+const SOCIAL_LINKS = [
+  { href: "https://www.instagram.com/fozemdestaque", icon: Instagram, label: "Instagram" },
+  { href: "https://www.facebook.com/fozemdestaque", icon: Facebook, label: "Facebook" },
+  { href: "https://www.twitter.com/fozemdestaque", icon: Twitter, label: "Twitter" },
+] as const;
+
 export function PresentationBar() {
   return (
     <div className="bg-[#fafbfc] border-b border-[#e8ebed] py-6 md:py-8">
@@ -10,6 +18,20 @@ export function PresentationBar() {
           <p className="mt-2 text-[#4e5b60] text-sm md:text-base font-medium">
             🇦🇷 Argentina · 🇧🇷 Brasil · 🇵🇾 Paraguai
           </p>
+          <div className="mt-4 flex items-center justify-center gap-4">
+            {SOCIAL_LINKS.map(({ href, icon: Icon, label }) => (
+              <a
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 text-[#4e5b60] hover:text-[#ff751f] transition-colors rounded-lg hover:bg-[#e8ebed]/50"
+                aria-label={label}
+              >
+                <Icon className="w-5 h-5 md:w-6 md:h-6" strokeWidth={1.5} />
+              </a>
+            ))}
+          </div>
         </div>
       </div>
     </div>
