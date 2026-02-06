@@ -20,6 +20,12 @@ export function SiteHeader() {
             >
               Nossa História
             </Link>
+            <Link
+              href="/produtos-servicos"
+              className="hidden sm:block text-sm text-white/80 hover:text-[#ff751f] transition-colors"
+            >
+              Produtos e Serviços
+            </Link>
           </div>
 
           <div className="flex items-center gap-6">
