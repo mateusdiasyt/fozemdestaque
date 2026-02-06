@@ -13,12 +13,17 @@ const updatePostSchema = z.object({
   excerpt: z.string().optional().nullable(),
   content: z.string().optional(),
   featuredImage: z.string().optional().nullable(),
+  featuredImageAlt: z.string().optional().nullable(),
   categoryId: z.string().optional().nullable(),
   status: z.enum(["rascunho", "em_analise", "publicado"]).optional(),
   featured: z.boolean().optional(),
   metaTitle: z.string().optional().nullable(),
   metaDescription: z.string().optional().nullable(),
   focusKeyword: z.string().optional().nullable(),
+  canonicalUrl: z.string().optional().nullable(),
+  faqJson: z.string().optional().nullable(),
+  tags: z.string().optional().nullable(),
+  scheduledAt: z.string().optional().nullable(),
   publishedAt: z.string().optional().nullable(),
 });
 
@@ -54,6 +59,9 @@ export async function PATCH(
     ...parsed.data,
     updatedAt: new Date(),
   };
+  if (parsed.data.scheduledAt !== undefined) {
+    updates.scheduledAt = parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null;
+  }
   if (parsed.data.title && !parsed.data.slug) {
     updates.slug = slugify(parsed.data.title);
   }

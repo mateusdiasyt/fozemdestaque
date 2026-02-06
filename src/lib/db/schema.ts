@@ -53,7 +53,12 @@ export const posts = pgTable("posts", {
   excerpt: text("excerpt"),
   content: text("content").notNull(),
   featuredImage: text("featured_image"),
+  featuredImageAlt: text("featured_image_alt"),
   categoryId: text("category_id").references(() => categories.id),
+  tags: text("tags"), // JSON array: ["tag1", "tag2"]
+  scheduledAt: timestamp("scheduled_at"),
+  canonicalUrl: text("canonical_url"),
+  faqJson: text("faq_json"), // JSON-LD structured data
   authorId: text("author_id").references(() => users.id),
   status: postStatusEnum("status").notNull().default("rascunho"),
   featured: boolean("featured").notNull().default(false),
