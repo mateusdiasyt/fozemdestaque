@@ -227,36 +227,21 @@ export default async function HomePage() {
               Reflexão
             </h2>
           </Link>
-          <div className="bg-white rounded-xl shadow-sm border border-[#e8ebed] overflow-hidden">
+          <div className="space-y-4">
             {reflexao.length > 0 ? (
-              <div className="divide-y divide-[#e8ebed]">
-                {reflexao.map((post) => (
-                  <Link key={post.id} href={`/post/${post.slug}`} className="flex gap-4 p-4 hover:bg-[#f8f9fa] transition-colors group">
-                    {post.featuredImage ? (
-                      <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-[#e8ebed]">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={post.featuredImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                      </div>
-                    ) : (
-                      <div className="w-16 h-16 shrink-0 rounded-lg bg-[#e8ebed] flex items-center justify-center">
-                        <span className="text-[#859eac] text-xs">Foz</span>
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors text-sm">
-                        {post.title}
-                      </h3>
-                      {post.publishedAt && (
-                        <p className="text-xs text-[#859eac] mt-0.5">
-                          {format(new Date(post.publishedAt), "dd/MM/yyyy", { locale: ptBR })}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
+              reflexao.map((post) => (
+                <AniversarianteCard
+                  key={post.id}
+                  title={post.title}
+                  excerpt={post.excerpt}
+                  image={post.featuredImage}
+                  href={`/post/${post.slug}`}
+                  date={post.publishedAt}
+                  placeholderIcon="💡"
+                />
+              ))
             ) : (
-              <div className="p-6 text-center text-[#859eac] text-sm">
+              <div className="bg-white rounded-xl shadow-sm border border-[#e8ebed] p-6 text-center text-[#859eac] text-sm">
                 Nenhuma reflexão no momento.
               </div>
             )}
@@ -286,12 +271,14 @@ function AniversarianteCard({
   image,
   href,
   date,
+  placeholderIcon = "🎂",
 }: {
   title: string;
   excerpt: string | null;
   image: string | null;
   href: string | null;
   date?: Date | null;
+  placeholderIcon?: string;
 }) {
   const content = (
     <article className="rounded-xl overflow-hidden shadow-sm border border-[#e8ebed] bg-white hover:shadow-md transition-shadow group">
@@ -305,7 +292,7 @@ function AniversarianteCard({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="text-[#859eac] text-2xl">🎂</span>
+            <span className="text-[#859eac] text-2xl">{placeholderIcon}</span>
           </div>
         )}
       </div>
