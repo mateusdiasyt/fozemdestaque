@@ -1,10 +1,10 @@
 "use client";
 
 const LANGUAGES = [
-  { code: "pt", label: "Português (BR)", flag: "🇧🇷" },
-  { code: "en", label: "English (US)", flag: "🇺🇸" },
-  { code: "es", label: "Español (AR)", flag: "🇦🇷" },
-  { code: "es", label: "Español (PY)", flag: "🇵🇾" },
+  { code: "pt", label: "Português (BR)", flag: "br" },
+  { code: "en", label: "English (US)", flag: "us" },
+  { code: "es", label: "Español (AR)", flag: "ar" },
+  { code: "es", label: "Español (PY)", flag: "py" },
 ] as const;
 
 const SOURCE_LANG = "pt";
@@ -26,11 +26,17 @@ export function LanguageSwitcher() {
           key={`${lang.code}-${lang.flag}-${i}`}
           type="button"
           onClick={() => setGoogleTranslate(lang.code)}
-          className="p-1 text-xl leading-none hover:scale-110 transition-transform"
+          className="p-1 hover:scale-110 transition-transform"
           title={lang.label}
           aria-label={lang.label}
         >
-          {lang.flag}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`https://flagcdn.com/32x24/${lang.flag}.png`}
+            alt=""
+            className="h-5 w-auto block"
+            loading="lazy"
+          />
         </button>
       ))}
     </div>
