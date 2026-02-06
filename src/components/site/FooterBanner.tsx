@@ -24,20 +24,20 @@ export function FooterBanner() {
   return (
     <div className="bg-[#e8ebed] border-t border-[#859eac]/30 py-6">
       <div className="max-w-6xl mx-auto px-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           {banners.map((b) => (
             <div key={b.id} className="rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
               {b.linkUrl ? (
                 <Link href={b.linkUrl} target="_blank" rel="noopener noreferrer" className="block">
-                  <div className="aspect-[2/1] bg-[#f5f6f7]">
+                  <div className="aspect-[2/1] bg-[#f5f6f7] flex items-center justify-center p-1">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={b.imageUrl} alt="" className="w-full h-full object-cover" />
+                    <img src={b.imageUrl} alt="" className="max-w-full max-h-full object-contain" />
                   </div>
                 </Link>
               ) : (
-                <div className="aspect-[2/1] bg-[#f5f6f7]">
+                <div className="aspect-[2/1] bg-[#f5f6f7] flex items-center justify-center p-1">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={b.imageUrl} alt="" className="w-full h-full object-cover" />
+                  <img src={b.imageUrl} alt="" className="max-w-full max-h-full object-contain" />
                 </div>
               )}
             </div>
