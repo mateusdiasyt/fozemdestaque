@@ -93,6 +93,33 @@ export const banners = pgTable("banners", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Inscrições Aniversário / HighSocietyClub
+export const estadoCivilEnum = pgEnum("estado_civil", ["casado", "solteiro", "divorciado", "viuvo"]);
+export const birthdaySubmissions = pgTable("birthday_submissions", {
+  id: text("id").primaryKey(),
+  nomeCompleto: varchar("nome_completo", { length: 255 }).notNull(),
+  cpfRucCuit: varchar("cpf_ruc_cuit", { length: 50 }).notNull(),
+  documentoIdentidade: varchar("documento_identidade", { length: 255 }),
+  dataNascimento: timestamp("data_nascimento").notNull(),
+  cidadeNascimento: varchar("cidade_nascimento", { length: 255 }),
+  cidadeReside: varchar("cidade_reside", { length: 255 }).notNull(),
+  nomeSocial: varchar("nome_social", { length: 255 }).notNull(),
+  foneContato: varchar("fone_contato", { length: 50 }),
+  email: varchar("email", { length: 255 }).notNull(),
+  profissao: varchar("profissao", { length: 255 }).notNull(),
+  empresaAtual: varchar("empresa_atual", { length: 255 }).notNull(),
+  cargo: varchar("cargo", { length: 255 }),
+  instagram: varchar("instagram", { length: 255 }).notNull(),
+  facebook: varchar("facebook", { length: 255 }).notNull(),
+  instagramProfissional: varchar("instagram_profissional", { length: 255 }),
+  estadoCivil: estadoCivilEnum("estado_civil").notNull(),
+  nomeConjuge: varchar("nome_conjuge", { length: 255 }),
+  dataCasamento: timestamp("data_casamento"),
+  outrasInformacoes: text("outras_informacoes"),
+  autorizaPublicacao: boolean("autoriza_publicacao").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Estatísticas do site
 export const siteStats = pgTable("site_stats", {
   id: text("id").primaryKey(),
@@ -129,5 +156,7 @@ export type Banner = typeof banners.$inferSelect;
 export type NewBanner = typeof banners.$inferInsert;
 export type ContentBlock = typeof contentBlocks.$inferSelect;
 export type NewContentBlock = typeof contentBlocks.$inferInsert;
+export type BirthdaySubmission = typeof birthdaySubmissions.$inferSelect;
+export type NewBirthdaySubmission = typeof birthdaySubmissions.$inferInsert;
 export type SiteStats = typeof siteStats.$inferSelect;
 export type NewSiteStats = typeof siteStats.$inferInsert;

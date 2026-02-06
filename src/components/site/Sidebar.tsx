@@ -3,6 +3,7 @@ import {
   Lightbulb,
   Calendar,
   Cake,
+  Package,
   Users,
   Zap,
   Briefcase,
@@ -11,13 +12,13 @@ import {
   Star,
   Crown,
   BookOpen,
-  Package,
   type LucideIcon,
 } from "lucide-react";
 
 const MENU_ITEMS: { label: string; href: string; icon: LucideIcon }[] = [
   { label: "Nossa História", href: "/nossa-historia", icon: BookOpen },
   { label: "Produtos e Serviços", href: "/produtos-servicos", icon: Package },
+  { label: "Divulgue seu Aniversário", href: "/divulgue-seu-aniversario", icon: Cake },
   { label: "Reflexão", href: "/categoria/reflexao", icon: Lightbulb },
   { label: "Datas", href: "/categoria/datas", icon: Calendar },
   { label: "Aniversários", href: "/categoria/aniversarios", icon: Cake },

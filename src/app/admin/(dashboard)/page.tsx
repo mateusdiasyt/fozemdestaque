@@ -1,20 +1,22 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { posts, comments, users } from "@/lib/db/schema";
+import { posts, comments, users, birthdaySubmissions } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { FileText, MessageSquare, Users } from "lucide-react";
+import { FileText, MessageSquare, Users, Cake } from "lucide-react";
 
 export default async function AdminDashboardPage() {
   const [postsCount] = await db.select({ count: sql<number>`count(*)` }).from(posts);
   const [publishedCount] = await db.select({ count: sql<number>`count(*)` }).from(posts).where(eq(posts.status, "publicado"));
   const [pendingComments] = await db.select({ count: sql<number>`count(*)` }).from(comments).where(eq(comments.approved, false));
   const [usersCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
+  const [aniversariosCount] = await db.select({ count: sql<number>`count(*)` }).from(birthdaySubmissions);
 
   const stats = [
     { label: "Total de Posts", value: Number(postsCount?.count ?? 0), icon: FileText, href: "/admin/posts", color: "bg-blue-500" },
     { label: "Posts Publicados", value: Number(publishedCount?.count ?? 0), icon: FileText, href: "/admin/posts?status=publicado", color: "bg-green-500" },
     { label: "Comentários Pendentes", value: Number(pendingComments?.count ?? 0), icon: MessageSquare, href: "/admin/comments", color: "bg-amber-500" },
     { label: "Total de Usuários", value: Number(usersCount?.count ?? 0), icon: Users, href: "/admin/users", color: "bg-purple-500" },
+    { label: "Inscrições Aniversário", value: Number(aniversariosCount?.count ?? 0), icon: Cake, href: "/admin/aniversarios", color: "bg-pink-500" },
   ];
 
   return (

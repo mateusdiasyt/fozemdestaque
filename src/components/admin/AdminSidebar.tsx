@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Users,
   Image,
+  Cake,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ const menuItems = [
   { href: "/admin/comments", label: "Comentários", icon: MessageSquare, perm: "comments" },
   { href: "/admin/users", label: "Usuários", icon: Users, perm: "users" },
   { href: "/admin/banners", label: "Banners", icon: Image, perm: "banners" },
+  { href: "/admin/aniversarios", label: "Aniversários", icon: Cake, perm: "aniversarios" },
 ];
 
 export function AdminSidebar({ user, permissions }: AdminSidebarProps) {

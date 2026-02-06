@@ -26,6 +26,12 @@ export function SiteHeader() {
             >
               Produtos e Serviços
             </Link>
+            <Link
+              href="/divulgue-seu-aniversario"
+              className="hidden sm:block text-sm text-white/80 hover:text-[#ff751f] transition-colors"
+            >
+              Divulgue seu Aniversário
+            </Link>
           </div>
 
           <div className="flex items-center gap-6">
