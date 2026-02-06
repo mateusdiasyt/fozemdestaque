@@ -57,11 +57,15 @@ export async function POST(request: Request) {
 
   try {
     let xmlText: string;
+    let offset = 0;
+    let limit = 5;
 
     const contentType = request.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
-      const body = (await request.json()) as { url?: string };
+      const body = (await request.json()) as { url?: string; offset?: number; limit?: number };
       const url = body?.url;
+      offset = Math.max(0, Number(body?.offset) || 0);
+      limit = Math.min(50, Math.max(1, Number(body?.limit) || 5));
       if (!url || typeof url !== "string" || !url.startsWith("http")) {
         return NextResponse.json({ error: "URL do arquivo XML inválida" }, { status: 400 });
       }
@@ -122,16 +126,17 @@ export async function POST(request: Request) {
       categoryMap.set(slug, catId);
     }
 
+    const postItems = items.filter((it) => getText((it as Record<string, unknown>)["wp:post_type"] ?? (it as Record<string, unknown>).post_type) === "post");
+    const total = postItems.length;
+    const batch = postItems.slice(offset, offset + limit);
+
     const authorId = session.user.id ?? null;
     let imported = 0;
     let skipped = 0;
     const imageCache = new Map<string, string>();
 
-    for (const it of items) {
+    for (const it of batch) {
       const obj = it as Record<string, unknown>;
-      const postType = getText(obj["wp:post_type"] ?? obj.post_type);
-      if (postType !== "post") continue;
-
       const title = getText(obj.title);
       if (!title) { skipped++; continue; }
 
@@ -210,10 +215,16 @@ export async function POST(request: Request) {
       imported++;
     }
 
+    const nextOffset = offset + batch.length;
+    const hasMore = nextOffset < total;
+
     return NextResponse.json({
       ok: true,
       imported,
       skipped,
+      total,
+      hasMore,
+      nextOffset: hasMore ? nextOffset : undefined,
       categoriesCreated: categoryMap.size,
     });
   } catch (err) {

@@ -10,13 +10,15 @@ export function WordPressImportForm() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "uploading" | "importing">("idle");
-  const [result, setResult] = useState<{ ok: boolean; imported?: number; skipped?: number; categoriesCreated?: number; error?: string } | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; imported?: number; skipped?: number; total?: number; categoriesCreated?: number; error?: string } | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!file) return;
     setLoading(true);
     setResult(null);
+    setProgress(null);
     try {
       setStatus("uploading");
       const blob = await upload(file.name, file, {
@@ -25,20 +27,42 @@ export function WordPressImportForm() {
         multipart: file.size > 10 * 1024 * 1024,
       });
       setStatus("importing");
-      const res = await fetch("/api/wordpress-import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: blob.url }),
-      });
-      let data: NonNullable<typeof result>;
-      try {
-        const parsed = JSON.parse(await res.text()) as typeof result;
-        data = parsed ?? { ok: false, error: "Resposta inválida" };
-      } catch {
-        data = { ok: false, error: `Erro ${res.status} - resposta inválida` };
+      let totalImported = 0;
+      let totalSkipped = 0;
+      let offset = 0;
+      const limit = 5;
+      let hasMore = true;
+      let categoriesCreated = 0;
+      let total = 0;
+
+      while (hasMore) {
+        setProgress(total > 0 ? `Importando... ${totalImported}/${total} posts` : totalImported > 0 ? `Importando... ${totalImported} posts` : "Importando...");
+        const res = await fetch("/api/wordpress-import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: blob.url, offset, limit }),
+        });
+        let data: { ok: boolean; imported?: number; skipped?: number; total?: number; hasMore?: boolean; nextOffset?: number; categoriesCreated?: number; error?: string };
+        try {
+          const parsed = JSON.parse(await res.text());
+          data = parsed ?? { ok: false, error: "Resposta inválida" };
+        } catch {
+          data = { ok: false, error: `Erro ${res.status} - resposta inválida` };
+        }
+        if (!data.ok) {
+          setResult({ ok: false, error: data.error });
+          break;
+        }
+        totalImported += data.imported ?? 0;
+        totalSkipped += data.skipped ?? 0;
+        total = data.total ?? total;
+        categoriesCreated = data.categoriesCreated ?? categoriesCreated;
+        hasMore = !!data.hasMore;
+        offset = data.nextOffset ?? offset + limit;
       }
-      setResult(data);
-      if (data?.ok) {
+
+      if (hasMore === false) {
+        setResult({ ok: true, imported: totalImported, skipped: totalSkipped, categoriesCreated });
         router.refresh();
       }
     } catch (err) {
@@ -46,6 +70,7 @@ export function WordPressImportForm() {
     } finally {
       setLoading(false);
       setStatus("idle");
+      setProgress(null);
     }
   }
 
@@ -80,7 +105,7 @@ export function WordPressImportForm() {
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              {status === "uploading" ? "Enviando arquivo..." : "Importando posts..."}
+              {status === "uploading" ? "Enviando arquivo..." : progress ?? "Importando posts..."}
             </>
           ) : (
             <>
