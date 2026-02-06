@@ -296,13 +296,13 @@ function AniversarianteCard({
           </div>
         )}
       </div>
-      <div className="p-3 min-h-[88px] flex flex-col gap-1">
-        <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors text-sm leading-snug">
+      <div className="p-3 h-[96px] flex flex-col gap-1 box-border">
+        <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors text-sm leading-snug shrink-0">
           {title}
         </h3>
-        {excerpt && <p className="text-xs text-[#859eac] line-clamp-1">{excerpt}</p>}
+        {excerpt && <p className="text-xs text-[#859eac] line-clamp-1 shrink-0">{excerpt}</p>}
         {date && (
-          <p className="text-xs text-[#859eac]">
+          <p className="text-xs text-[#859eac] shrink-0 mt-auto">
             {format(new Date(date), "dd/MM/yyyy", { locale: ptBR })}
           </p>
         )}
