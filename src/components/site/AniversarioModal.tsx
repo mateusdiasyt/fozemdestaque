@@ -4,7 +4,11 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { AniversarioForm } from "./AniversarioForm";
 
-export function AniversarioModal() {
+interface AniversarioModalProps {
+  fullWidth?: boolean;
+}
+
+export function AniversarioModal({ fullWidth }: AniversarioModalProps = {}) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -25,7 +29,7 @@ export function AniversarioModal() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#ff751f] text-white font-semibold rounded-xl hover:bg-[#e56a1a] transition-colors shadow-lg shadow-[#ff751f]/25 hover:shadow-xl hover:shadow-[#ff751f]/30"
+        className={`inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#ff751f] text-white font-semibold rounded-xl hover:bg-[#e56a1a] transition-colors shadow-lg shadow-[#ff751f]/25 hover:shadow-xl hover:shadow-[#ff751f]/30 ${fullWidth ? "w-full" : ""}`}
       >
         Realizar inscrição
       </button>
