@@ -93,6 +93,13 @@ export const banners = pgTable("banners", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Estatísticas do site
+export const siteStats = pgTable("site_stats", {
+  id: text("id").primaryKey(),
+  totalVisits: integer("total_visits").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Blocos dinâmicos (Aniversários, Datas, Reflexão, etc.)
 export const contentBlocks = pgTable("content_blocks", {
   id: text("id").primaryKey(),
@@ -122,3 +129,5 @@ export type Banner = typeof banners.$inferSelect;
 export type NewBanner = typeof banners.$inferInsert;
 export type ContentBlock = typeof contentBlocks.$inferSelect;
 export type NewContentBlock = typeof contentBlocks.$inferInsert;
+export type SiteStats = typeof siteStats.$inferSelect;
+export type NewSiteStats = typeof siteStats.$inferInsert;
