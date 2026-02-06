@@ -27,7 +27,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body
-        className={`${merriweather.variable} ${sourceSans.variable} font-sans antialiased`}
+        className={`${merriweather.variable} ${sourceSans.variable} antialiased`}
       >
         <SessionProvider>{children}</SessionProvider>
       </body>
