@@ -8,6 +8,11 @@ import { XMLParser } from "fast-xml-parser";
 import { put } from "@vercel/blob";
 
 export const maxDuration = 300; // 5 min for large imports
+export const dynamic = "force-dynamic";
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: { "Allow": "POST, OPTIONS" } });
+}
 
 function normalizeItem(item: unknown): unknown[] {
   if (!item) return [];
