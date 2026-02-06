@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { HeaderBanner } from "@/components/site/HeaderBanner";
 import { PresentationBar } from "@/components/site/PresentationBar";
 
@@ -27,17 +28,33 @@ export default function SiteLayout({
         </aside>
       </div>
       <FooterBanner />
-      <footer className="bg-black text-slate-300 py-8 text-center text-sm">
-        <div className="max-w-7xl mx-auto px-4">
-          O site foi feito por Mateus Mendoza{" "}
-          <a
-            href="https://www.instagram.com/devmateusmendoza"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#ff751f] hover:underline"
-          >
-            @devmanteusmendoza
-          </a>
+      <footer className="bg-black text-slate-400">
+        <div className="max-w-7xl mx-auto px-4 py-10">
+          <nav className="flex flex-wrap justify-center gap-x-8 gap-y-2 pb-8 border-b border-white/10">
+            <Link href="/nossa-historia" className="text-sm hover:text-white transition-colors">
+              Nossa História
+            </Link>
+            <Link href="/produtos-servicos" className="text-sm hover:text-white transition-colors">
+              Produtos e Serviços
+            </Link>
+            <Link href="/divulgue-seu-aniversario" className="text-sm hover:text-white transition-colors">
+              Divulgue seu Aniversário
+            </Link>
+            <Link href="/contatos" className="text-sm hover:text-white transition-colors">
+              Contatos
+            </Link>
+          </nav>
+          <p className="text-center text-sm text-slate-500 pt-8">
+            O site foi feito por Mateus Mendoza{" "}
+            <a
+              href="https://www.instagram.com/devmateusmendoza"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#ff751f] hover:text-[#ff751f]/90 transition-colors"
+            >
+              @devmanteusmendoza
+            </a>
+          </p>
         </div>
       </footer>
     </div>
