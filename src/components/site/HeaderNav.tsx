@@ -30,7 +30,7 @@ export function HeaderNav() {
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (pathname === "/busca") setQ(searchParams.get("q") ?? "");
+    if (pathname === "/busca") setQ(searchParams?.get("q") ?? "");
   }, [pathname, searchParams]);
 
   useEffect(() => {

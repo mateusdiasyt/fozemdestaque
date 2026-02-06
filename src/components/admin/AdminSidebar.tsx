@@ -44,7 +44,7 @@ export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
       <nav className="flex-1 p-4 space-y-1">
         {menuItems.map((item) => {
           if (!permissions.includes(item.perm)) return null;
-          const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+          const isActive = pathname === item.href || (item.href !== "/admin" && pathname?.startsWith(item.href));
           return (
             <Link
               key={item.href}

@@ -25,7 +25,7 @@ export function SearchBar() {
 
   useEffect(() => {
     if (pathname === "/busca") {
-      setQ(searchParams.get("q") ?? "");
+      setQ(searchParams?.get("q") ?? "");
     }
   }, [pathname, searchParams]);
 

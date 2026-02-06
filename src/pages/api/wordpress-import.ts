@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import type { NextApiRequest, NextApiResponse } from "next";
 import { auth, hasPermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { posts, categories } from "@/lib/db/schema";
@@ -6,9 +6,6 @@ import { eq } from "drizzle-orm";
 import { generateId, slugify } from "@/lib/utils";
 import { XMLParser } from "fast-xml-parser";
 import { put } from "@vercel/blob";
-
-export const maxDuration = 300;
-export const dynamic = "force-dynamic";
 
 function normalizeItem(item: unknown): unknown[] {
   if (!item) return [];
@@ -45,42 +42,39 @@ async function downloadAndUploadImage(url: string): Promise<string | null> {
   }
 }
 
-export async function POST(request: Request) {
+export const config = {
+  api: { bodyParser: { sizeLimit: "1mb" } },
+};
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "Método não permitido" });
+  }
+
   try {
-    const session = await auth();
+    const session = await auth(req, res);
     if (!session?.user || !hasPermission((session.user.role as "administrador" | "editor" | "colaborador") ?? "colaborador", "posts")) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+      return res.status(401).json({ ok: false, error: "Não autorizado" });
     }
 
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      return NextResponse.json({ error: "BLOB_READ_WRITE_TOKEN não configurado" }, { status: 500 });
+      return res.status(500).json({ ok: false, error: "BLOB_READ_WRITE_TOKEN não configurado" });
     }
-    let xmlText: string;
-    let offset = 0;
-    let limit = 2;
-    let skipImages = true;
 
-    const contentType = request.headers.get("content-type") ?? "";
-    if (contentType.includes("application/json")) {
-      const body = (await request.json()) as { url?: string; offset?: number; limit?: number; skipImages?: boolean };
-      const url = body?.url;
-      offset = Math.max(0, Number(body?.offset) || 0);
-      limit = Math.min(20, Math.max(1, Number(body?.limit) || 2));
-      skipImages = !!body?.skipImages;
-      if (!url || typeof url !== "string" || !url.startsWith("http")) {
-        return NextResponse.json({ error: "URL do arquivo XML inválida" }, { status: 400 });
-      }
-      const res = await fetch(url, { headers: { "User-Agent": "FozEmDestaque-Import/1.0" } });
-      if (!res.ok) return NextResponse.json({ error: "Falha ao baixar o XML" }, { status: 400 });
-      xmlText = await res.text();
-    } else {
-      const formData = await request.formData();
-      const file = formData.get("file") as File | null;
-      if (!file || !(file instanceof File)) {
-        return NextResponse.json({ error: "Nenhum arquivo XML enviado" }, { status: 400 });
-      }
-      xmlText = await file.text();
+    const body = req.body as { url?: string; offset?: number; limit?: number; skipImages?: boolean };
+    const url = body?.url;
+    const offset = Math.max(0, Number(body?.offset) || 0);
+    const limit = Math.min(20, Math.max(1, Number(body?.limit) || 2));
+    const skipImages = !!body?.skipImages;
+
+    if (!url || typeof url !== "string" || !url.startsWith("http")) {
+      return res.status(400).json({ ok: false, error: "URL do arquivo XML inválida" });
     }
+
+    const fetchRes = await fetch(url, { headers: { "User-Agent": "FozEmDestaque-Import/1.0" } });
+    if (!fetchRes.ok) return res.status(400).json({ ok: false, error: "Falha ao baixar o XML" });
+    const xmlText = await fetchRes.text();
+
     const parser = new XMLParser({
       ignoreAttributes: false,
       attributeNamePrefix: "@_",
@@ -91,7 +85,7 @@ export async function POST(request: Request) {
 
     const channel = parsed?.rss?.channel ?? parsed?.channel;
     if (!channel) {
-      return NextResponse.json({ error: "Formato XML inválido (sem channel)" }, { status: 400 });
+      return res.status(400).json({ ok: false, error: "Formato XML inválido (sem channel)" });
     }
 
     const rawItems = channel.item ?? [];
@@ -104,8 +98,8 @@ export async function POST(request: Request) {
       if (postType !== "attachment") continue;
       const postId = getText(obj["wp:post_id"] ?? obj.post_id);
       const guid = getText(obj.guid);
-      const url = getText(obj["wp:attachment_url"] ?? obj.attachment_url) || guid;
-      if (postId && url && url.startsWith("http")) attachmentMap.set(postId, url);
+      const attUrl = getText(obj["wp:attachment_url"] ?? obj.attachment_url) || guid;
+      if (postId && attUrl && attUrl.startsWith("http")) attachmentMap.set(postId, attUrl);
     }
 
     const wpCategories = normalizeItem(channel["wp:category"] ?? channel.category ?? []);
@@ -223,7 +217,7 @@ export async function POST(request: Request) {
     const nextOffset = offset + batch.length;
     const hasMore = nextOffset < total;
 
-    return NextResponse.json({
+    return res.status(200).json({
       ok: true,
       imported,
       skipped,
@@ -235,6 +229,6 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("[import wordpress]", err);
     const message = err instanceof Error ? err.message : "Erro na importação";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return res.status(500).json({ ok: false, error: message });
   }
 }
