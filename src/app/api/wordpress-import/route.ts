@@ -46,16 +46,15 @@ async function downloadAndUploadImage(url: string): Promise<string | null> {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user || !hasPermission((session.user.role as "administrador" | "editor" | "colaborador") ?? "colaborador", "posts")) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-  }
-
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return NextResponse.json({ error: "BLOB_READ_WRITE_TOKEN não configurado" }, { status: 500 });
-  }
-
   try {
+    const session = await auth();
+    if (!session?.user || !hasPermission((session.user.role as "administrador" | "editor" | "colaborador") ?? "colaborador", "posts")) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return NextResponse.json({ error: "BLOB_READ_WRITE_TOKEN não configurado" }, { status: 500 });
+    }
     let xmlText: string;
     let offset = 0;
     let limit = 5;
@@ -229,8 +228,7 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("[import wordpress]", err);
-    return NextResponse.json({
-      error: err instanceof Error ? err.message : "Erro na importação",
-    }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Erro na importação";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

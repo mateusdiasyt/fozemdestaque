@@ -43,14 +43,15 @@ export function WordPressImportForm() {
           body: JSON.stringify({ url: blob.url, offset, limit }),
         });
         let data: { ok: boolean; imported?: number; skipped?: number; total?: number; hasMore?: boolean; nextOffset?: number; categoriesCreated?: number; error?: string };
+        const text = await res.text();
         try {
-          const parsed = JSON.parse(await res.text());
+          const parsed = JSON.parse(text);
           data = parsed ?? { ok: false, error: "Resposta inválida" };
         } catch {
-          data = { ok: false, error: `Erro ${res.status} - resposta inválida` };
+          data = { ok: false, error: res.status >= 500 ? "Erro no servidor. Verifique os logs da Vercel e as variáveis de ambiente (AUTH_SECRET, BLOB_READ_WRITE_TOKEN, DATABASE_URL)." : `Erro ${res.status}` };
         }
         if (!data.ok) {
-          setResult({ ok: false, error: data.error });
+          setResult({ ok: false, error: data.error ?? `Erro ${res.status}` });
           break;
         }
         totalImported += data.imported ?? 0;
