@@ -55,13 +55,26 @@ export async function POST(request: Request) {
   }
 
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    if (!file || !(file instanceof File)) {
-      return NextResponse.json({ error: "Nenhum arquivo XML enviado" }, { status: 400 });
-    }
+    let xmlText: string;
 
-    const xmlText = await file.text();
+    const contentType = request.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      const body = await request.json() as { url?: string };
+      const url = body?.url;
+      if (!url || typeof url !== "string" || !url.startsWith("http")) {
+        return NextResponse.json({ error: "URL do arquivo XML inválida" }, { status: 400 });
+      }
+      const res = await fetch(url, { headers: { "User-Agent": "FozEmDestaque-Import/1.0" } });
+      if (!res.ok) return NextResponse.json({ error: "Falha ao baixar o XML" }, { status: 400 });
+      xmlText = await res.text();
+    } else {
+      const formData = await request.formData();
+      const file = formData.get("file") as File | null;
+      if (!file || !(file instanceof File)) {
+        return NextResponse.json({ error: "Nenhum arquivo XML enviado" }, { status: 400 });
+      }
+      xmlText = await file.text();
+    }
     const parser = new XMLParser({
       ignoreAttributes: false,
       attributeNamePrefix: "@_",

@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, FileX, Loader2 } from "lucide-react";
+import { upload } from "@vercel/blob/client";
 
 export function WordPressImportForm() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<"idle" | "uploading" | "importing">("idle");
   const [result, setResult] = useState<{ ok: boolean; imported?: number; skipped?: number; categoriesCreated?: number; error?: string } | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -16,21 +18,34 @@ export function WordPressImportForm() {
     setLoading(true);
     setResult(null);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      setStatus("uploading");
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/import/wordpress/upload",
+        multipart: file.size > 10 * 1024 * 1024,
+      });
+      setStatus("importing");
       const res = await fetch("/api/admin/import/wordpress", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: blob.url }),
       });
-      const data = await res.json();
+      let data: NonNullable<typeof result>;
+      try {
+        const parsed = JSON.parse(await res.text()) as typeof result;
+        data = parsed ?? { ok: false, error: "Resposta inválida" };
+      } catch {
+        data = { ok: false, error: `Erro ${res.status} - resposta inválida` };
+      }
       setResult(data);
-      if (data.ok) {
+      if (data?.ok) {
         router.refresh();
       }
     } catch (err) {
       setResult({ ok: false, error: err instanceof Error ? err.message : "Erro na importação" });
     } finally {
       setLoading(false);
+      setStatus("idle");
     }
   }
 
@@ -65,7 +80,7 @@ export function WordPressImportForm() {
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Importando...
+              {status === "uploading" ? "Enviando arquivo..." : "Importando posts..."}
             </>
           ) : (
             <>
