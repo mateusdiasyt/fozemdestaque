@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function AniversarioForm() {
+interface AniversarioFormProps {
+  onClose?: () => void;
+}
+
+export function AniversarioForm({ onClose }: AniversarioFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -58,28 +62,43 @@ export function AniversarioForm() {
 
   if (success) {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-xl p-8 text-center">
-        <p className="text-green-800 font-medium text-lg">Inscrição enviada com sucesso!</p>
-        <p className="text-green-700 text-sm mt-2">
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-8 text-center">
+        <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
+          <svg className="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <p className="text-emerald-800 font-semibold text-lg">Inscrição enviada com sucesso!</p>
+        <p className="text-emerald-700 text-sm mt-2">
           Em breve entraremos em contato. Não esqueça de realizar a taxa de adesão de R$ 28/ano.
         </p>
-        <button
-          onClick={() => setSuccess(false)}
-          className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-        >
-          Enviar outra inscrição
-        </button>
+        <div className="flex flex-wrap justify-center gap-3 mt-6">
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="px-5 py-2.5 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-medium transition-colors"
+            >
+              Fechar
+            </button>
+          )}
+          <button
+            onClick={() => setSuccess(false)}
+            className="px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium transition-colors"
+          >
+            Enviar outra inscrição
+          </button>
+        </div>
       </div>
     );
   }
 
   const inputClass =
-    "w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff751f]/50 focus:border-[#ff751f] text-slate-600";
+    "w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#ff751f]/40 focus:border-[#ff751f] text-slate-700 placeholder:text-slate-400 transition-shadow";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
           {error}
         </div>
       )}
@@ -202,11 +221,11 @@ export function AniversarioForm() {
         </select>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 pt-2">
         <button
           type="submit"
           disabled={loading}
-          className="px-6 py-3 bg-[#ff751f] text-white font-medium rounded-lg hover:bg-[#e56a1a] disabled:opacity-70"
+          className="px-6 py-3 bg-[#ff751f] text-white font-semibold rounded-xl hover:bg-[#e56a1a] disabled:opacity-70 transition-colors shadow-md shadow-[#ff751f]/20"
         >
           {loading ? "Enviando..." : "Enviar inscrição"}
         </button>

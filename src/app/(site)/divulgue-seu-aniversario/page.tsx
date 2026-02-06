@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AniversarioForm } from "@/components/site/AniversarioForm";
+import { AniversarioModal } from "@/components/site/AniversarioModal";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -58,8 +58,11 @@ export default function DivulgueSeuAniversarioPage() {
       </section>
 
       <section className="mb-20">
-        <h2 className="text-lg font-semibold text-slate-900 mb-6">Formulário de Inscrição</h2>
-        <AniversarioForm />
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Formulário de Inscrição</h2>
+        <p className="text-slate-600 mb-6">
+          Preencha seus dados no formulário para fazer parte do HighSocietyClub e aproveitar todas as vantagens.
+        </p>
+        <AniversarioModal />
       </section>
 
       <section className="rounded-2xl bg-slate-50 border border-slate-100 p-8">
