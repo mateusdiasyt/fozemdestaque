@@ -2,32 +2,46 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { posts, categories } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale/pt-BR";
 
-async function getFeaturedPost() {
-  const [post] = await db.select().from(posts)
+async function getFeaturedWithCategory() {
+  const [row] = await db
+    .select({
+      post: posts,
+      categoryName: categories.name,
+      categorySlug: categories.slug,
+    })
+    .from(posts)
+    .leftJoin(categories, eq(posts.categoryId, categories.id))
     .where(eq(posts.status, "publicado"))
     .orderBy(desc(posts.featured), desc(posts.publishedAt))
     .limit(1);
-  return post;
+  return row;
 }
 
-async function getRecentPosts(limit = 6) {
-  return db.select({
-    id: posts.id,
-    title: posts.title,
-    slug: posts.slug,
-    excerpt: posts.excerpt,
-    featuredImage: posts.featuredImage,
-    publishedAt: posts.publishedAt,
-    content: posts.content,
-  })
+async function getRecentPostsWithCategory(limit = 6) {
+  return db
+    .select({
+      id: posts.id,
+      title: posts.title,
+      slug: posts.slug,
+      excerpt: posts.excerpt,
+      featuredImage: posts.featuredImage,
+      publishedAt: posts.publishedAt,
+      content: posts.content,
+      categoryId: posts.categoryId,
+      categoryName: categories.name,
+      categorySlug: categories.slug,
+    })
     .from(posts)
+    .leftJoin(categories, eq(posts.categoryId, categories.id))
     .where(eq(posts.status, "publicado"))
     .orderBy(desc(posts.publishedAt))
     .limit(limit);
 }
+
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale/pt-BR";
+
 
 async function getPostsByCategory(slug: string, limit: number) {
   const [cat] = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
@@ -53,9 +67,9 @@ function estimateReadTime(content: string | null): number {
 }
 
 export default async function HomePage() {
-  const [featured, recent, society, tiTiTi, merchandising, agenda, topProfissional] = await Promise.all([
-    getFeaturedPost(),
-    getRecentPosts(6),
+  const [featuredRow, recent, society, tiTiTi, merchandising, agenda, topProfissional] = await Promise.all([
+    getFeaturedWithCategory(),
+    getRecentPostsWithCategory(6),
     getPostsByCategory("society", 3),
     getPostsByCategory("ti-ti-ti", 3),
     getPostsByCategory("merchandising", 2),
@@ -63,17 +77,18 @@ export default async function HomePage() {
     getPostsByCategory("top-profissional", 2),
   ]);
 
+  const featured = featuredRow?.post;
   const recentFiltered = featured ? recent.filter((p) => p.id !== featured.id).slice(0, 4) : recent.slice(0, 4);
 
   return (
     <div className="space-y-10">
       {/* Hero: Destaque (esq) + Posts recentes (dir) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Destaque do Dia - imagem com overlay */}
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        {/* Destaque do Dia - imagem ocupa toda a altura */}
+        <div className="lg:col-span-2 flex min-h-[320px]">
           {featured ? (
-            <Link href={`/post/${featured.slug}`} className="block group">
-              <article className="relative rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 aspect-[16/10] bg-[#e8ebed]">
+            <Link href={`/post/${featured.slug}`} className="flex-1 block group">
+              <article className="relative h-full min-h-[320px] rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 bg-[#e8ebed]">
                 {featured.featuredImage ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
@@ -87,9 +102,11 @@ export default async function HomePage() {
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <span className="absolute top-4 left-4 px-3 py-1 bg-black/70 text-white text-xs font-medium rounded-full">
-                  Destaque do Dia
-                </span>
+                <div className="absolute top-4 left-4 flex gap-2">
+                  <span className="px-3 py-1 bg-black/70 text-white text-xs font-medium rounded-full">
+                    {featuredRow?.categoryName ?? "Destaque do Dia"}
+                  </span>
+                </div>
                 <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
                   <h3 className="font-headline text-xl md:text-2xl font-bold group-hover:text-[#ff751f] transition-colors leading-tight line-clamp-2">
                     {featured.title}
@@ -105,7 +122,7 @@ export default async function HomePage() {
               </article>
             </Link>
           ) : (
-            <div className="rounded-xl bg-white border-2 border-dashed border-[#859eac] p-12 text-center aspect-[16/10] flex flex-col items-center justify-center">
+            <div className="flex-1 rounded-xl bg-white border-2 border-dashed border-[#859eac] p-12 text-center min-h-[320px] flex flex-col items-center justify-center">
               <p className="text-[#4e5b60]">Nenhuma matéria em destaque no momento.</p>
               <p className="text-sm text-[#859eac] mt-2">Acesse o painel admin para publicar conteúdos.</p>
             </div>
@@ -113,7 +130,7 @@ export default async function HomePage() {
         </div>
 
         {/* Coluna direita - posts recentes */}
-        <div className="space-y-4">
+        <div className="space-y-4 flex flex-col">
           <h2 className="font-headline text-sm font-bold text-[#4e5b60] uppercase tracking-wide mb-4">
             Mais recentes
           </h2>
@@ -132,7 +149,10 @@ export default async function HomePage() {
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="text-xs text-[#859eac]">
-                    {post.publishedAt && format(new Date(post.publishedAt), "dd MMM, yyyy", { locale: ptBR })}
+                    {post.categoryName && (
+                      <span className="font-medium text-[#ff751f]">{post.categoryName} · </span>
+                    )}
+                    {post.publishedAt && format(new Date(post.publishedAt), "dd MMM yyyy", { locale: ptBR })}
                     {" · "}
                     {estimateReadTime(post.content)} min leitura
                   </p>
