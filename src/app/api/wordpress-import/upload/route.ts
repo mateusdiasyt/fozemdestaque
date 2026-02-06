@@ -16,7 +16,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       onBeforeGenerateToken: async () => ({
         allowedContentTypes: ["application/xml", "text/xml"],
         addRandomSuffix: true,
-        maximumSizeInBytes: 500 * 1024 * 1024, // 500MB
+        maximumSizeInBytes: 500 * 1024 * 1024,
         tokenPayload: JSON.stringify({ userId: session.user?.id }),
       }),
       onUploadCompleted: async () => {},

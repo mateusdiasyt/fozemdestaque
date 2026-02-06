@@ -7,7 +7,7 @@ import { generateId, slugify } from "@/lib/utils";
 import { XMLParser } from "fast-xml-parser";
 import { put } from "@vercel/blob";
 
-export const maxDuration = 300; // 5 min for large imports
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 function normalizeItem(item: unknown): unknown[] {

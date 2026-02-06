@@ -21,11 +21,11 @@ export function WordPressImportForm() {
       setStatus("uploading");
       const blob = await upload(file.name, file, {
         access: "public",
-        handleUploadUrl: "/api/admin/wordpress-import/upload",
+        handleUploadUrl: "/api/wordpress-import/upload",
         multipart: file.size > 10 * 1024 * 1024,
       });
       setStatus("importing");
-      const res = await fetch("/api/admin/wordpress-import", {
+      const res = await fetch("/api/wordpress-import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: blob.url }),
