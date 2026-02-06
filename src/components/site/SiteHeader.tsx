@@ -32,6 +32,12 @@ export function SiteHeader() {
             >
               Divulgue seu Aniversário
             </Link>
+            <Link
+              href="/contatos"
+              className="hidden sm:block text-sm text-white/80 hover:text-[#ff751f] transition-colors"
+            >
+              Contatos
+            </Link>
           </div>
 
           <div className="flex items-center gap-6">
