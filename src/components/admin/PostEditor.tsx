@@ -134,7 +134,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     content: post?.content ?? "",
     editorProps: {
       attributes: {
-        class: "prose prose-slate max-w-none min-h-[300px] px-4 py-3 focus:outline-none",
+        class: "prose prose-slate max-w-none min-h-[180px] px-4 py-3 focus:outline-none",
       },
     },
   });
@@ -295,26 +295,26 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const displayDesc = metaDescription || excerpt || "Meta description...";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
+    <form onSubmit={handleSubmit} className="flex flex-col h-full max-w-4xl">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-3 overflow-y-auto min-h-0">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Título</label>
+            <label className="block text-sm font-medium text-slate-700 mb-0.5">Título</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Slug (URL)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-0.5">Slug (URL)</label>
             <input
               type="text"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="url-amigavel"
             />
             {slugWarnings.length > 0 && (
@@ -322,16 +322,16 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Resumo</label>
+            <label className="block text-sm font-medium text-slate-700 mb-0.5">Resumo</label>
             <textarea
               value={excerpt}
               onChange={(e) => setExcerpt(e.target.value)}
-              rows={2}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              rows={1}
+              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Conteúdo</label>
+            <label className="block text-sm font-medium text-slate-700 mb-0.5">Conteúdo</label>
             <EditorToolbar editor={editor} onLinkClick={openLinkPopup} />
             <div className="border border-slate-300 rounded-b-lg overflow-hidden">
               <EditorContent editor={editor} />
@@ -342,10 +342,10 @@ export function PostEditor({ post, categories }: PostEditorProps) {
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-xl border border-slate-200">
-            <h3 className="font-semibold text-slate-800 mb-3">Publicação</h3>
-            <div className="space-y-3">
+        <div className="space-y-3 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-8rem)] overflow-y-auto min-h-0">
+          <div className="bg-white p-3 rounded-xl border border-slate-200">
+            <h3 className="font-semibold text-slate-800 mb-2 text-sm">Publicação</h3>
+            <div className="space-y-2">
               <div>
                 <label className="block text-sm text-slate-600 mb-1">Status</label>
                 <select
@@ -406,9 +406,9 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg"
                 />
                 {featuredImage && (
-                  <div className="mt-2 rounded-lg overflow-hidden border border-slate-200 max-h-32">
+                  <div className="mt-1.5 rounded-lg overflow-hidden border border-slate-200 max-h-20">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={featuredImage} alt="" className="w-full h-auto object-contain max-h-32" onError={(e) => (e.currentTarget.style.display = "none")} />
+                    <img src={featuredImage} alt="" className="w-full h-auto object-contain max-h-20" onError={(e) => (e.currentTarget.style.display = "none")} />
                   </div>
                 )}
                 <label className="block text-sm text-slate-600 mt-2 mb-1">Alt Text (obrigatório para SEO) *</label>
@@ -423,15 +423,15 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200">
-            <h3 className="font-semibold text-slate-800 mb-3">SEO</h3>
+          <div className="bg-white p-3 rounded-xl border border-slate-200">
+            <h3 className="font-semibold text-slate-800 mb-2 text-sm">SEO</h3>
             <button
               type="button"
               onClick={analyzeSEO}
               disabled={seoLoading}
-              className="mb-3 flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-sm"
+              className="mb-2 flex items-center gap-2 px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
             >
-              {seoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
+              {seoLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TrendingUp className="w-3.5 h-3.5" />}
               Analisar SEO
             </button>
             <div className="space-y-2">
@@ -458,7 +458,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                   value={metaDescription}
                   onChange={(e) => setMetaDescription(e.target.value)}
                   maxLength={165}
-                  rows={2}
+                  rows={1}
                   className={cn("w-full px-2 py-1.5 text-sm border rounded", metaDescLen >= 120 && metaDescLen <= 160 ? "border-slate-300" : "border-amber-500")}
                 />
               </div>
@@ -483,46 +483,39 @@ export function PostEditor({ post, categories }: PostEditorProps) {
               </div>
             </div>
 
-            {/* Snippet Preview */}
-            <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <p className="text-xs font-medium text-slate-600 mb-2">Preview no Google</p>
-              <p className="text-blue-600 text-lg truncate">{displayTitle}</p>
-              <p className="text-green-700 text-sm mt-0.5">{typeof window !== "undefined" ? window.location.origin : ""}/post/{slug || "url"}</p>
-              <p className="text-slate-600 text-sm mt-0.5 line-clamp-2">{displayDesc}</p>
-            </div>
-
-            {/* Densidade da keyword */}
-            {densityCheck && focusKeyword && (
-              <div className="mt-3 p-3 bg-slate-50 rounded-lg text-xs space-y-1">
-                <p className="font-medium text-slate-700">Densidade da keyword</p>
-                <p className={densityCheck.h1 ? "text-green-600" : "text-slate-500"}>✓ No H1/Título: {densityCheck.h1 ? "Sim" : "Não"}</p>
-                <p className={densityCheck.firstP ? "text-green-600" : "text-slate-500"}>✓ No 1º parágrafo: {densityCheck.firstP ? "Sim" : "Não"}</p>
-                <p className={densityCheck.url ? "text-green-600" : "text-slate-500"}>✓ Na URL: {densityCheck.url ? "Sim" : "Não"}</p>
-              </div>
-            )}
-
-            {seoAnalysis && (
-              <div className="mt-3 p-3 bg-slate-50 rounded-lg text-xs space-y-2">
-                <div className={cn("font-medium flex items-center gap-2", statusColors[seoAnalysis.overall])}>
-                  {seoAnalysis.overall === "good" && <Check className="w-4 h-4" />}
-                  {seoAnalysis.overall === "bad" && <AlertCircle className="w-4 h-4" />}
-                  SEO {seoAnalysis.overall === "good" ? "Bom" : seoAnalysis.overall === "medium" ? "Médio" : "Ruim"}
+            <details className="mt-2 group">
+              <summary className="text-xs font-medium text-slate-600 cursor-pointer hover:text-slate-800">Preview & Análise</summary>
+              <div className="mt-2 space-y-2">
+                <div className="p-2 bg-slate-50 rounded border border-slate-200 text-xs">
+                  <p className="text-blue-600 font-medium truncate">{displayTitle}</p>
+                  <p className="text-green-700">{typeof window !== "undefined" ? window.location.origin : ""}/post/{slug || "url"}</p>
+                  <p className="text-slate-600 line-clamp-2">{displayDesc}</p>
                 </div>
-                <p className={statusColors[seoAnalysis.metaTitle.status]}>{seoAnalysis.metaTitle.message}</p>
-                <p className={statusColors[seoAnalysis.metaDescription.status]}>{seoAnalysis.metaDescription.message}</p>
-                <p className={statusColors[seoAnalysis.focusKeyword.status]}>{seoAnalysis.focusKeyword.message}</p>
-                <p className={statusColors[seoAnalysis.headings.structure]}>{seoAnalysis.headings.message}</p>
-                <p className={statusColors[seoAnalysis.contentLength.status]}>{seoAnalysis.contentLength.message}</p>
+                {densityCheck && focusKeyword && (
+                  <div className="p-2 bg-slate-50 rounded border border-slate-200 text-xs space-y-0.5">
+                    <p className={densityCheck.h1 ? "text-green-600" : "text-slate-500"}>H1: {densityCheck.h1 ? "✓" : "✗"}</p>
+                    <p className={densityCheck.firstP ? "text-green-600" : "text-slate-500"}>1º parágrafo: {densityCheck.firstP ? "✓" : "✗"}</p>
+                    <p className={densityCheck.url ? "text-green-600" : "text-slate-500"}>URL: {densityCheck.url ? "✓" : "✗"}</p>
+                  </div>
+                )}
+                {seoAnalysis && (
+                  <div className="p-2 bg-slate-50 rounded border border-slate-200 text-xs space-y-1">
+                    <p className={cn("font-medium", statusColors[seoAnalysis.overall])}>SEO: {seoAnalysis.overall === "good" ? "Bom" : seoAnalysis.overall === "medium" ? "Médio" : "Ruim"}</p>
+                    <p className={statusColors[seoAnalysis.metaTitle.status]}>{seoAnalysis.metaTitle.message}</p>
+                    <p className={statusColors[seoAnalysis.metaDescription.status]}>{seoAnalysis.metaDescription.message}</p>
+                  </div>
+                )}
               </div>
-            )}
+            </details>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200">
-            <h3 className="font-semibold text-slate-800 mb-2">FAQ (JSON-LD)</h3>
-            <p className="text-xs text-slate-500 mb-2">Perguntas e respostas para Featured Snippets</p>
-            {faqItems.map((item, i) => (
-              <div key={i} className="mb-3 p-3 bg-slate-50 rounded-lg flex gap-2">
-                <div className="flex-1 space-y-2">
+          <details className="bg-white rounded-xl border border-slate-200 group">
+            <summary className="font-semibold text-slate-800 p-3 cursor-pointer hover:bg-slate-50 rounded-xl text-sm">FAQ (JSON-LD)</summary>
+            <div className="px-3 pb-3 pt-0 border-t border-slate-100">
+              <p className="text-xs text-slate-500 mb-2 mt-2">Perguntas e respostas para Featured Snippets</p>
+              {faqItems.map((item, i) => (
+              <div key={i} className="mb-2 p-2 bg-slate-50 rounded-lg flex gap-2">
+                <div className="flex-1 space-y-1">
                   <input
                     type="text"
                     value={item.q}
@@ -534,8 +527,8 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                     value={item.a}
                     onChange={(e) => updateFaqItem(i, "a", e.target.value)}
                     placeholder="Resposta"
-                    rows={2}
-                    className="w-full px-2 py-1.5 text-sm border rounded"
+                    rows={1}
+                    className="w-full px-2 py-1.5 text-sm border rounded resize-none"
                   />
                 </div>
                 <button type="button" onClick={() => removeFaqItem(i)} className="p-2 text-red-600 hover:bg-red-50 rounded">
@@ -546,8 +539,30 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             <button type="button" onClick={addFaqItem} className="text-sm text-blue-600 hover:underline">
               + Adicionar FAQ
             </button>
-          </div>
+            </div>
+          </details>
         </div>
+      </div>
+
+      <div className="shrink-0 flex gap-3 pt-4">
+        <button
+          type="submit"
+          disabled={loading}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+        >
+          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+          {post ? "Salvar" : "Criar"}
+        </button>
+        {post && (
+          <a
+            href={`/post/${post.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-6 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
+          >
+            Visualizar
+          </a>
+        )}
       </div>
 
       {linkPopup && (
@@ -581,27 +596,6 @@ export function PostEditor({ post, categories }: PostEditorProps) {
           </div>
         </div>
       )}
-
-      <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-        >
-          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {post ? "Salvar" : "Criar"}
-        </button>
-        {post && (
-          <a
-            href={`/post/${post.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
-          >
-            Visualizar
-          </a>
-        )}
-      </div>
     </form>
   );
 }
@@ -609,7 +603,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
 function EditorToolbar({ editor, onLinkClick }: { editor: Editor | null; onLinkClick: () => void }) {
   if (!editor) return null;
   return (
-    <div className="flex flex-wrap gap-1 p-2 bg-slate-100 border border-slate-300 border-b-0 rounded-t-lg">
+    <div className="flex flex-wrap gap-1 p-1.5 bg-slate-100 border border-slate-300 border-b-0 rounded-t-lg">
       <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className="p-2 rounded hover:bg-slate-200">
         <Bold className="w-4 h-4" />
       </button>
