@@ -25,9 +25,17 @@ export default function SiteLayout({
         </aside>
       </div>
       <FooterBanner />
-      <footer className="bg-[#4e5b60] text-[#859eac] py-8 text-center text-sm">
+      <footer className="bg-black text-slate-300 py-8 text-center text-sm">
         <div className="max-w-7xl mx-auto px-4">
-          © {new Date().getFullYear()} Foz em Destaque. Todos os direitos reservados.
+          O site foi feito por Mateus Mendoza{" "}
+          <a
+            href="https://www.instagram.com/devmateusmendoza"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#ff751f] hover:underline"
+          >
+            @devmanteusmendoza
+          </a>
         </div>
       </footer>
     </div>
