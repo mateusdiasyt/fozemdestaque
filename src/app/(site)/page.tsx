@@ -185,60 +185,30 @@ export default async function HomePage() {
               Aniversariantes do dia
             </h2>
           </Link>
-          <div className="bg-white rounded-xl shadow-sm border border-[#e8ebed] overflow-hidden">
+          <div className="space-y-4">
             {aniversariantes ? (
-              <div className="divide-y divide-[#e8ebed]">
-                {aniversariantes.map((item) => (
-                  <div key={item.id} className="p-4">
-                    {item.link ? (
-                      <Link href={item.link} className="block hover:bg-[#f8f9fa] -m-4 p-4 transition-colors group">
-                        <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors text-sm">
-                          {item.title}
-                        </h3>
-                        {item.excerpt && (
-                          <p className="text-xs text-[#859eac] line-clamp-1 mt-0.5">{item.excerpt}</p>
-                        )}
-                      </Link>
-                    ) : (
-                      <div>
-                        <h3 className="font-headline font-bold text-[#4e5b60] text-sm">{item.title}</h3>
-                        {item.excerpt && (
-                          <p className="text-xs text-[#859eac] line-clamp-1 mt-0.5">{item.excerpt}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              aniversariantes.map((item) => (
+                <AniversarianteCard
+                  key={item.id}
+                  title={item.title}
+                  excerpt={item.excerpt}
+                  image={item.thumbnail}
+                  href={item.link}
+                />
+              ))
             ) : aniversariosPosts.length > 0 ? (
-              <div className="divide-y divide-[#e8ebed]">
-                {aniversariosPosts.map((post) => (
-                  <Link key={post.id} href={`/post/${post.slug}`} className="flex gap-4 p-4 hover:bg-[#f8f9fa] transition-colors group">
-                    {post.featuredImage ? (
-                      <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden bg-[#e8ebed]">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={post.featuredImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                      </div>
-                    ) : (
-                      <div className="w-16 h-16 shrink-0 rounded-lg bg-[#e8ebed] flex items-center justify-center">
-                        <span className="text-[#859eac] text-xs">Foz</span>
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors text-sm">
-                        {post.title}
-                      </h3>
-                      {post.publishedAt && (
-                        <p className="text-xs text-[#859eac] mt-0.5">
-                          {format(new Date(post.publishedAt), "dd/MM/yyyy", { locale: ptBR })}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
+              aniversariosPosts.map((post) => (
+                <AniversarianteCard
+                  key={post.id}
+                  title={post.title}
+                  excerpt={post.excerpt}
+                  image={post.featuredImage}
+                  href={`/post/${post.slug}`}
+                  date={post.publishedAt}
+                />
+              ))
             ) : (
-              <div className="p-6 text-center text-[#859eac] text-sm">
+              <div className="bg-white rounded-xl shadow-sm border border-[#e8ebed] p-6 text-center text-[#859eac] text-sm">
                 Nenhum aniversariante hoje. Confira em{" "}
                 <Link href="/categoria/aniversarios" className="text-[#ff751f] hover:underline">
                   Aniversários
@@ -308,6 +278,54 @@ export default async function HomePage() {
       </div>
     </div>
   );
+}
+
+function AniversarianteCard({
+  title,
+  excerpt,
+  image,
+  href,
+  date,
+}: {
+  title: string;
+  excerpt: string | null;
+  image: string | null;
+  href: string | null;
+  date?: Date | null;
+}) {
+  const content = (
+    <article className="rounded-xl overflow-hidden shadow-sm border border-[#e8ebed] bg-white hover:shadow-md transition-shadow group">
+      <div className="aspect-[16/9] min-h-[100px] bg-[#e8ebed]">
+        {image ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={image}
+            alt=""
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-[#859eac] text-2xl">🎂</span>
+          </div>
+        )}
+      </div>
+      <div className="p-3">
+        <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors text-sm">
+          {title}
+        </h3>
+        {excerpt && <p className="text-xs text-[#859eac] line-clamp-1 mt-0.5">{excerpt}</p>}
+        {date && (
+          <p className="text-xs text-[#859eac] mt-1">
+            {format(new Date(date), "dd/MM/yyyy", { locale: ptBR })}
+          </p>
+        )}
+      </div>
+    </article>
+  );
+  if (href) {
+    return <Link href={href} className="block">{content}</Link>;
+  }
+  return content;
 }
 
 function ContentSection({
