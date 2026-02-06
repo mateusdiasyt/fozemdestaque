@@ -295,7 +295,7 @@ function AniversarianteCard({
 }) {
   const content = (
     <article className="rounded-xl overflow-hidden shadow-sm border border-[#e8ebed] bg-white hover:shadow-md transition-shadow group">
-      <div className="aspect-[16/9] min-h-[100px] bg-[#e8ebed]">
+      <div className="aspect-[3/1] max-h-[120px] bg-[#e8ebed]">
         {image ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
