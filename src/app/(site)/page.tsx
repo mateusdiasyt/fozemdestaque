@@ -296,18 +296,16 @@ function AniversarianteCard({
           </div>
         )}
       </div>
-      <div className="p-3 h-[72px] flex flex-col justify-between overflow-hidden">
-        <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors text-sm">
+      <div className="p-3 min-h-[88px] flex flex-col gap-1">
+        <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors text-sm leading-snug">
           {title}
         </h3>
-        <div>
-          {excerpt && <p className="text-xs text-[#859eac] line-clamp-1 mt-0.5">{excerpt}</p>}
-          {date && (
-            <p className="text-xs text-[#859eac] mt-1">
-              {format(new Date(date), "dd/MM/yyyy", { locale: ptBR })}
-            </p>
-          )}
-        </div>
+        {excerpt && <p className="text-xs text-[#859eac] line-clamp-1">{excerpt}</p>}
+        {date && (
+          <p className="text-xs text-[#859eac]">
+            {format(new Date(date), "dd/MM/yyyy", { locale: ptBR })}
+          </p>
+        )}
       </div>
     </article>
   );
