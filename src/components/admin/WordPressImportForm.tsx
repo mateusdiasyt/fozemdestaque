@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FileXml, Loader2 } from "lucide-react";
+import { Upload, FileX, Loader2 } from "lucide-react";
 
 export function WordPressImportForm() {
   const router = useRouter();
@@ -37,7 +37,7 @@ export function WordPressImportForm() {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
       <h2 className="text-lg font-semibold text-slate-800 mb-3 flex items-center gap-2">
-        <FileXml className="w-5 h-5 text-amber-500" />
+        <FileX className="w-5 h-5 text-amber-500" />
         Importar do WordPress
       </h2>
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
