@@ -1,0 +1,15 @@
+---
+description: Fazer push após alterações (deploy automático)
+alwaysApply: true
+---
+
+# Git Push após alterações
+
+Após fazer alterações no código deste projeto:
+
+1. Verificar o status com `git status`
+2. Adicionar os arquivos: `git add .`
+3. Fazer commit com mensagem descritiva: `git commit -m "tipo(escopo): descrição"`
+4. Fazer push: `git push`
+
+O projeto tem deploy automático ao fazer push, então é importante executar o push sempre que houver mudanças para enviá-las ao ambiente de produção.
