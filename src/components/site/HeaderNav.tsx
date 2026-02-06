@@ -220,7 +220,7 @@ export function HeaderNav() {
       </header>
       <nav className="bg-white border-b border-[#e8ebed] overflow-x-auto">
         <div className="max-w-7xl mx-auto px-4 py-2.5">
-          <div className="flex items-center gap-x-6 text-sm flex-nowrap min-w-max">
+          <div className="flex items-center gap-x-6 text-sm flex-nowrap w-full">
             {MENU_ITEMS.slice(0, 8).map((item) => (
               <Link
                 key={item.href}
@@ -230,7 +230,7 @@ export function HeaderNav() {
                 {item.label}
               </Link>
             ))}
-            <div className="relative shrink-0" ref={moreRef}>
+            <div className="relative shrink-0 ml-auto" ref={moreRef}>
               <button
                 type="button"
                 onClick={() => setMoreOpen(!moreOpen)}
