@@ -10,10 +10,12 @@ import {
   Tag,
   Star,
   Crown,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
 const MENU_ITEMS: { label: string; href: string; icon: LucideIcon }[] = [
+  { label: "Nossa História", href: "/nossa-historia", icon: BookOpen },
   { label: "Reflexão", href: "/categoria/reflexao", icon: Lightbulb },
   { label: "Datas", href: "/categoria/datas", icon: Calendar },
   { label: "Aniversários", href: "/categoria/aniversarios", icon: Cake },

@@ -7,12 +7,20 @@ export function SiteHeader() {
     <header className="bg-[#000000]">
       <div className="max-w-7xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between gap-4">
-          <Link
-            href="/"
-            className="text-xl font-semibold tracking-tight text-white hover:text-[#ff751f] transition-colors"
-          >
-            Foz em <span className="text-[#ff751f]">Destaque</span>
-          </Link>
+          <div className="flex items-center gap-6">
+            <Link
+              href="/"
+              className="text-xl font-semibold tracking-tight text-white hover:text-[#ff751f] transition-colors"
+            >
+              Foz em <span className="text-[#ff751f]">Destaque</span>
+            </Link>
+            <Link
+              href="/nossa-historia"
+              className="hidden sm:block text-sm text-white/80 hover:text-[#ff751f] transition-colors"
+            >
+              Nossa História
+            </Link>
+          </div>
 
           <div className="flex items-center gap-6">
             <VisitCounter />
