@@ -165,7 +165,7 @@ export default function NossaHistoriaPage() {
           <li>
             <strong>Redes Sociais:</strong>{" "}
             <a
-              href="https://www.instagram.com/fozemdestaque"
+              href="https://www.instagram.com/fozemdestaque/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[#ff751f] hover:underline"
@@ -174,7 +174,7 @@ export default function NossaHistoriaPage() {
             </a>
             {" · "}
             <a
-              href="https://www.facebook.com/fozemdestaque"
+              href="https://www.facebook.com/FozEmDestaque/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[#ff751f] hover:underline"
@@ -183,12 +183,21 @@ export default function NossaHistoriaPage() {
             </a>
             {" · "}
             <a
-              href="https://www.twitter.com/fozemdestaque"
+              href="https://www.youtube.com/c/FozemDestaque"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[#ff751f] hover:underline"
             >
-              Twitter
+              YouTube
+            </a>
+            {" · "}
+            <a
+              href="https://x.com/fozemdestaque"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#ff751f] hover:underline"
+            >
+              X
             </a>
           </li>
           <li>
