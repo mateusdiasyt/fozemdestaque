@@ -164,7 +164,7 @@ export function AniversariosManager({ submissions }: { submissions: Submission[]
                       borderRadius: "8px",
                       color: "#f1f5f9",
                     }}
-                    formatter={(value: number) => [value, "inscrições"]}
+                    formatter={(value: number | undefined) => [value ?? 0, "inscrições"]}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -202,7 +202,7 @@ export function AniversariosManager({ submissions }: { submissions: Submission[]
                     borderRadius: "8px",
                     color: "#f1f5f9",
                   }}
-                  formatter={(value: number) => [value, "aniversariantes"]}
+                  formatter={(value: number | undefined) => [value ?? 0, "aniversariantes"]}
                 />
               </BarChart>
             </ResponsiveContainer>
