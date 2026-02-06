@@ -203,9 +203,15 @@ export function HeaderNav() {
             {/* Centro: Logo */}
             <Link
               href="/"
-              className="absolute left-1/2 -translate-x-1/2 text-xl font-semibold tracking-tight text-white hover:text-[#ff751f] transition-colors"
+              className="absolute left-1/2 -translate-x-1/2 flex items-center hover:opacity-90 transition-opacity"
+              aria-label="Foz em Destaque - Página inicial"
             >
-              Foz em <span className="text-[#ff751f]">Destaque</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/logo-foz-em-destaque.png"
+                alt="Foz em Destaque"
+                className="h-10 w-auto"
+              />
             </Link>
 
             {/* Direita: Visitas + Relógio */}
