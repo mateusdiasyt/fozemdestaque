@@ -74,7 +74,7 @@ export function AniversarioForm() {
   }
 
   const inputClass =
-    "w-full px-4 py-2.5 border border-[#e8ebed] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff751f]/50 focus:border-[#ff751f] text-[#4e5b60]";
+    "w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff751f]/50 focus:border-[#ff751f] text-slate-600";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -86,83 +86,83 @@ export function AniversarioForm() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">Nome completo *</label>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Nome completo *</label>
           <input name="nomeCompleto" required className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">CPF / RUC / CUIT *</label>
+          <label className="block text-sm font-medium text-slate-600 mb-1">CPF / RUC / CUIT *</label>
           <input name="cpfRucCuit" required className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">
+          <label className="block text-sm font-medium text-slate-600 mb-1">
             Documento identidade / Órgão emissor
           </label>
           <input name="documentoIdentidade" className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">Data de nascimento *</label>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Data de nascimento *</label>
           <input name="dataNascimento" type="date" required className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">
+          <label className="block text-sm font-medium text-slate-600 mb-1">
             Cidade/Estado/País de nascimento
           </label>
           <input name="cidadeNascimento" className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">
+          <label className="block text-sm font-medium text-slate-600 mb-1">
             Cidade onde reside *
           </label>
           <input name="cidadeReside" required className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">
+          <label className="block text-sm font-medium text-slate-600 mb-1">
             Nome social (que irá aparecer na homenagem) *
           </label>
           <input name="nomeSocial" required className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">Fone contato</label>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Fone contato</label>
           <input name="foneContato" type="tel" className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">Email *</label>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Email *</label>
           <input name="email" type="email" required className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">Profissão *</label>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Profissão *</label>
           <input name="profissao" required className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">
+          <label className="block text-sm font-medium text-slate-600 mb-1">
             Empresa na qual atua *
           </label>
           <input name="empresaAtual" required className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">Cargo</label>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Cargo</label>
           <input name="cargo" className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">
+          <label className="block text-sm font-medium text-slate-600 mb-1">
             Redes sociais - Instagram *
           </label>
           <input name="instagram" required className={inputClass} placeholder="@usuario" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">
+          <label className="block text-sm font-medium text-slate-600 mb-1">
             Redes sociais - Facebook *
           </label>
           <input name="facebook" required className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">
+          <label className="block text-sm font-medium text-slate-600 mb-1">
             Redes sociais - Instagram profissional
           </label>
           <input name="instagramProfissional" className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">Estado civil *</label>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Estado civil *</label>
           <select name="estadoCivil" required className={inputClass}>
             <option value="">Selecione</option>
             <option value="casado">Casado(a)</option>
@@ -172,17 +172,17 @@ export function AniversarioForm() {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">Nome do cônjuge</label>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Nome do cônjuge</label>
           <input name="nomeConjuge" className={inputClass} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#4e5b60] mb-1">Data do casamento</label>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Data do casamento</label>
           <input name="dataCasamento" type="date" className={inputClass} />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-[#4e5b60] mb-1">
+        <label className="block text-sm font-medium text-slate-600 mb-1">
           Outras informações (opcional)
         </label>
         <textarea
@@ -194,7 +194,7 @@ export function AniversarioForm() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-[#4e5b60] mb-2">
+        <label className="block text-sm font-medium text-slate-600 mb-2">
           Autorizo a publicação da homenagem em meu aniversário *
         </label>
         <select name="autorizaPublicacao" required className={inputClass + " max-w-xs"}>

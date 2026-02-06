@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
+import { ExternalLink } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Produtos e Serviços",
@@ -8,102 +9,110 @@ export const metadata: Metadata = {
     "Marketing, filmagem de eventos, cobertura fotográfica e eventos de beleza. Seja destaque na coluna social.",
 };
 
+const FILMAGEM_ITENS = [
+  "Câmera Man profissional",
+  "Repórter",
+  "Equipamentos profissionais",
+  "Edição do vídeo",
+  "Divulgação na Foz TV",
+  "Divulgação em nossas mídias: Portal, fanpage e Instagram @fozemdestaque",
+];
+
+const COBERTURA_ITENS = [
+  "Fotógrafo profissional",
+  "Equipamentos profissionais",
+  "Fotos com tratamento digital",
+  "Divulgação em nossas mídias: Portal, fanpage e Instagram @fozemdestaque",
+];
+
 export default function ProdutosServicosPage() {
   return (
-    <div className="space-y-12">
-      <header>
-        <Link
-          href="/"
-          className="text-sm text-[#ff751f] hover:text-[#e56a1a] font-medium mb-2 inline-block"
-        >
-          ← Voltar ao início
-        </Link>
-        <div className="flex items-center gap-3 mb-2">
-          <span className="h-1 w-12 bg-[#ff751f] rounded" />
-          <h1 className="font-headline text-2xl md:text-4xl font-bold text-[#000000]">
-            Produtos e Serviços
-          </h1>
-        </div>
+    <article className="max-w-3xl mx-auto">
+      <Link
+        href="/"
+        className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#ff751f] transition-colors mb-12"
+      >
+        ← Voltar ao início
+      </Link>
+
+      <header className="mb-16">
+        <h1 className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tight">
+          Produtos e Serviços
+        </h1>
+        <p className="mt-6 text-slate-600 text-lg leading-relaxed">
+          Seja destaque em nossa coluna social e ganhe relevância no Google. Participe e apareça em
+          nossos eventos.
+        </p>
       </header>
 
-      <section>
-        <h2 className="font-headline text-xl font-bold text-[#000000] mb-4 flex items-center gap-2">
-          <span className="h-1 w-8 bg-[#ff751f] rounded" />
-          Marketing e Propaganda
-        </h2>
-        <p className="text-[#4e5b60] text-lg">
-          Seja destaque em nossa coluna social e ganhe relevância no Google.
-        </p>
-        <p className="text-[#4e5b60] mt-2">
-          Participe e apareça em nossos eventos:
-        </p>
-      </section>
-
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Filmagem de eventos */}
-        <div className="bg-white rounded-xl border border-[#e8ebed] p-6 shadow-sm hover:shadow-md transition-shadow">
-          <h3 className="font-headline text-lg font-bold text-[#ff751f] mb-4">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <h3 className="text-sm font-semibold text-[#ff751f] uppercase tracking-wider mb-4">
             Filmagem de eventos
           </h3>
-          <p className="text-[#4e5b60] text-sm mb-4">Inclui:</p>
-          <ul className="space-y-2 text-[#4e5b60] text-sm">
-            <li>• Câmera Man profissional</li>
-            <li>• Repórter</li>
-            <li>• Equipamentos profissionais</li>
-            <li>• Edição do vídeo</li>
-            <li>• Divulgação na Foz TV</li>
-            <li>• Divulgação em nossas mídias: Portal, fanpage e Instagram @fozemdestaque</li>
+          <p className="text-slate-600 text-sm mb-4">Inclui:</p>
+          <ul className="space-y-3">
+            {FILMAGEM_ITENS.map((item, i) => (
+              <li key={i} className="text-slate-600 text-sm leading-relaxed flex gap-3">
+                <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5" />
+                {item}
+              </li>
+            ))}
           </ul>
         </div>
 
-        {/* Eventos de beleza */}
-        <div className="bg-white rounded-xl border border-[#e8ebed] p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex justify-center mb-4">
-            <div className="relative h-24 w-48">
+            <div className="relative h-20 w-40">
               <Image
                 src="/images/produtos-servicos/certames-de-beleza.png"
                 alt="Certames de Beleza"
                 fill
                 className="object-contain"
-                sizes="192px"
+                sizes="160px"
               />
             </div>
           </div>
-          <h3 className="font-headline text-lg font-bold text-[#ff751f] mb-4">
+          <h3 className="text-sm font-semibold text-[#ff751f] uppercase tracking-wider mb-4">
             Eventos de beleza
           </h3>
-          <p className="text-[#4e5b60] text-sm mb-4">
+          <p className="text-slate-600 text-sm mb-4">
             Patrocine e participe de nossos eventos de beleza:
           </p>
-          <ul className="space-y-1 text-[#4e5b60] text-sm font-medium">
-            <li>• MISS FOZ DO IGUAÇU</li>
-            <li>• RAINHA DO TURISMO</li>
-            <li>• MISS PARANÁ GLOBO</li>
+          <ul className="space-y-3 mb-6">
+            {["MISS FOZ DO IGUAÇU", "RAINHA DO TURISMO", "MISS PARANÁ GLOBO"].map((item, i) => (
+              <li key={i} className="text-slate-600 text-sm font-medium flex gap-3">
+                <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5" />
+                {item}
+              </li>
+            ))}
           </ul>
-          <Link
+          <a
             href="https://www.certamesdebeleza.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block mt-4 text-sm text-[#ff751f] hover:underline font-medium"
+            className="inline-flex items-center gap-2 text-sm text-[#ff751f] hover:text-[#e56a1a] transition-colors"
           >
-            Saiba mais em certamesdebeleza.com →
-          </Link>
+            Saiba mais em certamesdebeleza.com
+            <ExternalLink className="w-4 h-4" />
+          </a>
         </div>
 
-        {/* Cobertura fotográfica */}
-        <div className="bg-white rounded-xl border border-[#e8ebed] p-6 shadow-sm hover:shadow-md transition-shadow">
-          <h3 className="font-headline text-lg font-bold text-[#ff751f] mb-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <h3 className="text-sm font-semibold text-[#ff751f] uppercase tracking-wider mb-4">
             Cobertura fotográfica
           </h3>
-          <p className="text-[#4e5b60] text-sm mb-4">Inclui:</p>
-          <ul className="space-y-2 text-[#4e5b60] text-sm">
-            <li>• Fotógrafo profissional</li>
-            <li>• Equipamentos profissionais</li>
-            <li>• Fotos com tratamento digital</li>
-            <li>• Divulgação em nossas mídias: Portal, fanpage e Instagram @fozemdestaque</li>
+          <p className="text-slate-600 text-sm mb-4">Inclui:</p>
+          <ul className="space-y-3">
+            {COBERTURA_ITENS.map((item, i) => (
+              <li key={i} className="text-slate-600 text-sm leading-relaxed flex gap-3">
+                <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5" />
+                {item}
+              </li>
+            ))}
           </ul>
         </div>
       </section>
-    </div>
+    </article>
   );
 }
