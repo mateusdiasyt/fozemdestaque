@@ -3,7 +3,7 @@ import { HeaderBanner } from "@/components/site/HeaderBanner";
 import { PresentationBar } from "@/components/site/PresentationBar";
 
 export const dynamic = "force-dynamic";
-import { SiteHeader } from "@/components/site/SiteHeader";
+import { HeaderNav } from "@/components/site/HeaderNav";
 import { Sidebar } from "@/components/site/Sidebar";
 import { FooterBanner } from "@/components/site/FooterBanner";
 import { LateralBanners } from "@/components/site/LateralBanners";
@@ -15,7 +15,7 @@ export default function SiteLayout({
 }) {
   return (
     <div className="min-h-screen flex flex-col bg-[#f5f6f7]">
-      <SiteHeader />
+      <HeaderNav />
       <HeaderBanner />
       <PresentationBar />
       <div className="flex-1 flex gap-6 max-w-7xl mx-auto w-full px-4 py-8">
