@@ -25,7 +25,9 @@ import {
   AlertCircle,
   TrendingUp,
   X,
+  HelpCircle,
 } from "lucide-react";
+import { EditorHelpContent } from "./EditorHelpContent";
 
 interface Category {
   id: string;
@@ -108,6 +110,17 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const [loading, setLoading] = useState(false);
   const [seoAnalysis, setSeoAnalysis] = useState<SEOAnalysis | null>(null);
   const [seoLoading, setSeoLoading] = useState(false);
+  const [helpPopup, setHelpPopup] = useState(false);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setHelpPopup(false);
+    };
+    if (helpPopup) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [helpPopup]);
 
   useEffect(() => {
     if (post?.faqJson) {
@@ -296,6 +309,17 @@ export function PostEditor({ post, categories }: PostEditorProps) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col h-full w-full max-w-6xl">
+      <div className="flex justify-end mb-2">
+        <button
+          type="button"
+          onClick={() => setHelpPopup(true)}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+          title="Ajuda"
+        >
+          <HelpCircle className="w-4 h-4" />
+          Ajuda
+        </button>
+      </div>
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-4 gap-4">
         <div className="lg:col-span-2 space-y-3 overflow-y-auto min-h-0">
           <div>
@@ -566,6 +590,36 @@ export function PostEditor({ post, categories }: PostEditorProps) {
           </a>
         )}
       </div>
+
+      {helpPopup && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setHelpPopup(false)}
+          role="button"
+          tabIndex={0}
+          aria-label="Fechar ajuda"
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 shrink-0">
+              <h2 className="text-lg font-semibold text-slate-900">Guia do Editor de Posts</h2>
+              <button
+                type="button"
+                onClick={() => setHelpPopup(false)}
+                className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              <EditorHelpContent />
+            </div>
+          </div>
+        </div>
+      )}
 
       {linkPopup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
