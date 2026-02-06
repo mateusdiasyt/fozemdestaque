@@ -70,7 +70,7 @@ export default function NossaHistoriaPage() {
       <section className="mb-20">
         <div className="relative w-full aspect-[4/3] max-w-xl mx-auto rounded-2xl overflow-hidden bg-slate-100">
           <Image
-            src="/images/nossa-historia/fundadores-das-gracas-ary.png"
+            src="/images/nossa-historia/marco-ana.png"
             alt="Das Graças e Ary de Campos, fundadores da Foz em Destaque"
             fill
             className="object-contain"
@@ -146,7 +146,7 @@ export default function NossaHistoriaPage() {
         </p>
         <div className="relative w-full aspect-[4/3] max-w-xl mx-auto rounded-2xl overflow-hidden bg-slate-100">
           <Image
-            src="/images/nossa-historia/marco-ana.png"
+            src="/images/nossa-historia/fundadores-das-gracas-ary.png"
             alt="Marco Antonio Freire e Ana Tereza Carvalho"
             fill
             className="object-contain"
