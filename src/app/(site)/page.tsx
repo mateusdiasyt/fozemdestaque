@@ -281,8 +281,8 @@ function AniversarianteCard({
   placeholderIcon?: string;
 }) {
   const content = (
-    <article className="rounded-xl overflow-hidden shadow-sm border border-[#e8ebed] bg-white hover:shadow-md transition-shadow group">
-      <div className="aspect-[3/1] max-h-[120px] bg-[#e8ebed]">
+    <article className="flex flex-col h-full rounded-xl overflow-hidden shadow-sm border border-[#e8ebed] bg-white hover:shadow-md transition-shadow group">
+      <div className="aspect-[3/1] max-h-[120px] shrink-0 bg-[#e8ebed]">
         {image ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -296,16 +296,18 @@ function AniversarianteCard({
           </div>
         )}
       </div>
-      <div className="p-3">
+      <div className="p-3 h-[72px] flex flex-col justify-between overflow-hidden">
         <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors text-sm">
           {title}
         </h3>
-        {excerpt && <p className="text-xs text-[#859eac] line-clamp-1 mt-0.5">{excerpt}</p>}
-        {date && (
-          <p className="text-xs text-[#859eac] mt-1">
-            {format(new Date(date), "dd/MM/yyyy", { locale: ptBR })}
-          </p>
-        )}
+        <div>
+          {excerpt && <p className="text-xs text-[#859eac] line-clamp-1 mt-0.5">{excerpt}</p>}
+          {date && (
+            <p className="text-xs text-[#859eac] mt-1">
+              {format(new Date(date), "dd/MM/yyyy", { locale: ptBR })}
+            </p>
+          )}
+        </div>
       </div>
     </article>
   );
