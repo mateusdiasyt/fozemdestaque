@@ -218,9 +218,9 @@ export function HeaderNav() {
         </div>
         <div className="h-px bg-[#ff751f]/50" />
       </header>
-      <nav className="bg-white border-b border-[#e8ebed] overflow-x-auto">
-        <div className="max-w-7xl mx-auto px-4 py-2.5">
-          <div className="flex items-center gap-x-6 text-sm flex-nowrap w-full">
+      <nav className="bg-white border-b border-[#e8ebed]">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center gap-x-6 text-sm w-full">
+          <div className="flex items-center gap-x-6 flex-1 min-w-0 overflow-x-auto overflow-y-visible">
             {MENU_ITEMS.slice(0, 11).map((item) => (
               <Link
                 key={item.href}
@@ -230,32 +230,32 @@ export function HeaderNav() {
                 {item.label}
               </Link>
             ))}
-            <div className="relative shrink-0 ml-auto" ref={moreRef}>
-              <button
-                type="button"
-                onClick={() => setMoreOpen(!moreOpen)}
-                className="flex items-center gap-1 text-[#4e5b60] hover:text-[#ff751f] transition-colors"
-                aria-label="Ver mais categorias"
-                aria-expanded={moreOpen}
-              >
-                <MoreHorizontal className="w-4 h-4" />
-                <span>Ver mais</span>
-              </button>
-              {moreOpen && (
-                <div className="absolute top-full right-0 mt-1 py-2 bg-white rounded-lg shadow-lg border border-[#e8ebed] z-50 min-w-[180px]">
-                  {MENU_ITEMS.slice(11).map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="block px-4 py-2 text-sm text-[#4e5b60] hover:text-[#ff751f] hover:bg-[#f8f9fa] transition-colors"
-                      onClick={() => setMoreOpen(false)}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+          </div>
+          <div className="relative shrink-0" ref={moreRef}>
+            <button
+              type="button"
+              onClick={() => setMoreOpen(!moreOpen)}
+              className="flex items-center gap-1 text-[#4e5b60] hover:text-[#ff751f] transition-colors"
+              aria-label="Ver mais categorias"
+              aria-expanded={moreOpen}
+            >
+              <MoreHorizontal className="w-4 h-4" />
+              <span>Ver mais</span>
+            </button>
+            {moreOpen && (
+              <div className="absolute top-full right-0 mt-1 py-2 bg-white rounded-lg shadow-lg border border-[#e8ebed] z-[100] min-w-[180px]">
+                {MENU_ITEMS.slice(11).map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="block px-4 py-2 text-sm text-[#4e5b60] hover:text-[#ff751f] hover:bg-[#f8f9fa] transition-colors"
+                    onClick={() => setMoreOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </nav>
