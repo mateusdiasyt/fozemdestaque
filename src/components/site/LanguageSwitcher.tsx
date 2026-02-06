@@ -20,21 +20,21 @@ function setGoogleTranslate(lang: string) {
 
 export function LanguageSwitcher() {
   return (
-    <div className="flex items-center gap-1 rounded-lg bg-white/10 px-2 py-1">
+    <div className="flex items-center gap-0.5">
       {LANGUAGES.map((lang, i) => (
         <button
           key={`${lang.code}-${lang.flag}-${i}`}
           type="button"
           onClick={() => setGoogleTranslate(lang.code)}
-          className="p-1 hover:scale-110 transition-transform"
+          className="p-0.5 hover:opacity-80 transition-opacity"
           title={lang.label}
           aria-label={lang.label}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`https://flagcdn.com/32x24/${lang.flag}.png`}
+            src={`https://flagcdn.com/24x18/${lang.flag}.png`}
             alt=""
-            className="h-5 w-auto block"
+            className="h-4 w-auto block"
             loading="lazy"
           />
         </button>
