@@ -13,8 +13,8 @@ export default function SiteLayout({
 }) {
   return (
     <div className="min-h-screen flex flex-col bg-[#f5f6f7]">
-      <HeaderBanner />
       <SiteHeader />
+      <HeaderBanner />
       <div className="flex-1 flex gap-6 max-w-7xl mx-auto w-full px-4 py-8">
         <aside className="hidden lg:block w-60 shrink-0">
           <Sidebar />
