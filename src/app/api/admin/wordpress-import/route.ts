@@ -10,10 +10,6 @@ import { put } from "@vercel/blob";
 export const maxDuration = 300; // 5 min for large imports
 export const dynamic = "force-dynamic";
 
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: { "Allow": "POST, OPTIONS" } });
-}
-
 function normalizeItem(item: unknown): unknown[] {
   if (!item) return [];
   return Array.isArray(item) ? item : [item];
@@ -64,7 +60,7 @@ export async function POST(request: Request) {
 
     const contentType = request.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
-      const body = await request.json() as { url?: string };
+      const body = (await request.json()) as { url?: string };
       const url = body?.url;
       if (!url || typeof url !== "string" || !url.startsWith("http")) {
         return NextResponse.json({ error: "URL do arquivo XML inválida" }, { status: 400 });
@@ -96,7 +92,6 @@ export async function POST(request: Request) {
     const rawItems = channel.item ?? [];
     const items = normalizeItem(rawItems);
 
-    // 1. Build attachment map (post_id -> url)
     const attachmentMap = new Map<string, string>();
     for (const it of items) {
       const obj = it as Record<string, unknown>;
@@ -108,7 +103,6 @@ export async function POST(request: Request) {
       if (postId && url && url.startsWith("http")) attachmentMap.set(postId, url);
     }
 
-    // 2. Build category map (wp slug/name -> our category id)
     const wpCategories = normalizeItem(channel["wp:category"] ?? channel.category ?? []);
     const categoryMap = new Map<string, string>();
     const existingCats = await db.select().from(categories);
@@ -128,7 +122,6 @@ export async function POST(request: Request) {
       categoryMap.set(slug, catId);
     }
 
-    // 3. Process posts
     const authorId = session.user.id ?? null;
     let imported = 0;
     let skipped = 0;
@@ -149,7 +142,6 @@ export async function POST(request: Request) {
       const wpSlug = getText(obj["wp:post_name"] ?? obj.post_name);
       const slug = wpSlug ? slugify(wpSlug) : slugify(title);
 
-      // Category
       const catRef = normalizeItem(obj.category ?? []);
       let categoryId: string | null = null;
       for (const cr of catRef) {
@@ -162,7 +154,6 @@ export async function POST(request: Request) {
         }
       }
 
-      // Featured image
       const postmeta = normalizeItem(obj["wp:postmeta"] ?? obj.postmeta ?? []);
       let featuredImageUrl: string | null = null;
       for (const pm of postmeta) {
@@ -174,7 +165,6 @@ export async function POST(request: Request) {
         }
       }
 
-      // Image URL replacement in content
       let finalContent = content;
       const contentImgUrls = extractImgUrls(content);
       const allImgUrls = [...new Set([featuredImageUrl, ...contentImgUrls].filter(Boolean) as string[])];
@@ -190,7 +180,6 @@ export async function POST(request: Request) {
         if (oldUrl === featuredImageUrl) featuredImageUrl = newUrl;
       }
 
-      // Ensure slug is unique
       let finalSlug = slug;
       let suffix = 1;
       while (true) {
