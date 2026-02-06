@@ -10,6 +10,7 @@ interface PreviewPost {
   title: string;
   slug: string;
   excerpt: string | null;
+  featuredImage: string | null;
 }
 
 export function PresentationBar() {
@@ -109,13 +110,29 @@ export function PresentationBar() {
                           key={post.id}
                           href={`/post/${post.slug}`}
                           role="option"
-                          className="block px-4 py-3 hover:bg-[#f5f6f7] border-b border-[#e8ebed] last:border-b-0 transition-colors"
+                          className="flex gap-3 px-4 py-3 hover:bg-[#f5f6f7] border-b border-[#e8ebed] last:border-b-0 transition-colors"
                           onClick={() => setShowPreview(false)}
                         >
-                          <p className="font-headline font-bold text-[#4e5b60] line-clamp-1">{post.title}</p>
-                          {post.excerpt && (
-                            <p className="text-xs text-[#859eac] line-clamp-2 mt-0.5">{post.excerpt}</p>
-                          )}
+                          <div className="w-16 h-16 shrink-0 rounded overflow-hidden bg-[#e8ebed]">
+                            {post.featuredImage ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={post.featuredImage}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <span className="text-[#859eac] text-xs font-headline">Foz</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-headline font-bold text-[#4e5b60] line-clamp-1">{post.title}</p>
+                            {post.excerpt && (
+                              <p className="text-xs text-[#859eac] line-clamp-2 mt-0.5">{post.excerpt}</p>
+                            )}
+                          </div>
                         </Link>
                       ))}
                       <Link
