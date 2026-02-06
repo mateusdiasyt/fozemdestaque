@@ -34,16 +34,16 @@ export function BlockThumbnails({ type, limit = 1 }: { type: string; limit?: num
   const b = blocks[0];
   const href = b.link || (b.slug ? `/${b.slug}` : "#");
   return (
-    <Link href={href} className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 transition-colors group">
+    <Link href={href} className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors group">
       {b.thumbnail && (
-        <div className="w-12 h-12 rounded overflow-hidden shrink-0 bg-slate-200">
+        <div className="w-10 h-10 rounded overflow-hidden shrink-0 bg-slate-700 ring-1 ring-white/20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={b.thumbnail} alt="" className="w-full h-full object-cover" />
         </div>
       )}
       <div>
-        <span className="text-xs text-slate-500 block">{typeLabels[type] ?? type}</span>
-        <span className="font-medium text-slate-800 group-hover:text-blue-600">{b.title}</span>
+        <span className="text-xs text-slate-400 block">{typeLabels[type] ?? type}</span>
+        <span className="font-medium text-white group-hover:text-red-300">{b.title}</span>
       </div>
     </Link>
   );

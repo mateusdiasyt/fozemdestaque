@@ -3,7 +3,8 @@
  * Execute: npx tsx scripts/seed-admin.ts
  * Ou com DATABASE_URL no .env: node -r ts-node/register scripts/seed-admin.ts
  */
-import "dotenv/config";
+import { config } from "dotenv";
+config({ path: ".env.local" });
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";

@@ -19,15 +19,17 @@ export function ClockAndWeather() {
   }, []);
 
   return (
-    <div className="flex flex-col items-end text-sm text-slate-600">
+    <div className="flex flex-col items-end text-sm text-slate-300">
       <div className="font-mono">
         {time.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}
       </div>
-      <div className="font-mono font-medium">
+      <div className="font-mono font-semibold text-white">
         {time.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
       </div>
       {weather?.temperature != null && (
-        <div className="text-slate-500">{Math.round(weather.temperature)}°C - Foz do Iguaçu</div>
+        <div className="text-red-400 font-medium">
+          {Math.round(weather.temperature)}°C — Foz do Iguaçu
+        </div>
       )}
     </div>
   );

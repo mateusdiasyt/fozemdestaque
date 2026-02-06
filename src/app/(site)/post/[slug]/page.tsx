@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { posts, categories } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -44,17 +45,25 @@ export default async function PostPage({
     : [null];
 
   return (
-    <article className="bg-white rounded-xl shadow-sm overflow-hidden">
-      <header className="p-6 md:p-8">
+    <article className="bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden">
+      <header className="p-6 md:p-10">
+        <Link href="/" className="text-sm text-red-600 hover:text-red-700 font-medium mb-2 inline-block">
+          ← Voltar ao início
+        </Link>
         {category && (
-          <span className="text-sm text-blue-600 font-medium">{category.name}</span>
+          <Link
+            href={`/categoria/${category.slug}`}
+            className="inline-block text-sm text-red-600 font-bold uppercase tracking-wide hover:underline"
+          >
+            {category.name}
+          </Link>
         )}
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 mt-1">
+        <h1 className="font-headline text-3xl md:text-4xl font-bold text-slate-900 mt-2 leading-tight">
           {post.title}
         </h1>
         <time
           dateTime={post.publishedAt ? new Date(post.publishedAt).toISOString() : undefined}
-          className="block text-slate-500 text-sm mt-2"
+          className="block text-slate-500 text-sm mt-3"
         >
           {post.publishedAt
             ? format(new Date(post.publishedAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
@@ -72,7 +81,7 @@ export default async function PostPage({
         </div>
       )}
       <div
-        className="p-6 md:p-8 prose prose-slate max-w-none"
+        className="p-6 md:p-10 prose prose-slate prose-lg max-w-none font-headline [&_h2]:font-headline [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-4 [&_p]:leading-relaxed"
         dangerouslySetInnerHTML={{ __html: post.content }}
       />
       <PostComments postId={post.id} />

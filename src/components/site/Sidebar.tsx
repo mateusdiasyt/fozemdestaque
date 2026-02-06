@@ -15,17 +15,22 @@ const MENU_ITEMS = [
 
 export function Sidebar() {
   return (
-    <nav className="space-y-1">
-      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Menu</h3>
-      {MENU_ITEMS.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className="block py-2 text-slate-700 hover:text-blue-600 hover:font-medium transition-colors"
-        >
-          {item.label}
-        </Link>
-      ))}
+    <nav className="bg-white rounded-lg shadow-md border border-slate-200 p-4 sticky top-4">
+      <h3 className="text-xs font-bold text-red-600 uppercase tracking-wider mb-4 pb-2 border-b-2 border-red-600">
+        Seções
+      </h3>
+      <ul className="space-y-1">
+        {MENU_ITEMS.map((item) => (
+          <li key={item.href}>
+            <Link
+              href={item.href}
+              className="block py-2.5 px-3 text-slate-700 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors font-medium"
+            >
+              {item.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
     </nav>
   );
 }
