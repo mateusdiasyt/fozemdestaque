@@ -81,6 +81,10 @@ export function WordPressImportForm() {
         <FileX className="w-5 h-5 text-amber-500" />
         Importar do WordPress
       </h2>
+      <p className="text-sm text-slate-500 mb-3">
+        Se a importação falhar (erro 405), use o script local:{" "}
+        <code className="bg-slate-100 px-1.5 py-0.5 rounded text-xs">npx tsx scripts/import-wordpress.ts caminho/export.xml</code>
+      </p>
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
         <div>
           <label htmlFor="xml-file" className="block text-sm font-medium text-slate-600 mb-1">
