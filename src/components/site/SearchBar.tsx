@@ -73,17 +73,17 @@ export function SearchBar() {
   }
 
   return (
-    <form onSubmit={handleSearch} className="relative flex w-full max-w-[280px]" ref={wrapperRef}>
+    <form onSubmit={handleSearch} className="relative flex w-full" ref={wrapperRef}>
       <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" aria-hidden />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" aria-hidden />
         <input
           type="search"
-          placeholder="Procurar conteúdo..."
+          placeholder="Buscar..."
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onFocus={() => q.trim().length >= 2 && preview.length > 0 && setShowPreview(true)}
           onKeyDown={(e) => e.key === "Escape" && setShowPreview(false)}
-          className="w-full pl-9 pr-3 py-2 bg-white/10 border border-white/20 rounded-l-lg text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#ff751f]/50 focus:border-[#ff751f] text-sm"
+          className="w-full pl-8 pr-3 py-1.5 bg-transparent border border-white/10 rounded text-white/90 placeholder:text-slate-500 focus:outline-none focus:border-white/30 text-sm"
           aria-label="Procurar conteúdo"
           aria-autocomplete="list"
           aria-expanded={showPreview && (loading || preview.length > 0)}
@@ -145,12 +145,6 @@ export function SearchBar() {
           </div>
         )}
       </div>
-      <button
-        type="submit"
-        className="px-4 py-2 bg-[#ff751f] text-white font-medium rounded-r-lg hover:bg-[#e56a1a] transition-colors text-sm"
-      >
-        Buscar
-      </button>
     </form>
   );
 }
