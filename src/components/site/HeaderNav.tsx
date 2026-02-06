@@ -221,7 +221,7 @@ export function HeaderNav() {
       <nav className="bg-white border-b border-[#e8ebed] overflow-x-auto">
         <div className="max-w-7xl mx-auto px-4 py-2.5">
           <div className="flex items-center gap-x-6 text-sm flex-nowrap w-full">
-            {MENU_ITEMS.slice(0, 8).map((item) => (
+            {MENU_ITEMS.slice(0, 11).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -243,7 +243,7 @@ export function HeaderNav() {
               </button>
               {moreOpen && (
                 <div className="absolute top-full right-0 mt-1 py-2 bg-white rounded-lg shadow-lg border border-[#e8ebed] z-50 min-w-[180px]">
-                  {MENU_ITEMS.slice(8).map((item) => (
+                  {MENU_ITEMS.slice(11).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
