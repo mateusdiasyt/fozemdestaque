@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { posts, categories } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { Plus } from "lucide-react";
 import { PostsListClient } from "@/components/admin/PostsListClient";
+import { WordPressImportForm } from "@/components/admin/WordPressImportForm";
 
 export default async function AdminPostsPage() {
   const allPosts = await db.select({
@@ -20,6 +21,7 @@ export default async function AdminPostsPage() {
 
   return (
     <div>
+      <WordPressImportForm />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-slate-800">Posts</h1>
         <Link
