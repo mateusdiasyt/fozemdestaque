@@ -4,8 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, Menu, X, ChevronDown, MoreHorizontal } from "lucide-react";
-import { ClockAndWeather } from "@/components/site/ClockAndWeather";
 import { VisitCounter } from "@/components/site/VisitCounter";
+import { LanguageSwitcher } from "@/components/site/LanguageSwitcher";
 import { MAIN_NAV_ITEMS, MENU_ITEMS } from "@/lib/menu-items";
 
 interface PreviewPost {
@@ -214,11 +214,11 @@ export function HeaderNav() {
               />
             </Link>
 
-            {/* Direita: Visitas + Relógio */}
+            {/* Direita: Visitas + Idioma */}
             <div className="flex items-center gap-4 sm:gap-6 shrink-0">
               <VisitCounter />
               <div className="hidden sm:block h-4 w-px bg-[#4e5b60]" />
-              <ClockAndWeather />
+              <LanguageSwitcher />
             </div>
           </div>
         </div>
