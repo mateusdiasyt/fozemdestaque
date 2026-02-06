@@ -16,10 +16,8 @@ export default function SiteLayout({
       <HeaderNav />
       <HeaderBanner />
       <PresentationBar />
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto w-full px-4 py-8">
-        <aside className="min-w-0 hidden md:block" />
-        <main className="min-w-0 md:col-span-1">{children}</main>
-        <aside className="min-w-0 hidden md:block" />
+      <div className="flex-1 max-w-7xl mx-auto w-full px-4 py-8">
+        <main className="min-w-0">{children}</main>
       </div>
       <FooterBanner />
       <footer className="bg-black text-slate-400">
