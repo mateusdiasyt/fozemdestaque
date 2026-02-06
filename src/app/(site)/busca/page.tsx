@@ -68,7 +68,7 @@ export default async function BuscaPage({
       </header>
       {q && items.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {items.map((post: { id: string; title: string; slug: string; excerpt: string | null; featuredImage: string | null; publishedAt: string | null }) => (
+          {items.map((post) => (
             <Link key={post.id} href={`/post/${post.slug}`} className="block group">
               <article className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all border border-[#e8ebed]">
                 {post.featuredImage ? (
