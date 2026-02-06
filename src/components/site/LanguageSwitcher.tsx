@@ -20,13 +20,13 @@ function setGoogleTranslate(lang: string) {
 
 export function LanguageSwitcher() {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 rounded-lg bg-white/10 px-2 py-1">
       {LANGUAGES.map((lang, i) => (
         <button
           key={`${lang.code}-${lang.flag}-${i}`}
           type="button"
           onClick={() => setGoogleTranslate(lang.code)}
-          className="p-1.5 text-lg leading-none opacity-80 hover:opacity-100 transition-opacity"
+          className="p-1 text-xl leading-none hover:scale-110 transition-transform"
           title={lang.label}
           aria-label={lang.label}
         >
