@@ -32,7 +32,7 @@ export function HeaderBanner() {
 
   const b = banners[current];
   const content = (
-    <div className="relative h-24 md:h-32 bg-slate-200 overflow-hidden">
+    <div className="relative h-24 md:h-32 bg-[#e8ebed] overflow-hidden">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={b.imageUrl} alt={b.title ?? ""} className="w-full h-full object-cover" />
     </div>

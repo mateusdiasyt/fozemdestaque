@@ -45,25 +45,25 @@ export default async function PostPage({
     : [null];
 
   return (
-    <article className="bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden">
+    <article className="bg-white rounded-lg shadow-lg border border-[#e8ebed] overflow-hidden">
       <header className="p-6 md:p-10">
-        <Link href="/" className="text-sm text-red-600 hover:text-red-700 font-medium mb-2 inline-block">
+        <Link href="/" className="text-sm text-[#ff751f] hover:text-[#e56a1a] font-medium mb-2 inline-block">
           ← Voltar ao início
         </Link>
         {category && (
           <Link
             href={`/categoria/${category.slug}`}
-            className="inline-block text-sm text-red-600 font-bold uppercase tracking-wide hover:underline"
+            className="inline-block text-sm text-[#ff751f] font-bold uppercase tracking-wide hover:underline"
           >
             {category.name}
           </Link>
         )}
-        <h1 className="font-headline text-3xl md:text-4xl font-bold text-slate-900 mt-2 leading-tight">
+        <h1 className="font-headline text-3xl md:text-4xl font-bold text-[#000000] mt-2 leading-tight">
           {post.title}
         </h1>
         <time
           dateTime={post.publishedAt ? new Date(post.publishedAt).toISOString() : undefined}
-          className="block text-slate-500 text-sm mt-3"
+          className="block text-[#4e5b60] text-sm mt-3"
         >
           {post.publishedAt
             ? format(new Date(post.publishedAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
@@ -71,7 +71,7 @@ export default async function PostPage({
         </time>
       </header>
       {post.featuredImage && (
-        <div className="aspect-video md:aspect-[21/9] bg-slate-200">
+        <div className="aspect-video md:aspect-[21/9] bg-[#e8ebed]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={post.featuredImage}
@@ -81,7 +81,7 @@ export default async function PostPage({
         </div>
       )}
       <div
-        className="p-6 md:p-10 prose prose-slate prose-lg max-w-none font-headline [&_h2]:font-headline [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-4 [&_p]:leading-relaxed"
+        className="p-6 md:p-10 prose prose-lg max-w-none font-headline [&_h2]:font-headline [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-[#000000] [&_h2]:mt-8 [&_h2]:mb-4 [&_p]:text-[#4e5b60] [&_p]:leading-relaxed [&_a]:text-[#ff751f] [&_a]:hover:text-[#e56a1a]"
         dangerouslySetInnerHTML={{ __html: post.content }}
       />
       <PostComments postId={post.id} />

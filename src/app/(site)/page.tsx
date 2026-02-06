@@ -45,16 +45,16 @@ export default async function HomePage() {
       {/* Destaque do Dia - Hero */}
       <section>
         <div className="flex items-center gap-3 mb-4">
-          <span className="h-1 w-12 bg-red-600 rounded" />
-          <h2 className="font-headline text-xl font-bold text-slate-900 uppercase tracking-wide">
+          <span className="h-1 w-12 bg-[#ff751f] rounded" />
+          <h2 className="font-headline text-xl font-bold text-[#000000] uppercase tracking-wide">
             Destaque do Dia
           </h2>
         </div>
         {featured ? (
           <Link href={`/post/${featured.slug}`} className="block group">
-            <article className="bg-white rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-slate-200">
+            <article className="bg-white rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-[#e8ebed]">
               <div className="flex flex-col md:flex-row">
-                <div className="md:w-2/5 aspect-video md:aspect-square bg-slate-200">
+                <div className="md:w-2/5 aspect-video md:aspect-square bg-[#e8ebed]">
                   {featured.featuredImage ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
@@ -63,19 +63,19 @@ export default async function HomePage() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
-                      <span className="text-slate-500 font-headline text-4xl">Foz</span>
+                    <div className="w-full h-full bg-gradient-to-br from-[#e8ebed] to-[#859eac]/30 flex items-center justify-center">
+                      <span className="text-[#859eac] font-headline text-4xl">Foz</span>
                     </div>
                   )}
                 </div>
                 <div className="p-6 md:p-8 flex-1 flex flex-col justify-center">
-                  <h3 className="font-headline text-2xl md:text-3xl font-bold text-slate-900 group-hover:text-red-600 transition-colors leading-tight">
+                  <h3 className="font-headline text-2xl md:text-3xl font-bold text-[#000000] group-hover:text-[#ff751f] transition-colors leading-tight">
                     {featured.title}
                   </h3>
                   {featured.excerpt && (
-                    <p className="mt-3 text-slate-600 line-clamp-3 text-lg">{featured.excerpt}</p>
+                    <p className="mt-3 text-[#4e5b60] line-clamp-3 text-lg">{featured.excerpt}</p>
                   )}
-                  <p className="mt-4 text-sm text-red-600 font-semibold">
+                  <p className="mt-4 text-sm text-[#ff751f] font-semibold">
                     {featured.publishedAt && format(new Date(featured.publishedAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                     <span className="ml-2">→ Ler mais</span>
                   </p>
@@ -84,9 +84,9 @@ export default async function HomePage() {
             </article>
           </Link>
         ) : (
-          <div className="bg-white rounded-lg border-2 border-dashed border-slate-200 p-12 text-center">
-            <p className="text-slate-500">Nenhuma matéria em destaque no momento.</p>
-            <p className="text-sm text-slate-400 mt-2">Acesse o painel admin para publicar conteúdos.</p>
+          <div className="bg-white rounded-lg border-2 border-dashed border-[#859eac] p-12 text-center">
+            <p className="text-[#4e5b60]">Nenhuma matéria em destaque no momento.</p>
+            <p className="text-sm text-[#859eac] mt-2">Acesse o painel admin para publicar conteúdos.</p>
           </div>
         )}
       </section>
@@ -119,33 +119,33 @@ function ContentSection({
   return (
     <section>
       <Link href={`/categoria/${slug}`} className="flex items-center gap-3 mb-4 group">
-        <span className="h-1 w-8 bg-red-600 rounded group-hover:w-12 transition-all" />
-        <h2 className="font-headline text-lg font-bold text-slate-900 uppercase tracking-wide group-hover:text-red-600 transition-colors">
+        <span className="h-1 w-8 bg-[#ff751f] rounded group-hover:w-12 transition-all" />
+        <h2 className="font-headline text-lg font-bold text-[#000000] uppercase tracking-wide group-hover:text-[#ff751f] transition-colors">
           {title}
         </h2>
       </Link>
-      <div className="bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-md border border-[#e8ebed] overflow-hidden">
         {items.length > 0 ? (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-[#e8ebed]">
             {items.map((post) => (
-              <Link key={post.id} href={`/post/${post.slug}`} className="flex gap-4 p-4 hover:bg-slate-50 transition-colors group">
+              <Link key={post.id} href={`/post/${post.slug}`} className="flex gap-4 p-4 hover:bg-[#f5f6f7] transition-colors group">
                 {post.featuredImage ? (
-                  <div className="w-24 h-24 shrink-0 rounded overflow-hidden bg-slate-200">
+                  <div className="w-24 h-24 shrink-0 rounded overflow-hidden bg-[#e8ebed]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={post.featuredImage} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                   </div>
                 ) : (
-                  <div className="w-24 h-24 shrink-0 rounded bg-slate-100 flex items-center justify-center">
-                    <span className="text-slate-400 text-xs">Foz</span>
+                  <div className="w-24 h-24 shrink-0 rounded bg-[#e8ebed] flex items-center justify-center">
+                    <span className="text-[#859eac] text-xs">Foz</span>
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-headline font-bold text-slate-800 group-hover:text-red-600 line-clamp-2 transition-colors">
+                  <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors">
                     {post.title}
                   </h3>
-                  {post.excerpt && <p className="text-sm text-slate-500 line-clamp-1 mt-0.5">{post.excerpt}</p>}
+                  {post.excerpt && <p className="text-sm text-[#859eac] line-clamp-1 mt-0.5">{post.excerpt}</p>}
                   {post.publishedAt && (
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-[#859eac] mt-1">
                       {format(new Date(post.publishedAt), "dd/MM/yyyy", { locale: ptBR })}
                     </p>
                   )}
@@ -154,7 +154,7 @@ function ContentSection({
             ))}
           </div>
         ) : (
-          <div className="p-6 text-center text-slate-500 text-sm">
+          <div className="p-6 text-center text-[#859eac] text-sm">
             Nenhuma notícia em {title.toLowerCase()}.
           </div>
         )}

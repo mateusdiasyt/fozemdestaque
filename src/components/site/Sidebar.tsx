@@ -15,8 +15,8 @@ const MENU_ITEMS = [
 
 export function Sidebar() {
   return (
-    <nav className="bg-white rounded-lg shadow-md border border-slate-200 p-4 sticky top-4">
-      <h3 className="text-xs font-bold text-red-600 uppercase tracking-wider mb-4 pb-2 border-b-2 border-red-600">
+    <nav className="bg-white rounded-lg shadow-md border border-[#e8ebed] p-4 sticky top-4">
+      <h3 className="text-xs font-bold text-[#ff751f] uppercase tracking-wider mb-4 pb-2 border-b-2 border-[#ff751f]">
         Seções
       </h3>
       <ul className="space-y-1">
@@ -24,7 +24,7 @@ export function Sidebar() {
           <li key={item.href}>
             <Link
               href={item.href}
-              className="block py-2.5 px-3 text-slate-700 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors font-medium"
+              className="block py-2.5 px-3 text-[#4e5b60] hover:text-[#ff751f] hover:bg-[#fff8f3] rounded-md transition-colors font-medium"
             >
               {item.label}
             </Link>

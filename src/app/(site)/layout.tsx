@@ -12,7 +12,7 @@ export default function SiteLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-[#f5f6f7]">
       <HeaderBanner />
       <SiteHeader />
       <div className="flex-1 flex gap-6 max-w-7xl mx-auto w-full px-4 py-8">
@@ -25,7 +25,7 @@ export default function SiteLayout({
         </aside>
       </div>
       <FooterBanner />
-      <footer className="bg-slate-900 text-slate-400 py-8 text-center text-sm border-t border-slate-800">
+      <footer className="bg-[#4e5b60] text-[#859eac] py-8 text-center text-sm">
         <div className="max-w-7xl mx-auto px-4">
           © {new Date().getFullYear()} Foz em Destaque. Todos os direitos reservados.
         </div>

@@ -49,26 +49,26 @@ export default async function CategoryPage({
   return (
     <div>
       <header className="mb-8">
-        <Link href="/" className="text-sm text-red-600 hover:text-red-700 font-medium mb-2 inline-block">
+        <Link href="/" className="text-sm text-[#ff751f] hover:text-[#e56a1a] font-medium mb-2 inline-block">
           ← Voltar ao início
         </Link>
         <div className="flex items-center gap-3 mb-2">
-          <span className="h-1 w-12 bg-red-600 rounded" />
-          <h1 className="font-headline text-2xl md:text-3xl font-bold text-slate-900">
+          <span className="h-1 w-12 bg-[#ff751f] rounded" />
+          <h1 className="font-headline text-2xl md:text-3xl font-bold text-[#000000]">
             {category.name}
           </h1>
         </div>
         {category.description && (
-          <p className="text-slate-600 mt-1">{category.description}</p>
+          <p className="text-[#4e5b60] mt-1">{category.description}</p>
         )}
       </header>
       {items.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {items.map((post) => (
             <Link key={post.id} href={`/post/${post.slug}`} className="block group">
-              <article className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all border border-slate-200">
+              <article className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all border border-[#e8ebed]">
                 {post.featuredImage ? (
-                  <div className="aspect-video bg-slate-200">
+                  <div className="aspect-video bg-[#e8ebed]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={post.featuredImage}
@@ -77,19 +77,19 @@ export default async function CategoryPage({
                     />
                   </div>
                 ) : (
-                  <div className="aspect-video bg-slate-100 flex items-center justify-center">
-                    <span className="text-slate-400 font-headline text-2xl">Foz</span>
+                  <div className="aspect-video bg-[#e8ebed] flex items-center justify-center">
+                    <span className="text-[#859eac] font-headline text-2xl">Foz</span>
                   </div>
                 )}
                 <div className="p-4">
-                  <h2 className="font-headline font-bold text-slate-800 group-hover:text-red-600 line-clamp-2 transition-colors">
+                  <h2 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors">
                     {post.title}
                   </h2>
                   {post.excerpt && (
-                    <p className="text-sm text-slate-500 line-clamp-2 mt-1">{post.excerpt}</p>
+                    <p className="text-sm text-[#859eac] line-clamp-2 mt-1">{post.excerpt}</p>
                   )}
                   {post.publishedAt && (
-                    <p className="text-xs text-slate-400 mt-2">
+                    <p className="text-xs text-[#859eac] mt-2">
                       {format(new Date(post.publishedAt), "dd 'de' MMMM", { locale: ptBR })}
                     </p>
                   )}
@@ -99,8 +99,8 @@ export default async function CategoryPage({
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-lg border-2 border-dashed border-slate-200 p-12 text-center">
-          <p className="text-slate-500">Nenhuma notícia publicada nesta categoria ainda.</p>
+        <div className="bg-white rounded-lg border-2 border-dashed border-[#859eac] p-12 text-center">
+          <p className="text-[#4e5b60]">Nenhuma notícia publicada nesta categoria ainda.</p>
         </div>
       )}
     </div>

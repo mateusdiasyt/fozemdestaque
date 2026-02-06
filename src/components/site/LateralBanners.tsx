@@ -25,7 +25,7 @@ export function LateralBanners() {
   return (
     <div className="space-y-4 sticky top-4">
       {banners.map((b) => (
-        <div key={b.id} className="rounded-lg overflow-hidden bg-slate-200">
+        <div key={b.id} className="rounded-lg overflow-hidden bg-[#e8ebed] border border-[#e8ebed]">
           {b.linkUrl ? (
             <Link href={b.linkUrl} target="_blank" rel="noopener noreferrer">
               {/* eslint-disable-next-line @next/next/no-img-element */}

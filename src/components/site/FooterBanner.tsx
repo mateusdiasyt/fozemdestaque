@@ -31,7 +31,7 @@ export function FooterBanner() {
   const b = banners[current];
   const content = (
     <div className="max-w-4xl mx-auto px-4 py-4">
-      <div className="h-20 md:h-24 bg-slate-200 rounded-lg overflow-hidden">
+      <div className="h-20 md:h-24 bg-[#e8ebed] rounded-lg overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={b.imageUrl} alt="" className="w-full h-full object-cover" />
       </div>
@@ -39,7 +39,7 @@ export function FooterBanner() {
   );
 
   return (
-    <div className="bg-slate-100 border-t border-slate-200">
+    <div className="bg-[#e8ebed] border-t border-[#859eac]/30">
       {b.linkUrl ? (
         <Link href={b.linkUrl} target="_blank" rel="noopener noreferrer">
           {content}
