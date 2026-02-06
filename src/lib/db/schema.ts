@@ -122,6 +122,7 @@ export const birthdaySubmissions = pgTable("birthday_submissions", {
   dataCasamento: timestamp("data_casamento"),
   outrasInformacoes: text("outras_informacoes"),
   autorizaPublicacao: boolean("autoriza_publicacao").notNull().default(true),
+  ativo: boolean("ativo").notNull().default(false), // taxa de adesão R$28/ano paga = cliente ativo
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
