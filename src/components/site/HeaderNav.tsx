@@ -6,7 +6,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, Menu, X, ChevronDown } from "lucide-react";
 import { ClockAndWeather } from "@/components/site/ClockAndWeather";
 import { VisitCounter } from "@/components/site/VisitCounter";
-import { MAIN_NAV_ITEMS } from "@/lib/menu-items";
+import { MAIN_NAV_ITEMS, MENU_ITEMS } from "@/lib/menu-items";
 
 interface PreviewPost {
   id: string;
@@ -212,6 +212,21 @@ export function HeaderNav() {
         </div>
         <div className="h-px bg-[#ff751f]/50" />
       </header>
+      <nav className="bg-white border-b border-[#e8ebed]">
+        <div className="max-w-7xl mx-auto px-4 py-2.5">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+            {MENU_ITEMS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-[#4e5b60] hover:text-[#ff751f] transition-colors whitespace-nowrap"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </nav>
     </>
   );
 }
