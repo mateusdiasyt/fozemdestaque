@@ -15,11 +15,11 @@ import {
   BookOpen,
 } from "lucide-react";
 
-export const MAIN_NAV_ITEMS: { label: string; href: string }[] = [
-  { label: "Nossa História", href: "/nossa-historia" },
-  { label: "Produtos e Serviços", href: "/produtos-servicos" },
-  { label: "Divulgue seu Aniversário", href: "/divulgue-seu-aniversario" },
-  { label: "Contatos", href: "/contatos" },
+export const MAIN_NAV_ITEMS: { label: string; href: string; icon: LucideIcon }[] = [
+  { label: "Nossa História", href: "/nossa-historia", icon: BookOpen },
+  { label: "Produtos", href: "/produtos-servicos", icon: Package },
+  { label: "Divulgue", href: "/divulgue-seu-aniversario", icon: Cake },
+  { label: "Contatos", href: "/contatos", icon: Phone },
 ];
 
 export const MENU_ITEMS: { label: string; href: string; icon: LucideIcon }[] = [
