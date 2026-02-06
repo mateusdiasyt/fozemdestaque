@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { Instagram, Facebook, Youtube, Globe, ExternalLink } from "lucide-react";
+import { Instagram, Facebook, Youtube, ExternalLink } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Nossa História",
@@ -162,16 +162,6 @@ export default function NossaHistoriaPage() {
       <section className="mb-20">
         <h2 className="text-lg font-semibold text-slate-900 mb-6">Canais de Comunicação</h2>
         <div className="flex flex-wrap gap-3">
-          <a
-            href="https://www.fozemdestaque.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-slate-200 text-slate-700 hover:border-[#ff751f] hover:text-[#ff751f] transition-colors text-sm"
-          >
-            <Globe className="w-4 h-4" />
-            Portal
-            <ExternalLink className="w-3 h-3 opacity-60" />
-          </a>
           <a
             href="https://www.instagram.com/fozemdestaque/"
             target="_blank"
