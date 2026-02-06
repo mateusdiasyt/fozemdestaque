@@ -24,12 +24,10 @@ export function VisitCounter() {
   if (total === null) return null;
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#000000]/40 backdrop-blur-sm border border-[#ff751f]/30">
-      <Eye className="w-4 h-4 text-[#81d303]" strokeWidth={2.5} />
-      <span className="text-sm font-semibold text-white">
-        Total de visitas:
-      </span>
-      <span className="text-lg font-bold text-[#ff751f] tabular-nums">
+    <div className="flex items-center gap-2 text-sm">
+      <Eye className="w-4 h-4 text-[#81d303]" strokeWidth={2} />
+      <span className="text-[#859eac]">Visitas</span>
+      <span className="font-semibold text-white tabular-nums">
         {total.toLocaleString("pt-BR")}
       </span>
     </div>

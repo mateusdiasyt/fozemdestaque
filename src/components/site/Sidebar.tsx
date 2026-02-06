@@ -1,32 +1,43 @@
 import Link from "next/link";
+import {
+  Lightbulb,
+  Calendar,
+  Cake,
+  Users,
+  Zap,
+  Briefcase,
+  CalendarDays,
+  Tag,
+  Star,
+  Crown,
+  type LucideIcon,
+} from "lucide-react";
 
-const MENU_ITEMS = [
-  { label: "Reflexão", href: "/categoria/reflexao" },
-  { label: "Datas", href: "/categoria/datas" },
-  { label: "Aniversários", href: "/categoria/aniversarios" },
-  { label: "Society", href: "/categoria/society" },
-  { label: "Ti-ti-ti", href: "/categoria/ti-ti-ti" },
-  { label: "Top Profissional", href: "/categoria/top-profissional" },
-  { label: "Agenda", href: "/categoria/agenda" },
-  { label: "Merchandising", href: "/categoria/merchandising" },
-  { label: "Foz em Destaque", href: "/categoria/foz-em-destaque" },
-  { label: "High Society Club", href: "/categoria/high-society-club" },
+const MENU_ITEMS: { label: string; href: string; icon: LucideIcon }[] = [
+  { label: "Reflexão", href: "/categoria/reflexao", icon: Lightbulb },
+  { label: "Datas", href: "/categoria/datas", icon: Calendar },
+  { label: "Aniversários", href: "/categoria/aniversarios", icon: Cake },
+  { label: "Society", href: "/categoria/society", icon: Users },
+  { label: "Ti-ti-ti", href: "/categoria/ti-ti-ti", icon: Zap },
+  { label: "Top Profissional", href: "/categoria/top-profissional", icon: Briefcase },
+  { label: "Agenda", href: "/categoria/agenda", icon: CalendarDays },
+  { label: "Merchandising", href: "/categoria/merchandising", icon: Tag },
+  { label: "Foz em Destaque", href: "/categoria/foz-em-destaque", icon: Star },
+  { label: "High Society Club", href: "/categoria/high-society-club", icon: Crown },
 ];
 
 export function Sidebar() {
   return (
-    <nav className="bg-white rounded-lg shadow-md border border-[#e8ebed] p-4 sticky top-4">
-      <h3 className="text-xs font-bold text-[#ff751f] uppercase tracking-wider mb-4 pb-2 border-b-2 border-[#ff751f]">
-        Seções
-      </h3>
-      <ul className="space-y-1">
+    <nav className="sticky top-4">
+      <ul className="space-y-0.5">
         {MENU_ITEMS.map((item) => (
           <li key={item.href}>
             <Link
               href={item.href}
-              className="block py-2.5 px-3 text-[#4e5b60] hover:text-[#ff751f] hover:bg-[#fff8f3] rounded-md transition-colors font-medium"
+              className="flex items-center gap-3 px-3 py-2.5 text-[#4e5b60] hover:text-[#ff751f] hover:bg-[#f8f9fa] rounded-lg transition-colors text-sm"
             >
-              {item.label}
+              <item.icon className="w-4 h-4 shrink-0 opacity-70" strokeWidth={2} />
+              <span>{item.label}</span>
             </Link>
           </li>
         ))}
