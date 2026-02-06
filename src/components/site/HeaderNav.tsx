@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Search, Menu, X, ChevronDown } from "lucide-react";
+import { Search, Menu, X, ChevronDown, MoreHorizontal } from "lucide-react";
 import { ClockAndWeather } from "@/components/site/ClockAndWeather";
 import { VisitCounter } from "@/components/site/VisitCounter";
 import { MAIN_NAV_ITEMS, MENU_ITEMS } from "@/lib/menu-items";
@@ -21,6 +21,8 @@ export function HeaderNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
   const [q, setQ] = useState("");
   const [preview, setPreview] = useState<PreviewPost[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,9 +53,13 @@ export function HeaderNav() {
   }, [q]);
 
   const handleClickOutside = useCallback((e: MouseEvent) => {
-    if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+    const target = e.target as Node;
+    if (searchRef.current && !searchRef.current.contains(target)) {
       setSearchOpen(false);
       setShowPreview(false);
+    }
+    if (moreRef.current && !moreRef.current.contains(target)) {
+      setMoreOpen(false);
     }
   }, []);
 
@@ -212,18 +218,44 @@ export function HeaderNav() {
         </div>
         <div className="h-px bg-[#ff751f]/50" />
       </header>
-      <nav className="bg-white border-b border-[#e8ebed]">
+      <nav className="bg-white border-b border-[#e8ebed] overflow-x-auto">
         <div className="max-w-7xl mx-auto px-4 py-2.5">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-            {MENU_ITEMS.map((item) => (
+          <div className="flex items-center gap-x-6 text-sm flex-nowrap min-w-max">
+            {MENU_ITEMS.slice(0, 8).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-[#4e5b60] hover:text-[#ff751f] transition-colors whitespace-nowrap"
+                className="text-[#4e5b60] hover:text-[#ff751f] transition-colors whitespace-nowrap shrink-0"
               >
                 {item.label}
               </Link>
             ))}
+            <div className="relative shrink-0" ref={moreRef}>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(!moreOpen)}
+                className="flex items-center gap-1 text-[#4e5b60] hover:text-[#ff751f] transition-colors"
+                aria-label="Ver mais categorias"
+                aria-expanded={moreOpen}
+              >
+                <MoreHorizontal className="w-4 h-4" />
+                <span>Ver mais</span>
+              </button>
+              {moreOpen && (
+                <div className="absolute top-full right-0 mt-1 py-2 bg-white rounded-lg shadow-lg border border-[#e8ebed] z-50 min-w-[180px]">
+                  {MENU_ITEMS.slice(8).map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="block px-4 py-2 text-sm text-[#4e5b60] hover:text-[#ff751f] hover:bg-[#f8f9fa] transition-colors"
+                      onClick={() => setMoreOpen(false)}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
