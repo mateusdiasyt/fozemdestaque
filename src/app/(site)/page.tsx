@@ -93,13 +93,13 @@ export default async function HomePage() {
   return (
     <div className="space-y-10">
       {/* Layout 3 colunas: Cardzão (esq) | Aniversariantes (centro) | Reflexão (dir) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
         {/* Coluna esquerda: Cardzão + outras notícias abaixo */}
-        <div className="lg:col-span-6 space-y-6">
-          {/* Cardzão - notícia mais recente em destaque */}
-          <div className="min-h-[320px]">
+        <div className="lg:col-span-6 flex flex-col gap-6">
+          {/* Cardzão - notícia mais recente em destaque - ocupa espaço restante */}
+          <div className="flex-1 min-h-[320px]">
             {featured ? (
-              <Link href={`/post/${featured.slug}`} className="block group">
+              <Link href={`/post/${featured.slug}`} className="block h-full group">
                 <article className="relative h-full min-h-[320px] rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 bg-[#e8ebed]">
                   {featured.featuredImage ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
@@ -134,7 +134,7 @@ export default async function HomePage() {
                 </article>
               </Link>
             ) : (
-              <div className="rounded-xl bg-white border-2 border-dashed border-[#859eac] p-12 text-center min-h-[320px] flex flex-col items-center justify-center">
+              <div className="rounded-xl bg-white border-2 border-dashed border-[#859eac] p-12 text-center h-full min-h-[320px] flex flex-col items-center justify-center">
                 <p className="text-[#4e5b60]">Nenhuma matéria em destaque no momento.</p>
                 <p className="text-sm text-[#859eac] mt-2">Acesse o painel admin para publicar conteúdos.</p>
               </div>
