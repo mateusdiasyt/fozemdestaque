@@ -185,7 +185,7 @@ export default async function HomePage() {
               Aniversariantes do dia
             </h2>
           </Link>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
             {aniversariantes ? (
               aniversariantes.map((item) => (
                 <AniversarianteCard
@@ -227,7 +227,7 @@ export default async function HomePage() {
               Reflexão
             </h2>
           </Link>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
             {reflexao.length > 0 ? (
               reflexao.map((post) => (
                 <AniversarianteCard
@@ -281,8 +281,8 @@ function AniversarianteCard({
   placeholderIcon?: string;
 }) {
   const content = (
-    <article className="flex flex-col h-full rounded-xl overflow-hidden shadow-sm border border-[#e8ebed] bg-white hover:shadow-md transition-shadow group">
-      <div className="aspect-[3/1] max-h-[120px] shrink-0 bg-[#e8ebed]">
+    <article className="flex flex-col h-full min-h-[220px] rounded-xl overflow-hidden shadow-sm border border-[#e8ebed] bg-white hover:shadow-md transition-shadow group">
+      <div className="w-full h-[120px] min-h-[120px] shrink-0 bg-[#e8ebed] overflow-hidden">
         {image ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -296,13 +296,13 @@ function AniversarianteCard({
           </div>
         )}
       </div>
-      <div className="p-3 h-[96px] flex flex-col gap-1 box-border">
-        <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors text-sm leading-snug shrink-0">
+      <div className="p-3 min-h-[100px] flex flex-col gap-1 box-border flex-1">
+        <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors text-sm leading-snug">
           {title}
         </h3>
-        {excerpt && <p className="text-xs text-[#859eac] line-clamp-1 shrink-0">{excerpt}</p>}
+        {excerpt && <p className="text-xs text-[#859eac] line-clamp-1">{excerpt}</p>}
         {date && (
-          <p className="text-xs text-[#859eac] shrink-0 mt-auto">
+          <p className="text-xs text-[#859eac] mt-auto pt-1">
             {format(new Date(date), "dd/MM/yyyy", { locale: ptBR })}
           </p>
         )}

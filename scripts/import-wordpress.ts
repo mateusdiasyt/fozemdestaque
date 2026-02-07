@@ -149,12 +149,14 @@ async function main() {
 
     const postmeta = normalizeItem(obj["wp:postmeta"] ?? obj.postmeta ?? []);
     let featuredImageUrl: string | null = null;
+    const thumbMetaKeys = ["_thumbnail_id", "thumb-do-aniversariante"];
     for (const pm of postmeta) {
       const p = pm as Record<string, unknown>;
-      if (getText(p["wp:meta_key"] ?? p.meta_key) === "_thumbnail_id") {
+      const key = getText(p["wp:meta_key"] ?? p.meta_key);
+      if (thumbMetaKeys.includes(key)) {
         const thumbId = getText(p["wp:meta_value"] ?? p.meta_value);
         featuredImageUrl = attachmentMap.get(thumbId) ?? null;
-        break;
+        if (featuredImageUrl) break;
       }
     }
 
