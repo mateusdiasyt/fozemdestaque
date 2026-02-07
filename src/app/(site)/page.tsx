@@ -78,7 +78,7 @@ export default async function HomePage() {
     getRecentPostsWithCategory(8),
     getPostsByCategory("reflexao", 6),
     getAniversariantesDoDia(10),
-    getPostsByCategory("aniversarios", 6),
+    getPostsByCategory("aniversariantes", 6),
     getPostsByCategory("society", 3),
     getPostsByCategory("ti-ti-ti", 3),
     getPostsByCategory("merchandising", 2),
@@ -179,7 +179,7 @@ export default async function HomePage() {
 
         {/* Coluna centro: Aniversariantes do dia */}
         <div className="lg:col-span-3">
-          <Link href="/categoria/aniversarios" className="flex items-center gap-3 mb-4 group">
+          <Link href="/categoria/aniversariantes" className="flex items-center gap-3 mb-4 group">
             <span className="h-1 w-8 bg-[#ff751f] rounded group-hover:w-12 transition-all" />
             <h2 className="font-headline text-lg font-bold text-[#000000] uppercase tracking-wide group-hover:text-[#ff751f] transition-colors">
               Aniversariantes do dia
@@ -210,7 +210,7 @@ export default async function HomePage() {
             ) : (
               <div className="bg-white rounded-xl shadow-sm border border-[#e8ebed] p-6 text-center text-[#859eac] text-sm">
                 Nenhum aniversariante hoje. Confira em{" "}
-                <Link href="/categoria/aniversarios" className="text-[#ff751f] hover:underline">
+                <Link href="/categoria/aniversariantes" className="text-[#ff751f] hover:underline">
                   Aniversários
                 </Link>
                 .

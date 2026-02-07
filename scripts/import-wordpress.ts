@@ -4,6 +4,11 @@
  *
  * Requer DATABASE_URL no .env.local
  * Imagens mantêm as URLs originais (não faz upload para Blob)
+ *
+ * Regras:
+ * - Importa apenas "post" e "aniversarios" (não importa páginas)
+ * - Importa apenas itens cuja categoria existe no site ( slugs devem bater )
+ * - Cadastre no admin categorias com os mesmos slugs do WordPress antes de importar
  */
 import { config } from "dotenv";
 config({ path: ".env.local" });
@@ -88,28 +93,21 @@ async function main() {
     if (postId && attUrl && attUrl.startsWith("http")) attachmentMap.set(postId, attUrl);
   }
 
-  const wpCategories = normalizeItem(channel["wp:category"] ?? channel.category ?? []);
-  const categoryMap = new Map<string, string>();
   const existingCats = await db.select().from(schema.categories);
+  const existingSlugs = new Set(existingCats.map((c) => c.slug));
+  const categoryMap = new Map<string, string>(existingCats.map((c) => [c.slug, c.id]));
 
-  for (const cat of wpCategories) {
-    const c = cat as Record<string, unknown>;
-    const name = getText(c["wp:cat_name"] ?? c.name);
-    const slug = getText(c["wp:category_nicename"] ?? c.slug ?? c["@_nicename"]) || slugify(name) || "sem-categoria";
-    if (categoryMap.has(slug)) continue;
-    const existing = existingCats.find((ec) => ec.slug === slug);
-    if (existing) {
-      categoryMap.set(slug, existing.id);
-      continue;
-    }
-    const catId = generateId();
-    await db.insert(schema.categories).values({ id: catId, name: name || slug, slug, active: true });
-    categoryMap.set(slug, catId);
+  if (existingSlugs.size === 0) {
+    console.error("Nenhuma categoria cadastrada no site. Cadastre categorias no admin antes de importar.");
+    process.exit(1);
   }
+  console.log(`Categorias do site que serão usadas: ${[...existingSlugs].join(", ")}`);
 
-  const postItems = items.filter(
-    (it) => getText((it as Record<string, unknown>)["wp:post_type"] ?? (it as Record<string, unknown>).post_type) === "post"
-  );
+  const allowedTypes = ["post", "aniversarios"];
+  const postItems = items.filter((it) => {
+    const type = getText((it as Record<string, unknown>)["wp:post_type"] ?? (it as Record<string, unknown>).post_type);
+    return allowedTypes.includes(type);
+  });
 
   let imported = 0;
   let skipped = 0;
@@ -129,16 +127,24 @@ async function main() {
     const wpSlug = getText(obj["wp:post_name"] ?? obj.post_name);
     const slug = wpSlug ? slugify(wpSlug) : slugify(title);
 
+    const postType = getText(obj["wp:post_type"] ?? obj.post_type);
     const catRef = normalizeItem(obj.category ?? []);
     let categoryId: string | null = null;
     for (const cr of catRef) {
       const c = cr as Record<string, unknown>;
       const domain = getText(c["@_domain"] ?? c.domain);
-      if (domain === "category") {
-        const catSlug = slugify(getText(c["#text"] ?? c["@_nicename"] ?? c));
-        categoryId = categoryMap.get(catSlug) ?? existingCats.find((ec) => ec.slug === catSlug)?.id ?? null;
-        if (categoryId) break;
-      }
+      if (domain !== "category" && domain !== "categorias-artigos") continue;
+      const catSlug = slugify(getText(c["@_nicename"] ?? c["#text"] ?? c) || "");
+      if (!existingSlugs.has(catSlug)) continue;
+      categoryId = categoryMap.get(catSlug) ?? null;
+      if (categoryId) break;
+    }
+    if (!categoryId && postType === "aniversarios") {
+      categoryId = categoryMap.get("aniversariantes") ?? null;
+    }
+    if (!categoryId) {
+      skipped++;
+      continue;
     }
 
     const postmeta = normalizeItem(obj["wp:postmeta"] ?? obj.postmeta ?? []);
@@ -183,8 +189,8 @@ async function main() {
     if (imported % 10 === 0) console.log(`  ${imported} posts importados...`);
   }
 
-  console.log(`\nConcluído! ${imported} posts importados, ${skipped} ignorados.`);
-  console.log(`${categoryMap.size} categorias criadas/mapeadas.`);
+  console.log(`\nConcluído! ${imported} posts importados, ${skipped} ignorados (sem categoria correspondente ou sem título).`);
+  console.log("Importados apenas posts/aniversários com categorias existentes no site. Páginas não são importadas.");
   console.log("\nImagens mantêm URLs originais. Edite os posts no admin para trocar por imagens locais se necessário.");
 }
 

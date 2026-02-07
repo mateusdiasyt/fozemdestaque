@@ -29,7 +29,7 @@ export const MENU_ITEMS: { label: string; href: string; icon: LucideIcon }[] = [
   { label: "Contatos", href: "/contatos", icon: Phone },
   { label: "Reflexão", href: "/categoria/reflexao", icon: Lightbulb },
   { label: "Datas", href: "/categoria/datas", icon: Calendar },
-  { label: "Aniversários", href: "/categoria/aniversarios", icon: Cake },
+  { label: "Aniversários", href: "/categoria/aniversariantes", icon: Cake },
   { label: "Society", href: "/categoria/society", icon: Users },
   { label: "Ti-ti-ti", href: "/categoria/ti-ti-ti", icon: Zap },
   { label: "Top Profissional", href: "/categoria/top-profissional", icon: Briefcase },
