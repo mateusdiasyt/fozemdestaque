@@ -78,7 +78,7 @@ export default async function HomePage() {
     getRecentPostsWithCategory(8),
     getPostsByCategory("reflexao", 6),
     getAniversariantesDoDia(10),
-    getPostsByCategory("aniversariantes", 6),
+    getPostsByCategory("aniversariantes", 3),
     getPostsByCategory("society", 3),
     getPostsByCategory("ti-ti-ti", 3),
     getPostsByCategory("merchandising", 2),
