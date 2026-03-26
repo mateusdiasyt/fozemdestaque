@@ -11,6 +11,7 @@ import {
   Users,
   Image,
   Cake,
+  Share2,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ const menuItems = [
   { href: "/admin/users", label: "Usuários", icon: Users, perm: "users" },
   { href: "/admin/banners", label: "Banners", icon: Image, perm: "banners" },
   { href: "/admin/aniversarios", label: "Aniversários", icon: Cake, perm: "aniversarios" },
+  { href: "/admin/redes-sociais", label: "Redes Sociais", icon: Share2, perm: "settings" },
 ];
 
 export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
@@ -44,7 +46,10 @@ export function AdminSidebar({ user, permissions }: AdminSidebarProps) {
       <nav className="flex-1 p-4 space-y-1">
         {menuItems.map((item) => {
           if (!permissions.includes(item.perm)) return null;
-          const isActive = pathname === item.href || (item.href !== "/admin" && pathname?.startsWith(item.href));
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/admin" && pathname?.startsWith(item.href));
+
           return (
             <Link
               key={item.href}
