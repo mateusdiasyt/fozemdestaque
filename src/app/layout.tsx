@@ -1,24 +1,17 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Merriweather, Poppins, Source_Sans_3 } from "next/font/google";
+import { Manrope, Sora } from "next/font/google";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";
 
-const merriweather = Merriweather({
-  weight: ["400", "700", "900"],
+const manrope = Manrope({
   subsets: ["latin"],
-  variable: "--font-merriweather",
+  variable: "--font-manrope",
 });
 
-const sourceSans = Source_Sans_3({
+const sora = Sora({
   subsets: ["latin"],
-  variable: "--font-source-sans",
-});
-
-const poppins = Poppins({
-  weight: ["300", "400", "500", "600", "700"],
-  subsets: ["latin"],
-  variable: "--font-poppins",
+  variable: "--font-sora",
 });
 
 export const metadata: Metadata = {
@@ -53,7 +46,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${merriweather.variable} ${sourceSans.variable} ${poppins.variable} antialiased`}
+        className={`${manrope.variable} ${sora.variable} antialiased`}
       >
         <div id="google_translate_element" className="invisible absolute w-0 h-0 overflow-hidden" aria-hidden />
         <SessionProvider>{children}</SessionProvider>

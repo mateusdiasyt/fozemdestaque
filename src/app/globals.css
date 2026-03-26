@@ -1,47 +1,5 @@
 @import "tailwindcss";
 
-@font-face {
-  font-family: "Candara";
-  src: url("/fonts/Candara.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "Candara";
-  src: url("/fonts/Candaral.ttf") format("truetype");
-  font-weight: 300;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "Candara";
-  src: url("/fonts/Candarab.ttf") format("truetype");
-  font-weight: 700;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "Candara";
-  src: url("/fonts/Candarai.ttf") format("truetype");
-  font-weight: 400;
-  font-style: italic;
-}
-
-@font-face {
-  font-family: "Candara";
-  src: url("/fonts/Candarali.ttf") format("truetype");
-  font-weight: 300;
-  font-style: italic;
-}
-
-@font-face {
-  font-family: "Candara";
-  src: url("/fonts/Candaraz.ttf") format("truetype");
-  font-weight: 700;
-  font-style: italic;
-}
-
 :root {
   /* Principais */
   --orange: #ff751f;
@@ -62,21 +20,20 @@
 @theme inline {
   --color-orange: var(--orange);
   --color-green: var(--green);
-  --font-candara: "Candara", sans-serif;
-  --font-serif: var(--font-merriweather);
-  --font-sans: var(--font-source-sans);
+  --font-serif: var(--font-sora);
+  --font-sans: var(--font-manrope);
 }
 
 .font-poppins {
-  font-family: var(--font-poppins), "Poppins", system-ui, sans-serif;
+  font-family: var(--font-manrope), sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--black);
-  font-family: "Candara", var(--font-source-sans), system-ui, sans-serif;
+  font-family: var(--font-manrope), sans-serif;
 }
 
 .font-headline {
-  font-family: "Candara", var(--font-source-sans), sans-serif;
+  font-family: var(--font-sora), sans-serif;
 }
