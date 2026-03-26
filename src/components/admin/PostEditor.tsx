@@ -145,7 +145,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     content: post?.content ?? "",
     editorProps: {
       attributes: {
-        class: "prose prose-slate max-w-none min-h-[340px] bg-white px-4 py-3 text-slate-900 focus:outline-none [&_p]:text-slate-800 [&_h1]:text-slate-900 [&_h2]:text-slate-900 [&_h3]:text-slate-900 [&_h4]:text-slate-900",
+        class: "prose prose-slate max-w-none min-h-[460px] bg-white px-4 py-3 text-slate-900 focus:outline-none [&_p]:text-slate-800 [&_h1]:text-slate-900 [&_h2]:text-slate-900 [&_h3]:text-slate-900 [&_h4]:text-slate-900",
       },
     },
   });
@@ -308,7 +308,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const fieldCompactClass = "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col h-full w-full max-w-6xl">
+    <form onSubmit={handleSubmit} className="flex flex-col h-full w-full max-w-[1700px]">
       <div className="flex justify-end mb-2">
         <button
           type="button"
@@ -320,8 +320,8 @@ export function PostEditor({ post, categories }: PostEditorProps) {
           Ajuda
         </button>
       </div>
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <div className="lg:col-span-2 space-y-3 overflow-y-auto min-h-0 bg-white rounded-xl border border-slate-200 p-4">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-6">
+        <div className="space-y-4 overflow-y-auto min-h-0 bg-white rounded-xl border border-slate-200 p-5">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-0.5">Título</label>
             <input
@@ -366,8 +366,8 @@ export function PostEditor({ post, categories }: PostEditorProps) {
           </div>
         </div>
 
-        <div className="lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-8rem)] overflow-y-auto min-h-0 content-start">
-          <div className="bg-white p-3 rounded-xl border border-slate-200">
+        <div className="space-y-4 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-8rem)] overflow-y-auto min-h-0 content-start pr-1">
+          <div className="bg-white p-4 rounded-xl border border-slate-200">
             <h3 className="font-semibold text-slate-800 mb-2 text-sm">Publicação</h3>
             <div className="space-y-2">
               <div>
@@ -447,8 +447,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             </div>
           </div>
 
-          <div className="space-y-3">
-          <div className="bg-white p-3 rounded-xl border border-slate-200">
+          <div className="bg-white p-4 rounded-xl border border-slate-200">
             <h3 className="font-semibold text-slate-800 mb-2 text-sm">SEO</h3>
             <button
               type="button"
@@ -566,7 +565,6 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             </button>
             </div>
           </details>
-          </div>
         </div>
       </div>
 
