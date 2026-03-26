@@ -6,7 +6,11 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, Menu, X, ChevronDown, MoreHorizontal, Home } from "lucide-react";
 import { VisitCounter } from "@/components/site/VisitCounter";
 import { LanguageSwitcher } from "@/components/site/LanguageSwitcher";
-import { MAIN_NAV_ITEMS, MENU_ITEMS } from "@/lib/menu-items";
+import {
+  HEADER_MORE_CATEGORIES,
+  HEADER_PRIMARY_CATEGORIES,
+  MAIN_NAV_ITEMS,
+} from "@/lib/menu-items";
 
 interface PreviewPost {
   id: string;
@@ -243,7 +247,7 @@ export function HeaderNav() {
               <Home className="w-4 h-4" />
               Início
             </Link>
-            {MENU_ITEMS.slice(0, 11).map((item) => (
+            {HEADER_PRIMARY_CATEGORIES.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -266,7 +270,7 @@ export function HeaderNav() {
             </button>
             {moreOpen && (
               <div className="absolute top-full right-0 mt-1 py-2 bg-white rounded-lg shadow-lg border border-[#e8ebed] z-[100] min-w-[180px]">
-                {MENU_ITEMS.slice(11).map((item) => (
+                {HEADER_MORE_CATEGORIES.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
