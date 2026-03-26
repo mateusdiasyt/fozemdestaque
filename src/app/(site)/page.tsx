@@ -4,6 +4,7 @@ import { posts, categories, contentBlocks } from "@/lib/db/schema";
 import { eq, desc, and, asc } from "drizzle-orm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
+import { BirthdaySlider, type BirthdaySlideItem } from "@/components/site/BirthdaySlider";
 
 type PostItem = {
   id: string;
@@ -46,7 +47,7 @@ export default async function HomePage() {
   const [aniversariantesBlocks, aniversariosPosts, datas, reflexao, society, agenda, tiTiTi, merchandising] =
     await Promise.all([
       getAniversariantesDoDia(10),
-      getPostsByCategory("aniversariantes", 3),
+      getPostsByCategory("aniversariantes", 12),
       getPostsByCategory("datas", 3),
       getPostsByCategory("reflexao", 3),
       getPostsByCategory("society", 3),
@@ -55,7 +56,29 @@ export default async function HomePage() {
       getPostsByCategory("merchandising", 3),
     ]);
 
-  const aniversariantes = aniversariantesBlocks.length > 0 ? aniversariantesBlocks : null;
+  const birthdaySlides: BirthdaySlideItem[] = [
+    ...aniversariantesBlocks.map((item) => ({
+      id: item.id,
+      title: item.title,
+      excerpt: item.excerpt,
+      image: item.thumbnail,
+      href: item.link,
+      dateLabel: null,
+    })),
+    ...aniversariosPosts.map((post) => ({
+      id: post.id,
+      title: post.title,
+      excerpt: post.excerpt,
+      image: post.featuredImage,
+      href: `/post/${post.slug}`,
+      dateLabel: post.publishedAt
+        ? format(new Date(post.publishedAt), "dd/MM/yyyy", { locale: ptBR })
+        : null,
+    })),
+  ].filter(
+    (item, index, arr) =>
+      arr.findIndex((x) => (x.href ?? `id:${x.id}`) === (item.href ?? `id:${item.id}`)) === index
+  );
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
@@ -67,34 +90,7 @@ export default async function HomePage() {
               Aniversários
             </h2>
           </Link>
-          <div className="grid grid-cols-1 gap-4">
-            {aniversariantes ? (
-              aniversariantes.map((item) => (
-                <AniversarianteCard
-                  key={item.id}
-                  title={item.title}
-                  excerpt={item.excerpt}
-                  image={item.thumbnail}
-                  href={item.link}
-                />
-              ))
-            ) : aniversariosPosts.length > 0 ? (
-              aniversariosPosts.map((post) => (
-                <AniversarianteCard
-                  key={post.id}
-                  title={post.title}
-                  excerpt={post.excerpt}
-                  image={post.featuredImage}
-                  href={`/post/${post.slug}`}
-                  date={post.publishedAt}
-                />
-              ))
-            ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-[#e8ebed] p-6 text-center text-[#859eac] text-sm">
-                Nenhum conteúdo em aniversários no momento.
-              </div>
-            )}
-          </div>
+          <BirthdaySlider items={birthdaySlides} />
         </section>
 
         <ContentSection title="Datas" slug="datas" posts={datas} />
@@ -109,62 +105,6 @@ export default async function HomePage() {
       </div>
     </div>
   );
-}
-
-function AniversarianteCard({
-  title,
-  excerpt,
-  image,
-  href,
-  date,
-  placeholderIcon = "🎂",
-}: {
-  title: string;
-  excerpt: string | null;
-  image: string | null;
-  href: string | null;
-  date?: Date | string | null;
-  placeholderIcon?: string;
-}) {
-  const content = (
-    <article className="flex flex-col h-full min-h-[220px] rounded-xl overflow-hidden shadow-sm border border-[#e8ebed] bg-white hover:shadow-md transition-shadow group">
-      <div className="w-full h-[120px] min-h-[120px] shrink-0 bg-[#e8ebed] overflow-hidden">
-        {image ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={image}
-            alt=""
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-[#859eac] text-2xl">{placeholderIcon}</span>
-          </div>
-        )}
-      </div>
-      <div className="p-3 min-h-[100px] flex flex-col gap-1 box-border flex-1">
-        <h3 className="font-headline font-bold text-[#4e5b60] group-hover:text-[#ff751f] line-clamp-2 transition-colors text-sm leading-snug">
-          {title}
-        </h3>
-        {excerpt && <p className="text-xs text-[#859eac] line-clamp-1">{excerpt}</p>}
-        {date && (
-          <p className="text-xs text-[#859eac] mt-auto pt-1">
-            {format(new Date(date), "dd/MM/yyyy", { locale: ptBR })}
-          </p>
-        )}
-      </div>
-    </article>
-  );
-
-  if (href) {
-    return (
-      <Link href={href} className="block">
-        {content}
-      </Link>
-    );
-  }
-
-  return content;
 }
 
 function ContentSection({
