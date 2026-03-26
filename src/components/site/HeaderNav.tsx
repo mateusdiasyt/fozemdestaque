@@ -238,8 +238,8 @@ export function HeaderNav() {
         <div className="h-px bg-[#ff751f]/50" />
       </header>
       <nav className="bg-white border-b border-[#e8ebed]">
-        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center gap-x-6 text-sm w-full">
-          <div className="flex items-center gap-x-6 flex-1 min-w-0 overflow-x-auto overflow-y-visible">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center gap-x-6 text-sm w-full">
+          <div className="flex items-center gap-x-6 min-w-0 overflow-x-auto overflow-y-visible">
             <Link
               href="/"
               className="flex items-center gap-1.5 text-[#ff751f] font-semibold hover:text-[#e56a1a] transition-colors whitespace-nowrap shrink-0 pr-2 border-r border-slate-200"
