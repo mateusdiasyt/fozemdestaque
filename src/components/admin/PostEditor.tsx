@@ -21,8 +21,6 @@ import {
   Link2,
   Table,
   Loader2,
-  Check,
-  AlertCircle,
   TrendingUp,
   X,
   HelpCircle,
@@ -147,7 +145,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     content: post?.content ?? "",
     editorProps: {
       attributes: {
-        class: "prose prose-slate max-w-none min-h-[180px] px-4 py-3 focus:outline-none",
+        class: "prose prose-slate max-w-none min-h-[340px] bg-white px-4 py-3 text-slate-900 focus:outline-none [&_p]:text-slate-800 [&_h1]:text-slate-900 [&_h2]:text-slate-900 [&_h3]:text-slate-900 [&_h4]:text-slate-900",
       },
     },
   });
@@ -306,6 +304,8 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const statusColors = { good: "text-green-600", medium: "text-amber-600", bad: "text-red-600" };
   const displayTitle = metaTitle || title || "Título da página";
   const displayDesc = metaDescription || excerpt || "Meta description...";
+  const fieldClass = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const fieldCompactClass = "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col h-full w-full max-w-6xl">
@@ -313,7 +313,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
         <button
           type="button"
           onClick={() => setHelpPopup(true)}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-200 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
           title="Ajuda"
         >
           <HelpCircle className="w-4 h-4" />
@@ -321,7 +321,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
         </button>
       </div>
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <div className="lg:col-span-2 space-y-3 overflow-y-auto min-h-0">
+        <div className="lg:col-span-2 space-y-3 overflow-y-auto min-h-0 bg-white rounded-xl border border-slate-200 p-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-0.5">Título</label>
             <input
@@ -329,7 +329,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className={fieldClass}
             />
           </div>
           <div>
@@ -338,7 +338,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
               type="text"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
-              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className={fieldClass}
               placeholder="url-amigavel"
             />
             {slugWarnings.length > 0 && (
@@ -350,14 +350,14 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             <textarea
               value={excerpt}
               onChange={(e) => setExcerpt(e.target.value)}
-              rows={1}
-              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+              rows={3}
+              className={`${fieldClass} resize-y min-h-[84px]`}
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-0.5">Conteúdo</label>
             <EditorToolbar editor={editor} onLinkClick={openLinkPopup} />
-            <div className="border border-slate-300 rounded-b-lg overflow-hidden">
+            <div className="border border-slate-300 rounded-b-lg overflow-hidden bg-white">
               <EditorContent editor={editor} />
             </div>
             <p className="text-xs text-slate-500 mt-1">
@@ -375,7 +375,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className={fieldClass}
                 >
                   <option value="rascunho">Rascunho</option>
                   <option value="em_analise">Em análise</option>
@@ -388,7 +388,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                   type="datetime-local"
                   value={scheduledAt}
                   onChange={(e) => setScheduledAt(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className={fieldClass}
                 />
               </div>
               <div>
@@ -402,7 +402,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                 <select
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className={fieldClass}
                 >
                   <option value="">Selecione</option>
                   {categories.map((c) => (
@@ -417,7 +417,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
                   placeholder="tag1, tag2, tag3"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className={fieldClass}
                 />
               </div>
               <div>
@@ -427,7 +427,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                   value={featuredImage}
                   onChange={(e) => setFeaturedImage(e.target.value)}
                   placeholder="https://..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className={fieldClass}
                 />
                 {featuredImage && (
                   <div className="mt-1.5 rounded-lg overflow-hidden border border-slate-200 max-h-20">
@@ -441,7 +441,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                   value={featuredImageAlt}
                   onChange={(e) => setFeaturedImageAlt(e.target.value)}
                   placeholder="Descrição da imagem"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className={fieldClass}
                 />
               </div>
             </div>
@@ -471,7 +471,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                   onChange={(e) => setMetaTitle(e.target.value)}
                   maxLength={70}
                   placeholder={title || "Título da página"}
-                  className={cn("w-full px-2 py-1.5 text-sm border rounded", metaTitleLen <= 60 ? "border-slate-300" : "border-amber-500")}
+                  className={cn(fieldCompactClass, metaTitleLen <= 60 ? "border-slate-300" : "border-amber-500")}
                 />
               </div>
               <div>
@@ -483,8 +483,8 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                   value={metaDescription}
                   onChange={(e) => setMetaDescription(e.target.value)}
                   maxLength={165}
-                  rows={1}
-                  className={cn("w-full px-2 py-1.5 text-sm border rounded", metaDescLen >= 120 && metaDescLen <= 160 ? "border-slate-300" : "border-amber-500")}
+                  rows={2}
+                  className={cn(`${fieldCompactClass} resize-y min-h-[72px]`, metaDescLen >= 120 && metaDescLen <= 160 ? "border-slate-300" : "border-amber-500")}
                 />
               </div>
               <div>
@@ -493,7 +493,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                   type="text"
                   value={focusKeyword}
                   onChange={(e) => setFocusKeyword(e.target.value)}
-                  className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded"
+                  className={fieldCompactClass}
                 />
               </div>
               <div>
@@ -503,7 +503,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                   value={canonicalUrl}
                   onChange={(e) => setCanonicalUrl(e.target.value)}
                   placeholder="https://..."
-                  className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded"
+                  className={fieldCompactClass}
                 />
               </div>
             </div>
@@ -546,14 +546,14 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                     value={item.q}
                     onChange={(e) => updateFaqItem(i, "q", e.target.value)}
                     placeholder="Pergunta"
-                    className="w-full px-2 py-1.5 text-sm border rounded"
+                    className={fieldCompactClass}
                   />
                   <textarea
                     value={item.a}
                     onChange={(e) => updateFaqItem(i, "a", e.target.value)}
                     placeholder="Resposta"
-                    rows={1}
-                    className="w-full px-2 py-1.5 text-sm border rounded resize-none"
+                    rows={2}
+                    className={`${fieldCompactClass} resize-y min-h-[72px]`}
                   />
                 </div>
                 <button type="button" onClick={() => removeFaqItem(i)} className="p-2 text-red-600 hover:bg-red-50 rounded">
@@ -584,7 +584,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             href={`/post/${post.slug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-6 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
+            className="px-6 py-2 border border-slate-500 text-slate-100 rounded-lg hover:bg-slate-800"
           >
             Visualizar
           </a>
@@ -658,33 +658,41 @@ export function PostEditor({ post, categories }: PostEditorProps) {
 
 function EditorToolbar({ editor, onLinkClick }: { editor: Editor | null; onLinkClick: () => void }) {
   if (!editor) return null;
+  const buttonClass = (active = false) =>
+    cn(
+      "p-2 rounded transition-colors",
+      active
+        ? "bg-slate-200 text-slate-900"
+        : "text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+    );
+
   return (
     <div className="flex flex-wrap gap-1 p-1.5 bg-slate-100 border border-slate-300 border-b-0 rounded-t-lg">
-      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className="p-2 rounded hover:bg-slate-200">
+      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={buttonClass(editor.isActive("bold"))}>
         <Bold className="w-4 h-4" />
       </button>
-      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className="p-2 rounded hover:bg-slate-200">
+      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={buttonClass(editor.isActive("italic"))}>
         <Italic className="w-4 h-4" />
       </button>
-      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className="p-2 rounded hover:bg-slate-200">
+      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={buttonClass(editor.isActive("heading", { level: 2 }))}>
         <Heading2 className="w-4 h-4" />
       </button>
-      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className="p-2 rounded hover:bg-slate-200">
+      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={buttonClass(editor.isActive("heading", { level: 3 }))}>
         <Heading3 className="w-4 h-4" />
       </button>
-      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()} className="p-2 rounded hover:bg-slate-200">
+      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()} className={buttonClass(editor.isActive("heading", { level: 4 }))}>
         <Heading4 className="w-4 h-4" />
       </button>
-      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className="p-2 rounded hover:bg-slate-200">
+      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={buttonClass(editor.isActive("bulletList"))}>
         <List className="w-4 h-4" />
       </button>
-      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className="p-2 rounded hover:bg-slate-200">
+      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={buttonClass(editor.isActive("orderedList"))}>
         <ListOrdered className="w-4 h-4" />
       </button>
-      <button type="button" onClick={onLinkClick} className="p-2 rounded hover:bg-slate-200">
+      <button type="button" onClick={onLinkClick} className={buttonClass(editor.isActive("link"))}>
         <Link2 className="w-4 h-4" />
       </button>
-      <button type="button" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} className="p-2 rounded hover:bg-slate-200">
+      <button type="button" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} className={buttonClass()}>
         <Table className="w-4 h-4" />
       </button>
     </div>
