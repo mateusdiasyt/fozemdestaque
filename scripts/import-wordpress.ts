@@ -11,7 +11,7 @@
  * Em --dry-run, o script consegue gerar relatório mesmo sem DATABASE_URL.
  *
  * Regras:
- * - Importa "post", "aniversarios" e "artigos-foz-em-desta"
+ * - Importa "post", "aniversarios", "artigos-foz-em-desta", "reflexao-do-dia" e "datas-comemorativas"
  * - Mantém as URLs originais das imagens do WordPress
  * - Só grava no banco quando a categoria mapeada existe no site
  * - Gera relatório com itens ignorados/sem categoria para revisão manual
@@ -30,10 +30,10 @@ import { dirname, resolve } from "path";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
-const SUPPORTED_POST_TYPES = new Set(["post", "aniversarios", "artigos-foz-em-desta", "reflexao-do-dia"]);
+const SUPPORTED_POST_TYPES = new Set(["post", "aniversarios", "artigos-foz-em-desta", "reflexao-do-dia", "datas-comemorativas"]);
 const IMPORTABLE_STATUSES = new Set(["publish"]);
 const OPTIONAL_STATUSES = new Set(["draft"]);
-const THUMB_META_KEYS = ["_thumbnail_id", "thumb-do-aniversariante", "thumb-do-artigo", "thumb-da-reflexao"];
+const THUMB_META_KEYS = ["_thumbnail_id", "thumb-do-aniversariante", "thumb-do-artigo", "thumb-da-reflexao", "thumb-da-data"];
 const EXCERPT_META_KEYS = ["pequeno-resumo"];
 
 const CATEGORY_FALLBACKS: Record<string, string[]> = {
@@ -44,7 +44,15 @@ const CATEGORY_FALLBACKS: Record<string, string[]> = {
   "beleza-amp-saude": ["beleza-amp-saude", "beleza-saude"],
   "reflexao-do-dia": ["reflexao-do-dia", "reflexao"],
   "reflexao": ["reflexao", "reflexao-do-dia"],
+  "datas-comemorativas": ["datas", "datas-comemorativas"],
+  "datas": ["datas", "datas-comemorativas"],
 };
+
+const REQUIRED_SITE_CATEGORIES = [
+  { slug: "aniversariantes", name: "Aniversariantes", description: "Aniversariantes do dia" },
+  { slug: "reflexao-do-dia", name: "Reflexão do Dia", description: "Reflexões e pensamentos" },
+  { slug: "datas", name: "Datas", description: "Datas importantes e comemorativas" },
+];
 
 type CliOptions = {
   xmlPath: string;
@@ -272,10 +280,28 @@ function buildReflectionTitle(meta: Map<string, string>, obj: Record<string, unk
   return postId ? `Reflexão do Dia #${postId}` : "";
 }
 
+function buildCommemorativeDateTitle(meta: Map<string, string>, obj: Record<string, unknown>): string {
+  const explicitTitle = getText(obj.title);
+  if (explicitTitle) return explicitTitle;
+
+  const metaTitle = (meta.get("nome-da-data") ?? "").trim();
+  if (metaTitle) return metaTitle;
+
+  const dateLabel =
+    formatDateLabel(meta.get("data") ?? "") ||
+    formatDateLabel(getText(obj["wp:post_date"] ?? obj.post_date));
+
+  if (dateLabel) return `Data Comemorativa - ${dateLabel}`;
+
+  const postId = getText(obj["wp:post_id"] ?? obj.post_id);
+  return postId ? `Data Comemorativa #${postId}` : "";
+}
+
 function getPreferredDate(meta: Map<string, string>, obj: Record<string, unknown>, status: string): Date | null {
   if (status !== "publicado") return null;
 
   const rawDate =
+    meta.get("data") ||
     meta.get("data-da-reflexao") ||
     meta.get("data-do-artigo") ||
     getText(obj["wp:post_date"] ?? obj.post_date) ||
@@ -302,10 +328,13 @@ function buildPreparedPost(
 
   const meta = buildMetaMap(obj);
   const reflectionText = (meta.get("texto-da-reflexao") ?? "").trim();
+  const commemorativeDescription = (meta.get("descricao-sobre-a-data") ?? "").trim();
   const title =
     postType === "reflexao-do-dia"
       ? buildReflectionTitle(meta, obj)
-      : getText(obj.title);
+      : postType === "datas-comemorativas"
+        ? buildCommemorativeDateTitle(meta, obj)
+        : getText(obj.title);
   if (!title) {
     return null;
   }
@@ -320,6 +349,8 @@ function buildPreparedPost(
         ? resolveCategorySlug(["aniversarios"])
         : postType === "reflexao-do-dia"
           ? resolveCategorySlug(["reflexao-do-dia"])
+          : postType === "datas-comemorativas"
+            ? resolveCategorySlug(["datas-comemorativas"])
           : null
     );
 
@@ -338,6 +369,9 @@ function buildPreparedPost(
   if (!content && reflectionText) {
     content = `<p>${escapeHtml(reflectionText)}</p>`;
   }
+  if (!content && commemorativeDescription) {
+    content = `<p>${escapeHtml(commemorativeDescription)}</p>`;
+  }
 
   let excerpt =
     getText(obj["excerpt:encoded"] ?? obj.excerpt ?? "") ||
@@ -345,6 +379,9 @@ function buildPreparedPost(
     "";
   if (!excerpt && reflectionText) {
     excerpt = truncateText(reflectionText, 160);
+  }
+  if (!excerpt && commemorativeDescription) {
+    excerpt = truncateText(commemorativeDescription, 160);
   }
   excerpt = excerpt.trim();
 
@@ -386,6 +423,31 @@ function writeReport(reportPath: string, payload: unknown) {
   mkdirSync(dirname(absolutePath), { recursive: true });
   writeFileSync(absolutePath, JSON.stringify(payload, null, 2), "utf-8");
   console.log(`Relatório salvo em: ${absolutePath}`);
+}
+
+async function ensureRequiredCategories(
+  db: ReturnType<typeof drizzle<typeof schema>>,
+  categoryMap: Map<string, string>,
+  existingCategorySlugs: Set<string>,
+  persist: boolean
+) {
+  for (const category of REQUIRED_SITE_CATEGORIES) {
+    if (existingCategorySlugs.has(category.slug)) continue;
+
+    const id = generateId();
+    if (persist) {
+      await db.insert(schema.categories).values({
+        id,
+        name: category.name,
+        slug: category.slug,
+        description: category.description,
+        active: true,
+      });
+    }
+
+    categoryMap.set(category.slug, id);
+    existingCategorySlugs.add(category.slug);
+  }
 }
 
 async function main() {
@@ -474,6 +536,8 @@ async function main() {
       categoryMap.set(category.slug, category.id);
       existingCategorySlugs.add(category.slug);
     }
+
+    await ensureRequiredCategories(db, categoryMap, existingCategorySlugs, !options.dryRun);
 
     const existingPosts = await db.select({
       slug: schema.posts.slug,
