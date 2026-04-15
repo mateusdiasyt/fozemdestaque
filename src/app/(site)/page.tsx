@@ -55,11 +55,11 @@ export default async function HomePage() {
       getAniversariantesDoDia(10),
       getPostsByCategory("aniversariantes", 12),
       getPostsByCategory("datas", 4),
-      getPostsByCategory("reflexao-do-dia", 4),
+      getPostsByCategory("reflexao-do-dia", 3),
       getPostsByCategory("click-society", 4),
       getPostsByCategory("agenda", 4),
-      getPostsByCategory("ti-ti-ti", 3),
-      getPostsByCategory("merchandising", 3),
+      getPostsByCategory("ti-ti-ti", 2),
+      getPostsByCategory("merchandising", 2),
     ]);
 
   const birthdaySlides: BirthdaySlideItem[] = [
@@ -121,13 +121,12 @@ export default async function HomePage() {
             posts={datas}
           />
 
-          <EditorialSection
+          <ReflectionSection
             title="Reflexões"
             slug="reflexao-do-dia"
             eyebrow="Leitura breve"
             description="Uma pausa de leitura com visual mais autoral, sem perder a lógica de portal e de hierarquia de navegação."
             posts={reflexao}
-            tone="dark"
           />
         </div>
 
@@ -141,7 +140,7 @@ export default async function HomePage() {
             leadHeight="md:min-h-[320px]"
           />
 
-          <div className="grid gap-8 lg:grid-cols-2">
+          <div className="grid items-start gap-6 lg:grid-cols-2">
             <CompactSection
               title="Ti-ti-ti"
               slug="ti-ti-ti"
@@ -367,6 +366,96 @@ function EditorialSection({
   );
 }
 
+function ReflectionSection({
+  title,
+  slug,
+  eyebrow,
+  description,
+  posts,
+}: {
+  title: string;
+  slug: string;
+  eyebrow: string;
+  description: string;
+  posts: PostItem[];
+}) {
+  const [lead, ...rest] = posts;
+
+  return (
+    <section className="rounded-[28px] border border-[#eadfd2] bg-[linear-gradient(180deg,#fff7ef_0%,#fffefe_100%)] p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] md:p-6">
+      <SectionHeading title={title} slug={slug} eyebrow={eyebrow} description={description} />
+
+      {lead ? (
+        <div className="mt-6 space-y-4">
+          <Link
+            href={`/post/${lead.slug}`}
+            className="group grid gap-4 rounded-[24px] border border-[#eadfd2] bg-white p-4 shadow-[0_14px_35px_rgba(15,23,42,0.05)] transition-colors hover:bg-[#fffaf6] md:grid-cols-[132px_1fr]"
+          >
+            <ThumbImage
+              src={lead.featuredImage}
+              alt={lead.title}
+              className="h-36 md:h-full md:min-h-[150px]"
+              placeholderLabel={title}
+            />
+
+            <div className="flex min-w-0 flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="h-[3px] w-8 rounded-full bg-[#ff751f]" />
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#ff751f]">Frase em destaque</p>
+                </div>
+                <h3 className="mt-3 font-headline text-[clamp(1.5rem,2.5vw,2.2rem)] font-semibold leading-tight text-[#102033] transition-colors group-hover:text-[#ff751f]">
+                  {lead.title}
+                </h3>
+                {lead.excerpt && (
+                  <p className="mt-3 text-[15px] leading-7 text-[#51626f] italic line-clamp-3">
+                    "{lead.excerpt}"
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7a8b98]">
+                  Arquivo editorial
+                </span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7a8b98]">
+                  {formatPostDate(lead.publishedAt) ?? "Acervo Foz"}
+                </span>
+              </div>
+            </div>
+          </Link>
+
+          {rest.length > 0 && (
+            <div className="grid gap-2.5">
+              {rest.map((post, index) => (
+                <Link
+                  key={post.id}
+                  href={`/post/${post.slug}`}
+                  className="group grid grid-cols-[auto_1fr] gap-3 rounded-[18px] border border-[#ece8e2] bg-white/85 px-4 py-3 transition-colors hover:bg-[#fffaf6]"
+                >
+                  <span className="font-headline text-2xl font-semibold tabular-nums text-[#d0c4b8]">{`${index + 2}`.padStart(2, "0")}</span>
+                  <div className="min-w-0">
+                    <h4 className="font-headline text-[15px] font-semibold leading-snug text-[#102033] transition-colors group-hover:text-[#ff751f]">
+                      {post.title}
+                    </h4>
+                    {post.excerpt && <p className="mt-1 text-sm text-[#667785] line-clamp-2">{post.excerpt}</p>}
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a9aa5]">
+                      <span>Arquivo Foz</span>
+                      <span>{formatPostDate(post.publishedAt) ?? "Acervo"}</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <EmptySection title={title} />
+      )}
+    </section>
+  );
+}
+
 function CompactSection({
   title,
   slug,
@@ -381,28 +470,43 @@ function CompactSection({
   posts: PostItem[];
 }) {
   return (
-    <section className="rounded-[28px] border border-[#dfe5ea] bg-white p-5 shadow-[0_16px_50px_rgba(15,23,42,0.06)] md:p-6">
-      <SectionHeading title={title} slug={slug} eyebrow={eyebrow} description={description} />
+    <section className="rounded-[26px] border border-[#dfe5ea] bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] md:p-5">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#ff751f]">{eyebrow}</p>
+          <Link href={`/categoria/${slug}`} className="group inline-flex items-center gap-2">
+            <h2 className="font-headline text-[1.85rem] font-semibold tracking-tight text-[#0f172a]">{title}</h2>
+            <ArrowUpRight className="h-4 w-4 text-[#0f172a] transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#ff751f]" />
+          </Link>
+          <p className="mt-2 max-w-[16rem] text-xs leading-5 text-[#6a7b87] line-clamp-3">{description}</p>
+        </div>
+
+        <Link
+          href={`/categoria/${slug}`}
+          className="inline-flex items-center gap-2 text-xs font-semibold text-[#0f172a] transition-colors hover:text-[#ff751f]"
+        >
+          Ver categoria
+          <ArrowUpRight className="h-4 w-4" />
+        </Link>
+      </div>
 
       {posts.length > 0 ? (
-        <div className="mt-6 space-y-3">
+        <div className="mt-4 space-y-2.5">
           {posts.map((post, index) => (
             <Link
               key={post.id}
               href={`/post/${post.slug}`}
-              className="group grid grid-cols-[auto_1fr] gap-4 rounded-[22px] border border-[#e8edf1] bg-[#fbfcfd] p-3.5 transition-colors hover:bg-white"
+              className="group grid grid-cols-[auto_68px_1fr] gap-3 rounded-[20px] border border-[#e8edf1] bg-[#fbfcfd] p-3 transition-colors hover:bg-white"
             >
-              <div className="flex items-start gap-3">
-                <span className="font-headline text-2xl font-semibold text-[#d1d8df] tabular-nums">{`${index + 1}`.padStart(2, "0")}</span>
-                <ThumbImage src={post.featuredImage} alt={post.title} className="h-20 w-20" placeholderLabel={title} />
-              </div>
+              <span className="font-headline text-2xl font-semibold text-[#d1d8df] tabular-nums">{`${index + 1}`.padStart(2, "0")}</span>
+              <ThumbImage src={post.featuredImage} alt={post.title} className="h-[68px] w-[68px]" placeholderLabel={title} />
 
               <div className="min-w-0">
-                <h3 className="font-headline text-base font-semibold leading-snug text-[#102033] transition-colors group-hover:text-[#ff751f]">
+                <h3 className="font-headline text-[0.98rem] font-semibold leading-snug text-[#102033] transition-colors group-hover:text-[#ff751f] line-clamp-3">
                   {post.title}
                 </h3>
-                {post.excerpt && <p className="mt-1 text-sm text-[#6a7b87] line-clamp-2">{post.excerpt}</p>}
-                <p className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-[#8a9aa5]">
+                {post.excerpt && <p className="mt-1 text-[13px] text-[#6a7b87] line-clamp-1">{post.excerpt}</p>}
+                <p className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-[#8a9aa5]">
                   {formatPostDate(post.publishedAt) ?? "Arquivo Foz"}
                 </p>
               </div>
@@ -477,3 +581,4 @@ function EmptySection({ title, dark = false }: { title: string; dark?: boolean }
     </div>
   );
 }
+
