@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export type BirthdaySlideItem = {
   id: string;
@@ -15,11 +16,12 @@ export type BirthdaySlideItem = {
 
 interface BirthdaySliderProps {
   items: BirthdaySlideItem[];
+  className?: string;
 }
 
 const AUTO_ROTATE_MS = 5000;
 
-export function BirthdaySlider({ items }: BirthdaySliderProps) {
+export function BirthdaySlider({ items, className }: BirthdaySliderProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
@@ -52,13 +54,18 @@ export function BirthdaySlider({ items }: BirthdaySliderProps) {
   }
 
   return (
-    <article className="overflow-hidden rounded-[28px] border border-[#172132] bg-[#0b1323] shadow-[0_22px_70px_rgba(15,23,42,0.22)]">
+    <article
+      className={cn(
+        "flex h-full flex-col overflow-hidden rounded-[28px] border border-[#172132] bg-[#0b1323] shadow-[0_22px_70px_rgba(15,23,42,0.22)]",
+        className
+      )}
+    >
       {active.href ? (
-        <Link href={active.href} className="group/slide block">
+        <Link href={active.href} className="group/slide block flex-1">
           <SlideContent item={active} />
         </Link>
       ) : (
-        <div className="group/slide block">
+        <div className="group/slide block flex-1">
           <SlideContent item={active} />
         </div>
       )}
@@ -118,7 +125,7 @@ export function BirthdaySlider({ items }: BirthdaySliderProps) {
 
 function SlideContent({ item }: { item: BirthdaySlideItem }) {
   return (
-    <div className="relative min-h-[360px] md:min-h-[430px]">
+    <div className="relative h-full min-h-[400px] md:min-h-[520px] xl:min-h-[660px]">
       <div className="absolute inset-0">
         {item.image ? (
           /* eslint-disable-next-line @next/next/no-img-element */

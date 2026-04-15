@@ -91,14 +91,14 @@ export default async function HomePage() {
         <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-[#0f172a]/8 blur-3xl" />
 
         <div className="relative grid gap-8 xl:grid-cols-[1.12fr_0.88fr]">
-          <div className="space-y-5">
+          <div className="flex h-full flex-col gap-5">
             <SectionHeading
               title="Aniversários"
               slug="aniversariantes"
               eyebrow="Capa do dia"
               description="Uma vitrine principal para celebrar os destaques e manter a sensação de capa logo na abertura do portal."
             />
-            <BirthdaySlider items={birthdaySlides} />
+            <BirthdaySlider items={birthdaySlides} className="flex-1" />
           </div>
 
           <FeatureSection
