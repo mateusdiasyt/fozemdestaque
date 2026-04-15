@@ -30,10 +30,10 @@ import { dirname, resolve } from "path";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
-const SUPPORTED_POST_TYPES = new Set(["post", "aniversarios", "artigos-foz-em-desta"]);
+const SUPPORTED_POST_TYPES = new Set(["post", "aniversarios", "artigos-foz-em-desta", "reflexao-do-dia"]);
 const IMPORTABLE_STATUSES = new Set(["publish"]);
 const OPTIONAL_STATUSES = new Set(["draft"]);
-const THUMB_META_KEYS = ["_thumbnail_id", "thumb-do-aniversariante", "thumb-do-artigo"];
+const THUMB_META_KEYS = ["_thumbnail_id", "thumb-do-aniversariante", "thumb-do-artigo", "thumb-da-reflexao"];
 const EXCERPT_META_KEYS = ["pequeno-resumo"];
 
 const CATEGORY_FALLBACKS: Record<string, string[]> = {
@@ -42,6 +42,8 @@ const CATEGORY_FALLBACKS: Record<string, string[]> = {
   "society": ["society", "click-society"],
   "beleza-saude": ["beleza-saude", "beleza-amp-saude"],
   "beleza-amp-saude": ["beleza-amp-saude", "beleza-saude"],
+  "reflexao-do-dia": ["reflexao-do-dia", "reflexao"],
+  "reflexao": ["reflexao", "reflexao-do-dia"],
 };
 
 type CliOptions = {
@@ -228,10 +230,53 @@ function extractTags(obj: Record<string, unknown>): string[] {
   return [...tags];
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
+function formatDateLabel(rawDate: string): string | null {
+  if (!rawDate) return null;
+  const parsed = new Date(rawDate);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  const day = `${parsed.getDate()}`.padStart(2, "0");
+  const month = `${parsed.getMonth() + 1}`.padStart(2, "0");
+  const year = parsed.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function buildReflectionTitle(meta: Map<string, string>, obj: Record<string, unknown>): string {
+  const explicitTitle = getText(obj.title);
+  if (explicitTitle) return explicitTitle;
+
+  const dateLabel =
+    formatDateLabel(meta.get("data-da-reflexao") ?? "") ||
+    formatDateLabel(getText(obj["wp:post_date"] ?? obj.post_date));
+
+  if (dateLabel) return `Reflexão do Dia - ${dateLabel}`;
+
+  const reflectionText = (meta.get("texto-da-reflexao") ?? "").trim();
+  if (reflectionText) return truncateText(reflectionText, 70);
+
+  const postId = getText(obj["wp:post_id"] ?? obj.post_id);
+  return postId ? `Reflexão do Dia #${postId}` : "";
+}
+
 function getPreferredDate(meta: Map<string, string>, obj: Record<string, unknown>, status: string): Date | null {
   if (status !== "publicado") return null;
 
   const rawDate =
+    meta.get("data-da-reflexao") ||
     meta.get("data-do-artigo") ||
     getText(obj["wp:post_date"] ?? obj.post_date) ||
     getText(obj.pubDate);
@@ -255,18 +300,28 @@ function buildPreparedPost(
     IMPORTABLE_STATUSES.has(wpStatus) || (includeDrafts && OPTIONAL_STATUSES.has(wpStatus));
   if (!shouldImport) return null;
 
-  const title = getText(obj.title);
+  const meta = buildMetaMap(obj);
+  const reflectionText = (meta.get("texto-da-reflexao") ?? "").trim();
+  const title =
+    postType === "reflexao-do-dia"
+      ? buildReflectionTitle(meta, obj)
+      : getText(obj.title);
   if (!title) {
     return null;
   }
 
-  const meta = buildMetaMap(obj);
   const wpSlug = getText(obj["wp:post_name"] ?? obj.post_name);
   const slug = wpSlug ? slugify(wpSlug) : slugify(title);
   const categorySlugs = extractCategorySlugs(obj);
   const mappedCategorySlug =
     resolveCategorySlug(categorySlugs) ??
-    (postType === "aniversarios" ? resolveCategorySlug(["aniversarios"]) : null);
+    (
+      postType === "aniversarios"
+        ? resolveCategorySlug(["aniversarios"])
+        : postType === "reflexao-do-dia"
+          ? resolveCategorySlug(["reflexao-do-dia"])
+          : null
+    );
 
   let featuredImageUrl: string | null = null;
   for (const key of THUMB_META_KEYS) {
@@ -279,10 +334,18 @@ function buildPreparedPost(
     featuredImageUrl = meta.get("_yoast_wpseo_opengraph-image") || null;
   }
 
+  let content = getText(obj["content:encoded"] ?? obj.content ?? "");
+  if (!content && reflectionText) {
+    content = `<p>${escapeHtml(reflectionText)}</p>`;
+  }
+
   let excerpt =
     getText(obj["excerpt:encoded"] ?? obj.excerpt ?? "") ||
     EXCERPT_META_KEYS.map((key) => meta.get(key) ?? "").find(Boolean) ||
     "";
+  if (!excerpt && reflectionText) {
+    excerpt = truncateText(reflectionText, 160);
+  }
   excerpt = excerpt.trim();
 
   const status = wpStatus === "publish" ? "publicado" : "rascunho";
@@ -298,7 +361,7 @@ function buildPreparedPost(
     slug,
     link,
     excerpt: excerpt || null,
-    content: getText(obj["content:encoded"] ?? obj.content ?? ""),
+    content,
     featuredImageUrl,
     featuredImageAlt: title,
     categorySlugs,
