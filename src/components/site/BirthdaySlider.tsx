@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type BirthdaySlideItem = {
@@ -56,7 +56,7 @@ export function BirthdaySlider({ items, className }: BirthdaySliderProps) {
   return (
     <article
       className={cn(
-        "flex h-full flex-col overflow-hidden rounded-[28px] border border-[#172132] bg-[#0b1323] shadow-[0_22px_70px_rgba(15,23,42,0.22)]",
+        "flex h-full flex-col overflow-hidden rounded-[28px] border border-[#d8e0e7] bg-[linear-gradient(180deg,#fffaf5_0%,#ffffff_100%)] shadow-[0_22px_70px_rgba(15,23,42,0.14)]",
         className
       )}
     >
@@ -70,10 +70,10 @@ export function BirthdaySlider({ items, className }: BirthdaySliderProps) {
         </div>
       )}
 
-      <div className="border-t border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
+      <div className="border-t border-[#e7d7ca] bg-[linear-gradient(180deg,#fff8f1_0%,#ffffff_100%)] px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6b7b88]">
               {String(currentIndex + 1).padStart(2, "0")} / {String(items.length).padStart(2, "0")}
             </span>
 
@@ -87,7 +87,7 @@ export function BirthdaySlider({ items, className }: BirthdaySliderProps) {
                     className={`h-1.5 rounded-full transition-all ${
                       index === currentIndex
                         ? "w-8 bg-[#ff751f]"
-                        : "w-2 bg-white/25 hover:bg-white/50"
+                        : "w-2 bg-[#cfd8df] hover:bg-[#95a5b2]"
                     }`}
                     aria-label={`Ir para aniversario ${index + 1}`}
                   />
@@ -101,7 +101,7 @@ export function BirthdaySlider({ items, className }: BirthdaySliderProps) {
               <button
                 type="button"
                 onClick={() => goTo(currentIndex - 1)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/6 text-white transition-colors hover:border-[#ff751f] hover:text-[#ff751f]"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d8e0e7] bg-white text-[#102033] transition-colors hover:border-[#ff751f] hover:text-[#ff751f]"
                 aria-label="Aniversario anterior"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -110,7 +110,7 @@ export function BirthdaySlider({ items, className }: BirthdaySliderProps) {
               <button
                 type="button"
                 onClick={() => goTo(currentIndex + 1)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/6 text-white transition-colors hover:border-[#ff751f] hover:text-[#ff751f]"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d8e0e7] bg-white text-[#102033] transition-colors hover:border-[#ff751f] hover:text-[#ff751f]"
                 aria-label="Proximo aniversario"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -132,37 +132,54 @@ function SlideContent({ item }: { item: BirthdaySlideItem }) {
           <img
             src={item.image}
             alt={item.title}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover/slide:scale-105"
+            className="h-full w-full object-cover transition-transform duration-700 group-hover/slide:scale-[1.03]"
           />
         ) : (
           <div className="h-full w-full bg-[linear-gradient(135deg,#111827_0%,#1e293b_55%,#334155_100%)]" />
         )}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.12)_0%,rgba(2,6,23,0.50)_48%,rgba(2,6,23,0.92)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,15,28,0.28)_0%,rgba(8,15,28,0.42)_36%,rgba(8,15,28,0.78)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,117,31,0.16),transparent_38%)]" />
       </div>
 
       <div className="relative flex h-full flex-col justify-between p-5 md:p-7">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <span className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white backdrop-blur">
-            HighSocietyClub
+          <span className="inline-flex items-center rounded-full border border-white/30 bg-[rgba(255,248,241,0.82)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#102033] shadow-sm backdrop-blur">
+            Aniversários
           </span>
 
           {item.dateLabel && (
-            <span className="inline-flex items-center rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-100 backdrop-blur">
+            <span className="inline-flex items-center rounded-full border border-white/20 bg-[rgba(16,32,51,0.52)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-100 backdrop-blur">
               {item.dateLabel}
             </span>
           )}
         </div>
 
-        <div className="max-w-2xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#ffd2b3]">Destaque principal</p>
-          <h3 className="mt-3 font-headline text-[clamp(1.75rem,4vw,3rem)] font-semibold leading-[1.02] text-white transition-colors group-hover/slide:text-[#ffd2b3]">
+        <div className="max-w-[540px] rounded-[28px] border border-[#ead7c5] bg-[rgba(255,249,243,0.92)] p-5 shadow-[0_22px_45px_rgba(15,23,42,0.16)] backdrop-blur-md md:p-6">
+          <div className="flex items-center gap-3">
+            <span className="h-[3px] w-9 rounded-full bg-[#ff751f]" />
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#ff751f]">Destaque principal</p>
+          </div>
+
+          <h3 className="mt-4 font-headline text-[clamp(1.8rem,3.4vw,3rem)] font-semibold leading-[1.02] text-[#102033] transition-colors group-hover/slide:text-[#ff751f]">
             {item.title}
           </h3>
+
           {item.excerpt && (
-            <p className="mt-4 max-w-xl text-sm leading-6 text-slate-200 line-clamp-3">
+            <p className="mt-4 max-w-xl text-sm leading-6 text-[#5f707d] line-clamp-3">
               {item.excerpt}
             </p>
           )}
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c8d99]">
+              Foz em Destaque
+            </span>
+
+            <span className="inline-flex items-center gap-2 text-sm font-semibold text-[#102033] transition-colors group-hover/slide:text-[#ff751f]">
+              Ver conteúdo
+              <ArrowUpRight className="h-4 w-4" />
+            </span>
+          </div>
         </div>
       </div>
     </div>
