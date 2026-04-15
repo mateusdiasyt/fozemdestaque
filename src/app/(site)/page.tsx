@@ -44,13 +44,13 @@ async function getAniversariantesDoDia(limit = 10) {
 }
 
 export default async function HomePage() {
-  const [aniversariantesBlocks, aniversariosPosts, datas, reflexao, society, agenda, tiTiTi, merchandising] =
+  const [aniversariantesBlocks, aniversariosPosts, datas, reflexao, clickSociety, agenda, tiTiTi, merchandising] =
     await Promise.all([
       getAniversariantesDoDia(10),
       getPostsByCategory("aniversariantes", 12),
       getPostsByCategory("datas", 3),
-      getPostsByCategory("reflexao", 3),
-      getPostsByCategory("society", 3),
+      getPostsByCategory("reflexao-do-dia", 3),
+      getPostsByCategory("click-society", 3),
       getPostsByCategory("agenda", 3),
       getPostsByCategory("ti-ti-ti", 3),
       getPostsByCategory("merchandising", 3),
@@ -94,11 +94,11 @@ export default async function HomePage() {
         </section>
 
         <ContentSection title="Datas" slug="datas" posts={datas} />
-        <ContentSection title="Reflexões" slug="reflexao" posts={reflexao} />
+        <ContentSection title="Reflexões" slug="reflexao-do-dia" posts={reflexao} />
       </div>
 
       <div className="space-y-8">
-        <ContentSection title="Society" slug="society" posts={society} />
+        <ContentSection title="Click Society" slug="click-society" posts={clickSociety} />
         <ContentSection title="Agenda" slug="agenda" posts={agenda} />
         <ContentSection title="Ti-ti-ti" slug="ti-ti-ti" posts={tiTiTi} />
         <ContentSection title="Merchandising" slug="merchandising" posts={merchandising} />

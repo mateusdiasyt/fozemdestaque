@@ -36,10 +36,12 @@ const OPTIONAL_STATUSES = new Set(["draft"]);
 const THUMB_META_KEYS = ["_thumbnail_id", "thumb-do-aniversariante", "thumb-do-artigo"];
 const EXCERPT_META_KEYS = ["pequeno-resumo"];
 
-const CATEGORY_ALIASES: Record<string, string> = {
-  "aniversarios": "aniversariantes",
-  "click-society": "society",
-  "beleza-saude": "beleza-amp-saude",
+const CATEGORY_FALLBACKS: Record<string, string[]> = {
+  "aniversarios": ["aniversariantes", "aniversarios"],
+  "click-society": ["click-society", "society"],
+  "society": ["society", "click-society"],
+  "beleza-saude": ["beleza-saude", "beleza-amp-saude"],
+  "beleza-amp-saude": ["beleza-amp-saude", "beleza-saude"],
 };
 
 type CliOptions = {
@@ -167,11 +169,6 @@ function buildMetaMap(obj: Record<string, unknown>): Map<string, string> {
   return meta;
 }
 
-function mapCategorySlug(rawSlug: string): string {
-  const normalized = slugify(rawSlug);
-  return CATEGORY_ALIASES[normalized] ?? normalized;
-}
-
 function extractCategorySlugs(obj: Record<string, unknown>): string[] {
   const categoryRefs = normalizeItem(obj.category ?? []);
   const slugs = new Set<string>();
@@ -187,11 +184,32 @@ function extractCategorySlugs(obj: Record<string, unknown>): string[] {
       getText(category["#text"]) ||
       getText(category);
 
-    const mapped = mapCategorySlug(rawSlug);
-    if (mapped) slugs.add(mapped);
+    const normalized = slugify(rawSlug);
+    if (normalized) slugs.add(normalized);
   }
 
   return [...slugs];
+}
+
+function getCategoryCandidates(rawSlug: string): string[] {
+  const normalized = slugify(rawSlug);
+  if (!normalized) return [];
+  return CATEGORY_FALLBACKS[normalized] ?? [normalized];
+}
+
+function resolveCategorySlug(rawSlugs: string[], availableCategorySlugs?: Set<string>): string | null {
+  for (const rawSlug of rawSlugs) {
+    const candidates = getCategoryCandidates(rawSlug);
+    if (!availableCategorySlugs || availableCategorySlugs.size === 0) {
+      return candidates[0] ?? null;
+    }
+
+    const matched = candidates.find((candidate) => availableCategorySlugs.has(candidate));
+    if (matched) return matched;
+  }
+
+  if (rawSlugs.length === 0) return null;
+  return getCategoryCandidates(rawSlugs[0])[0] ?? null;
 }
 
 function extractTags(obj: Record<string, unknown>): string[] {
@@ -247,7 +265,8 @@ function buildPreparedPost(
   const slug = wpSlug ? slugify(wpSlug) : slugify(title);
   const categorySlugs = extractCategorySlugs(obj);
   const mappedCategorySlug =
-    categorySlugs[0] ?? (postType === "aniversarios" ? CATEGORY_ALIASES.aniversarios : null);
+    resolveCategorySlug(categorySlugs) ??
+    (postType === "aniversarios" ? resolveCategorySlug(["aniversarios"]) : null);
 
   let featuredImageUrl: string | null = null;
   for (const key of THUMB_META_KEYS) {
@@ -372,6 +391,7 @@ async function main() {
     | null = null;
   let authorId: string | null = null;
   const categoryMap = new Map<string, string>();
+  const existingCategorySlugs = new Set<string>();
   const existingCanonicalUrls = new Set<string>();
   const usedSlugs = new Set<string>();
 
@@ -389,6 +409,7 @@ async function main() {
     const existingCats = await db.select().from(schema.categories);
     for (const category of existingCats) {
       categoryMap.set(category.slug, category.id);
+      existingCategorySlugs.add(category.slug);
     }
 
     const existingPosts = await db.select({
@@ -430,15 +451,21 @@ async function main() {
       continue;
     }
 
-    if (prepared.mappedCategorySlug) {
-      incrementCounter(byMappedCategory, prepared.mappedCategorySlug);
+    const resolvedCategorySlug =
+      resolveCategorySlug(prepared.categorySlugs, existingCategorySlugs) ??
+      (prepared.postType === "aniversarios"
+        ? resolveCategorySlug(["aniversarios"], existingCategorySlugs)
+        : prepared.mappedCategorySlug);
+
+    if (resolvedCategorySlug) {
+      incrementCounter(byMappedCategory, resolvedCategorySlug);
     }
 
     let categoryId: string | null = null;
-    if (prepared.mappedCategorySlug && categoryMap.size > 0) {
-      categoryId = categoryMap.get(prepared.mappedCategorySlug) ?? null;
+    if (resolvedCategorySlug && categoryMap.size > 0) {
+      categoryId = categoryMap.get(resolvedCategorySlug) ?? null;
       if (!categoryId) {
-        missingSiteCategories.add(prepared.mappedCategorySlug);
+        missingSiteCategories.add(resolvedCategorySlug);
       }
     }
 
@@ -452,7 +479,7 @@ async function main() {
         postType: prepared.postType,
         wpStatus: prepared.wpStatus,
         xmlCategories: prepared.categorySlugs,
-        mappedCategorySlug: prepared.mappedCategorySlug,
+        mappedCategorySlug: resolvedCategorySlug,
         reason: "categoria-nao-existe-no-site",
       });
       continue;
@@ -468,7 +495,7 @@ async function main() {
         postType: prepared.postType,
         wpStatus: prepared.wpStatus,
         xmlCategories: prepared.categorySlugs,
-        mappedCategorySlug: prepared.mappedCategorySlug,
+        mappedCategorySlug: resolvedCategorySlug,
         reason: "ja-importado-pelo-canonical",
       });
       continue;
@@ -490,7 +517,7 @@ async function main() {
       postType: prepared.postType,
       wpStatus: prepared.wpStatus,
       xmlCategories: prepared.categorySlugs,
-      mappedCategorySlug: prepared.mappedCategorySlug,
+      mappedCategorySlug: resolvedCategorySlug,
       reason: options.dryRun ? "pronto-para-importar" : "importado",
     });
 

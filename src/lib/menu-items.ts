@@ -34,10 +34,10 @@ export const MENU_ITEMS: NavItem[] = [
   { label: "Produtos e Serviços", href: "/produtos-servicos", icon: Package },
   { label: "Divulgue seu Aniversário", href: "/divulgue-seu-aniversario", icon: Cake },
   { label: "Contatos", href: "/contatos", icon: Phone },
-  { label: "Reflexão", href: "/categoria/reflexao", icon: Lightbulb },
+  { label: "Reflexão", href: "/categoria/reflexao-do-dia", icon: Lightbulb },
   { label: "Datas", href: "/categoria/datas", icon: Calendar },
   { label: "Aniversários", href: "/categoria/aniversariantes", icon: Cake },
-  { label: "Society", href: "/categoria/society", icon: Users },
+  { label: "Click Society", href: "/categoria/click-society", icon: Users },
   { label: "Ti-ti-ti", href: "/categoria/ti-ti-ti", icon: Zap },
   { label: "Top Profissional", href: "/categoria/top-profissional", icon: Briefcase },
   { label: "Agenda", href: "/categoria/agenda", icon: CalendarDays },
@@ -49,7 +49,7 @@ export const MENU_ITEMS: NavItem[] = [
 export const HEADER_PRIMARY_CATEGORIES: NavItem[] = [
   { label: "Aniversários", href: "/categoria/aniversariantes", icon: Cake },
   { label: "Agenda", href: "/categoria/agenda", icon: CalendarDays },
-  { label: "Click Society", href: "/categoria/society", icon: Users },
+  { label: "Click Society", href: "/categoria/click-society", icon: Users },
   { label: "Merchandising", href: "/categoria/merchandising", icon: Tag },
   { label: "Ti-ti-ti", href: "/categoria/ti-ti-ti", icon: Zap },
 ];
@@ -57,7 +57,7 @@ export const HEADER_PRIMARY_CATEGORIES: NavItem[] = [
 export const HEADER_MORE_CATEGORIES: NavItem[] = [
   { label: "Programa Foz em Destaque TV", href: "/categoria/programa-foz-em-destaque-tv", icon: Tv },
   { label: "Bela da Sociedade", href: "/categoria/bela-da-sociedade", icon: Sparkles },
-  { label: "Beleza amp Saude", href: "/categoria/beleza-amp-saude", icon: Heart },
+  { label: "Beleza amp Saude", href: "/categoria/beleza-saude", icon: Heart },
   { label: "Coluna Social", href: "/categoria/coluna-social", icon: Users },
   { label: "Foz em Destaque TV", href: "/categoria/foz-em-destaque-tv", icon: Tv },
   { label: "Mailing", href: "/categoria/mailing", icon: Mail },
@@ -65,3 +65,4 @@ export const HEADER_MORE_CATEGORIES: NavItem[] = [
   { label: "Top Mirim", href: "/categoria/top-mirim", icon: Baby },
   { label: "Top Profissional", href: "/categoria/top-profissional", icon: Briefcase },
 ];
+
