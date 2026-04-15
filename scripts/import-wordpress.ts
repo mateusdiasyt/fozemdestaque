@@ -1,14 +1,20 @@
 /**
  * Importa posts do WordPress direto no banco (sem API, sem Vercel).
- * Execute: npx tsx scripts/import-wordpress.ts caminho/para/export.xml
  *
- * Requer DATABASE_URL no .env.local
- * Imagens mantêm as URLs originais (não faz upload para Blob)
+ * Exemplos:
+ * - npx tsx scripts/import-wordpress.ts C:\caminho\export.xml
+ * - npx tsx scripts/import-wordpress.ts C:\caminho\export.xml --dry-run
+ * - npx tsx scripts/import-wordpress.ts C:\caminho\export.xml --dry-run --report tmp\import-report.json
+ * - npx tsx scripts/import-wordpress.ts C:\caminho\export.xml --include-drafts --limit 50
+ *
+ * Requer DATABASE_URL no .env.local apenas para importar no banco.
+ * Em --dry-run, o script consegue gerar relatório mesmo sem DATABASE_URL.
  *
  * Regras:
- * - Importa apenas "post" e "aniversarios" (não importa páginas)
- * - Importa apenas itens cuja categoria existe no site ( slugs devem bater )
- * - Cadastre no admin categorias com os mesmos slugs do WordPress antes de importar
+ * - Importa "post", "aniversarios" e "artigos-foz-em-desta"
+ * - Mantém as URLs originais das imagens do WordPress
+ * - Só grava no banco quando a categoria mapeada existe no site
+ * - Gera relatório com itens ignorados/sem categoria para revisão manual
  */
 import { config } from "dotenv";
 config({ path: ".env.local" });
@@ -19,16 +25,67 @@ import { eq } from "drizzle-orm";
 import * as schema from "../src/lib/db/schema";
 import { generateId, slugify } from "../src/lib/utils";
 import { XMLParser } from "fast-xml-parser";
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
+import { dirname, resolve } from "path";
 
 const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) {
-  console.error("DATABASE_URL não definida no .env.local");
-  process.exit(1);
-}
 
-function normalizeItem(item: unknown): unknown[] {
+const SUPPORTED_POST_TYPES = new Set(["post", "aniversarios", "artigos-foz-em-desta"]);
+const IMPORTABLE_STATUSES = new Set(["publish"]);
+const OPTIONAL_STATUSES = new Set(["draft"]);
+const THUMB_META_KEYS = ["_thumbnail_id", "thumb-do-aniversariante", "thumb-do-artigo"];
+const EXCERPT_META_KEYS = ["pequeno-resumo"];
+
+const CATEGORY_ALIASES: Record<string, string> = {
+  "aniversarios": "aniversariantes",
+  "click-society": "society",
+  "beleza-saude": "beleza-amp-saude",
+};
+
+type CliOptions = {
+  xmlPath: string;
+  dryRun: boolean;
+  includeDrafts: boolean;
+  reportPath: string | null;
+  limit: number | null;
+};
+
+type PreparedPost = {
+  wpPostId: string;
+  title: string;
+  status: "publicado" | "rascunho";
+  wpStatus: string;
+  postType: string;
+  slug: string;
+  link: string | null;
+  excerpt: string | null;
+  content: string;
+  featuredImageUrl: string | null;
+  featuredImageAlt: string | null;
+  categorySlugs: string[];
+  mappedCategorySlug: string | null;
+  tags: string[];
+  canonicalUrl: string | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  focusKeyword: string | null;
+  publishedAt: Date | null;
+  skipReason: string | null;
+};
+
+type ReportItem = {
+  wpPostId: string;
+  title: string;
+  slug: string;
+  link: string | null;
+  postType: string;
+  wpStatus: string;
+  xmlCategories: string[];
+  mappedCategorySlug: string | null;
+  reason: string;
+};
+
+function normalizeItem<T>(item: T | T[] | null | undefined): T[] {
   if (!item) return [];
   return Array.isArray(item) ? item : [item];
 }
@@ -36,20 +93,229 @@ function normalizeItem(item: unknown): unknown[] {
 function getText(val: unknown): string {
   if (val == null) return "";
   if (typeof val === "string") return val.trim();
-  if (typeof val === "object" && "#text" in (val as object))
+  if (typeof val === "object" && "#text" in (val as object)) {
     return String((val as { "#text": string })["#text"] || "").trim();
+  }
   return String(val).trim();
 }
 
-async function main() {
-  const xmlPath = process.argv[2];
-  if (!xmlPath) {
-    console.error("Uso: npx tsx scripts/import-wordpress.ts caminho/para/export.xml");
-    process.exit(1);
+function parseArgs(argv: string[]): CliOptions {
+  const args = [...argv];
+  let xmlPath = "";
+  let dryRun = false;
+  let includeDrafts = false;
+  let reportPath: string | null = null;
+  let limit: number | null = null;
+
+  while (args.length > 0) {
+    const arg = args.shift();
+    if (!arg) continue;
+
+    if (!arg.startsWith("--") && !xmlPath) {
+      xmlPath = arg;
+      continue;
+    }
+
+    if (arg === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+
+    if (arg === "--include-drafts") {
+      includeDrafts = true;
+      continue;
+    }
+
+    if (arg === "--report") {
+      reportPath = args.shift() ?? null;
+      continue;
+    }
+
+    if (arg === "--limit") {
+      const rawLimit = args.shift() ?? "";
+      const parsedLimit = Number(rawLimit);
+      if (!Number.isFinite(parsedLimit) || parsedLimit <= 0) {
+        throw new Error(`Valor inválido para --limit: ${rawLimit}`);
+      }
+      limit = parsedLimit;
+      continue;
+    }
+
+    throw new Error(`Argumento não reconhecido: ${arg}`);
   }
 
-  const absolutePath = resolve(process.cwd(), xmlPath);
+  if (!xmlPath) {
+    throw new Error(
+      "Uso: npx tsx scripts/import-wordpress.ts caminho/para/export.xml [--dry-run] [--report caminho.json] [--include-drafts] [--limit N]"
+    );
+  }
+
+  return { xmlPath, dryRun, includeDrafts, reportPath, limit };
+}
+
+function buildMetaMap(obj: Record<string, unknown>): Map<string, string> {
+  const postmeta = normalizeItem(obj["wp:postmeta"] ?? obj.postmeta ?? []);
+  const meta = new Map<string, string>();
+
+  for (const pm of postmeta) {
+    const p = pm as Record<string, unknown>;
+    const key = getText(p["wp:meta_key"] ?? p.meta_key);
+    if (!key) continue;
+    meta.set(key, getText(p["wp:meta_value"] ?? p.meta_value));
+  }
+
+  return meta;
+}
+
+function mapCategorySlug(rawSlug: string): string {
+  const normalized = slugify(rawSlug);
+  return CATEGORY_ALIASES[normalized] ?? normalized;
+}
+
+function extractCategorySlugs(obj: Record<string, unknown>): string[] {
+  const categoryRefs = normalizeItem(obj.category ?? []);
+  const slugs = new Set<string>();
+
+  for (const cr of categoryRefs) {
+    const category = cr as Record<string, unknown>;
+    const domain = getText(category["@_domain"] ?? category.domain);
+    if (domain !== "category" && domain !== "categorias-artigos") continue;
+
+    const rawSlug =
+      getText(category["@_nicename"]) ||
+      getText(category.nicename) ||
+      getText(category["#text"]) ||
+      getText(category);
+
+    const mapped = mapCategorySlug(rawSlug);
+    if (mapped) slugs.add(mapped);
+  }
+
+  return [...slugs];
+}
+
+function extractTags(obj: Record<string, unknown>): string[] {
+  const categoryRefs = normalizeItem(obj.category ?? []);
+  const tags = new Set<string>();
+
+  for (const cr of categoryRefs) {
+    const category = cr as Record<string, unknown>;
+    const domain = getText(category["@_domain"] ?? category.domain);
+    if (domain !== "post_tag" && domain !== "tags-artigos") continue;
+
+    const tagName = getText(category["#text"] ?? category);
+    if (tagName) tags.add(tagName);
+  }
+
+  return [...tags];
+}
+
+function getPreferredDate(meta: Map<string, string>, obj: Record<string, unknown>, status: string): Date | null {
+  if (status !== "publicado") return null;
+
+  const rawDate =
+    meta.get("data-do-artigo") ||
+    getText(obj["wp:post_date"] ?? obj.post_date) ||
+    getText(obj.pubDate);
+
+  if (!rawDate) return null;
+
+  const parsed = new Date(rawDate);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function buildPreparedPost(
+  obj: Record<string, unknown>,
+  attachmentMap: Map<string, string>,
+  includeDrafts: boolean
+): PreparedPost | null {
+  const postType = getText(obj["wp:post_type"] ?? obj.post_type);
+  if (!SUPPORTED_POST_TYPES.has(postType)) return null;
+
+  const wpStatus = getText(obj["wp:status"] ?? obj.status);
+  const shouldImport =
+    IMPORTABLE_STATUSES.has(wpStatus) || (includeDrafts && OPTIONAL_STATUSES.has(wpStatus));
+  if (!shouldImport) return null;
+
+  const title = getText(obj.title);
+  if (!title) {
+    return null;
+  }
+
+  const meta = buildMetaMap(obj);
+  const wpSlug = getText(obj["wp:post_name"] ?? obj.post_name);
+  const slug = wpSlug ? slugify(wpSlug) : slugify(title);
+  const categorySlugs = extractCategorySlugs(obj);
+  const mappedCategorySlug =
+    categorySlugs[0] ?? (postType === "aniversarios" ? CATEGORY_ALIASES.aniversarios : null);
+
+  let featuredImageUrl: string | null = null;
+  for (const key of THUMB_META_KEYS) {
+    const thumbId = meta.get(key) ?? "";
+    if (!thumbId) continue;
+    featuredImageUrl = attachmentMap.get(thumbId) ?? null;
+    if (featuredImageUrl) break;
+  }
+  if (!featuredImageUrl) {
+    featuredImageUrl = meta.get("_yoast_wpseo_opengraph-image") || null;
+  }
+
+  let excerpt =
+    getText(obj["excerpt:encoded"] ?? obj.excerpt ?? "") ||
+    EXCERPT_META_KEYS.map((key) => meta.get(key) ?? "").find(Boolean) ||
+    "";
+  excerpt = excerpt.trim();
+
+  const status = wpStatus === "publish" ? "publicado" : "rascunho";
+  const link = getText(obj.link) || null;
+  const canonicalUrl = link ?? null;
+
+  return {
+    wpPostId: getText(obj["wp:post_id"] ?? obj.post_id),
+    title,
+    status,
+    wpStatus,
+    postType,
+    slug,
+    link,
+    excerpt: excerpt || null,
+    content: getText(obj["content:encoded"] ?? obj.content ?? ""),
+    featuredImageUrl,
+    featuredImageAlt: title,
+    categorySlugs,
+    mappedCategorySlug,
+    tags: extractTags(obj),
+    canonicalUrl,
+    metaTitle: (meta.get("_yoast_wpseo_title") || title || "").slice(0, 70) || null,
+    metaDescription:
+      (meta.get("_yoast_wpseo_metadesc") || excerpt || "").slice(0, 160) || null,
+    focusKeyword: (meta.get("_yoast_wpseo_focuskw") || "").slice(0, 100) || null,
+    publishedAt: getPreferredDate(meta, obj, status),
+    skipReason: mappedCategorySlug ? null : "sem-categoria-no-xml",
+  };
+}
+
+function incrementCounter(map: Map<string, number>, key: string) {
+  map.set(key, (map.get(key) ?? 0) + 1);
+}
+
+function writeReport(reportPath: string, payload: unknown) {
+  const absolutePath = resolve(process.cwd(), reportPath);
+  mkdirSync(dirname(absolutePath), { recursive: true });
+  writeFileSync(absolutePath, JSON.stringify(payload, null, 2), "utf-8");
+  console.log(`Relatório salvo em: ${absolutePath}`);
+}
+
+async function main() {
+  const options = parseArgs(process.argv.slice(2));
+  const absolutePath = resolve(process.cwd(), options.xmlPath);
+
   console.log("Lendo XML:", absolutePath);
+  console.log(
+    options.dryRun
+      ? "Modo: dry-run (não grava no banco)"
+      : "Modo: importação real (grava no banco)"
+  );
 
   let xmlText: string;
   try {
@@ -66,137 +332,251 @@ async function main() {
     trimValues: true,
   });
   const parsed = parser.parse(xmlText);
-
   const channel = parsed?.rss?.channel ?? parsed?.channel;
   if (!channel) {
     console.error("Formato XML inválido (sem channel)");
     process.exit(1);
   }
 
-  const sql = neon(DATABASE_URL);
-  const db = drizzle(sql, { schema });
-
-  const [admin] = await db.select().from(schema.users).where(eq(schema.users.role, "administrador")).limit(1);
-  const authorId = admin?.id ?? null;
-
-  const rawItems = channel.item ?? [];
-  const items = normalizeItem(rawItems);
+  const rawItems = normalizeItem<Record<string, unknown>>(channel.item ?? []);
 
   const attachmentMap = new Map<string, string>();
-  for (const it of items) {
-    const obj = it as Record<string, unknown>;
-    const postType = getText(obj["wp:post_type"] ?? obj.post_type);
+  const byType = new Map<string, number>();
+  const byTypeStatus = new Map<string, number>();
+
+  for (const item of rawItems) {
+    const postType = getText(item["wp:post_type"] ?? item.post_type) || "(sem-tipo)";
+    const wpStatus = getText(item["wp:status"] ?? item.status) || "(sem-status)";
+    incrementCounter(byType, postType);
+    incrementCounter(byTypeStatus, `${postType}|||${wpStatus}`);
+
     if (postType !== "attachment") continue;
-    const postId = getText(obj["wp:post_id"] ?? obj.post_id);
-    const guid = getText(obj.guid);
-    const attUrl = getText(obj["wp:attachment_url"] ?? obj.attachment_url) || guid;
-    if (postId && attUrl && attUrl.startsWith("http")) attachmentMap.set(postId, attUrl);
+
+    const postId = getText(item["wp:post_id"] ?? item.post_id);
+    const guid = getText(item.guid);
+    const attUrl = getText(item["wp:attachment_url"] ?? item.attachment_url) || guid;
+    if (postId && attUrl && attUrl.startsWith("http")) {
+      attachmentMap.set(postId, attUrl);
+    }
   }
 
-  const existingCats = await db.select().from(schema.categories);
-  const existingSlugs = new Set(existingCats.map((c) => c.slug));
-  const categoryMap = new Map<string, string>(existingCats.map((c) => [c.slug, c.id]));
+  const preparedPosts = rawItems
+    .map((item) => buildPreparedPost(item, attachmentMap, options.includeDrafts))
+    .filter((item): item is PreparedPost => Boolean(item));
 
-  if (existingSlugs.size === 0) {
-    console.error("Nenhuma categoria cadastrada no site. Cadastre categorias no admin antes de importar.");
+  const limitedPosts =
+    options.limit != null ? preparedPosts.slice(0, options.limit) : preparedPosts;
+
+  let db:
+    | ReturnType<typeof drizzle<typeof schema>>
+    | null = null;
+  let authorId: string | null = null;
+  const categoryMap = new Map<string, string>();
+  const existingCanonicalUrls = new Set<string>();
+  const usedSlugs = new Set<string>();
+
+  if (DATABASE_URL) {
+    const sql = neon(DATABASE_URL);
+    db = drizzle(sql, { schema });
+
+    const [admin] = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.role, "administrador"))
+      .limit(1);
+    authorId = admin?.id ?? null;
+
+    const existingCats = await db.select().from(schema.categories);
+    for (const category of existingCats) {
+      categoryMap.set(category.slug, category.id);
+    }
+
+    const existingPosts = await db.select({
+      slug: schema.posts.slug,
+      canonicalUrl: schema.posts.canonicalUrl,
+    }).from(schema.posts);
+
+    for (const post of existingPosts) {
+      usedSlugs.add(post.slug);
+      if (post.canonicalUrl) existingCanonicalUrls.add(post.canonicalUrl);
+    }
+  } else if (!options.dryRun) {
+    console.error("DATABASE_URL não definida no .env.local");
     process.exit(1);
   }
-  console.log(`Categorias do site que serão usadas: ${[...existingSlugs].join(", ")}`);
 
-  const allowedTypes = ["post", "aniversarios"];
-  const postItems = items.filter((it) => {
-    const type = getText((it as Record<string, unknown>)["wp:post_type"] ?? (it as Record<string, unknown>).post_type);
-    return allowedTypes.includes(type);
-  });
+  const reportSkipped: ReportItem[] = [];
+  const reportReady: ReportItem[] = [];
+  const byMappedCategory = new Map<string, number>();
+  const missingSiteCategories = new Set<string>();
 
   let imported = 0;
   let skipped = 0;
 
-  for (const it of postItems) {
-    const obj = it as Record<string, unknown>;
-    const title = getText(obj.title);
-    if (!title) {
+  for (const prepared of limitedPosts) {
+    if (prepared.skipReason) {
       skipped++;
+      reportSkipped.push({
+        wpPostId: prepared.wpPostId,
+        title: prepared.title,
+        slug: prepared.slug,
+        link: prepared.link,
+        postType: prepared.postType,
+        wpStatus: prepared.wpStatus,
+        xmlCategories: prepared.categorySlugs,
+        mappedCategorySlug: prepared.mappedCategorySlug,
+        reason: prepared.skipReason,
+      });
       continue;
     }
 
-    const wpStatus = getText(obj["wp:status"] ?? obj.status);
-    const status = wpStatus === "publish" ? "publicado" : "rascunho";
-    const content = getText(obj["content:encoded"] ?? obj["content:encoded"] ?? obj.content ?? "");
-    const excerpt = getText(obj["excerpt:encoded"] ?? obj["excerpt:encoded"] ?? obj.excerpt ?? "");
-    const wpSlug = getText(obj["wp:post_name"] ?? obj.post_name);
-    const slug = wpSlug ? slugify(wpSlug) : slugify(title);
+    if (prepared.mappedCategorySlug) {
+      incrementCounter(byMappedCategory, prepared.mappedCategorySlug);
+    }
 
-    const postType = getText(obj["wp:post_type"] ?? obj.post_type);
-    const catRef = normalizeItem(obj.category ?? []);
     let categoryId: string | null = null;
-    for (const cr of catRef) {
-      const c = cr as Record<string, unknown>;
-      const domain = getText(c["@_domain"] ?? c.domain);
-      if (domain !== "category" && domain !== "categorias-artigos") continue;
-      const catSlug = slugify(getText(c["@_nicename"] ?? c["#text"] ?? c) || "");
-      if (!existingSlugs.has(catSlug)) continue;
-      categoryId = categoryMap.get(catSlug) ?? null;
-      if (categoryId) break;
-    }
-    if (!categoryId && postType === "aniversarios") {
-      categoryId = categoryMap.get("aniversariantes") ?? null;
-    }
-    if (!categoryId) {
-      skipped++;
-      continue;
-    }
-
-    const postmeta = normalizeItem(obj["wp:postmeta"] ?? obj.postmeta ?? []);
-    let featuredImageUrl: string | null = null;
-    const thumbMetaKeys = ["_thumbnail_id", "thumb-do-aniversariante"];
-    for (const pm of postmeta) {
-      const p = pm as Record<string, unknown>;
-      const key = getText(p["wp:meta_key"] ?? p.meta_key);
-      if (thumbMetaKeys.includes(key)) {
-        const thumbId = getText(p["wp:meta_value"] ?? p.meta_value);
-        featuredImageUrl = attachmentMap.get(thumbId) ?? null;
-        if (featuredImageUrl) break;
+    if (prepared.mappedCategorySlug && categoryMap.size > 0) {
+      categoryId = categoryMap.get(prepared.mappedCategorySlug) ?? null;
+      if (!categoryId) {
+        missingSiteCategories.add(prepared.mappedCategorySlug);
       }
     }
 
-    let finalSlug = slug;
-    let suffix = 1;
-    while (true) {
-      const [existing] = await db.select().from(schema.posts).where(eq(schema.posts.slug, finalSlug)).limit(1);
-      if (!existing) break;
-      finalSlug = `${slug}-${suffix}`;
-      suffix++;
+    if (categoryMap.size > 0 && !categoryId) {
+      skipped++;
+      reportSkipped.push({
+        wpPostId: prepared.wpPostId,
+        title: prepared.title,
+        slug: prepared.slug,
+        link: prepared.link,
+        postType: prepared.postType,
+        wpStatus: prepared.wpStatus,
+        xmlCategories: prepared.categorySlugs,
+        mappedCategorySlug: prepared.mappedCategorySlug,
+        reason: "categoria-nao-existe-no-site",
+      });
+      continue;
     }
 
-    const postId = generateId();
-    const pubDate = getText(obj["wp:post_date"] ?? obj.post_date);
-    const publishedAt = status === "publicado" && pubDate ? new Date(pubDate) : null;
+    if (prepared.canonicalUrl && existingCanonicalUrls.has(prepared.canonicalUrl)) {
+      skipped++;
+      reportSkipped.push({
+        wpPostId: prepared.wpPostId,
+        title: prepared.title,
+        slug: prepared.slug,
+        link: prepared.link,
+        postType: prepared.postType,
+        wpStatus: prepared.wpStatus,
+        xmlCategories: prepared.categorySlugs,
+        mappedCategorySlug: prepared.mappedCategorySlug,
+        reason: "ja-importado-pelo-canonical",
+      });
+      continue;
+    }
+
+    let finalSlug = prepared.slug;
+    let suffix = 1;
+    while (usedSlugs.has(finalSlug)) {
+      finalSlug = `${prepared.slug}-${suffix}`;
+      suffix++;
+    }
+    usedSlugs.add(finalSlug);
+
+    reportReady.push({
+      wpPostId: prepared.wpPostId,
+      title: prepared.title,
+      slug: finalSlug,
+      link: prepared.link,
+      postType: prepared.postType,
+      wpStatus: prepared.wpStatus,
+      xmlCategories: prepared.categorySlugs,
+      mappedCategorySlug: prepared.mappedCategorySlug,
+      reason: options.dryRun ? "pronto-para-importar" : "importado",
+    });
+
+    if (options.dryRun) continue;
+    if (!db) continue;
 
     await db.insert(schema.posts).values({
-      id: postId,
-      title,
+      id: generateId(),
+      title: prepared.title,
       slug: finalSlug,
-      excerpt: excerpt || null,
-      content,
-      featuredImage: featuredImageUrl,
-      featuredImageAlt: null,
-      categoryId: categoryId ?? null,
-      status,
-      featured: false,
+      excerpt: prepared.excerpt,
+      content: prepared.content,
+      featuredImage: prepared.featuredImageUrl,
+      featuredImageAlt: prepared.featuredImageAlt,
+      categoryId,
+      tags: prepared.tags.length > 0 ? JSON.stringify(prepared.tags) : null,
+      canonicalUrl: prepared.canonicalUrl,
       authorId,
-      publishedAt,
+      status: prepared.status,
+      featured: false,
+      metaTitle: prepared.metaTitle,
+      metaDescription: prepared.metaDescription,
+      focusKeyword: prepared.focusKeyword,
+      publishedAt: prepared.publishedAt,
     });
+
     imported++;
-    if (imported % 10 === 0) console.log(`  ${imported} posts importados...`);
+    if (prepared.canonicalUrl) {
+      existingCanonicalUrls.add(prepared.canonicalUrl);
+    }
+
+    if (imported % 25 === 0) {
+      console.log(`  ${imported} posts importados...`);
+    }
   }
 
-  console.log(`\nConcluído! ${imported} posts importados, ${skipped} ignorados (sem categoria correspondente ou sem título).`);
-  console.log("Importados apenas posts/aniversários com categorias existentes no site. Páginas não são importadas.");
-  console.log("\nImagens mantêm URLs originais. Edite os posts no admin para trocar por imagens locais se necessário.");
+  const reportPayload = {
+    sourceXml: absolutePath,
+    dryRun: options.dryRun,
+    includeDrafts: options.includeDrafts,
+    limit: options.limit,
+    totals: {
+      xmlItems: rawItems.length,
+      attachments: attachmentMap.size,
+      preparedPosts: limitedPosts.length,
+      readyToImport: reportReady.length,
+      imported,
+      skipped,
+    },
+    byType: Object.fromEntries([...byType.entries()].sort()),
+    byTypeStatus: Object.fromEntries([...byTypeStatus.entries()].sort()),
+    byMappedCategory: Object.fromEntries([...byMappedCategory.entries()].sort()),
+    missingSiteCategories: [...missingSiteCategories].sort(),
+    ready: reportReady,
+    skippedItems: reportSkipped,
+  };
+
+  if (options.reportPath) {
+    writeReport(options.reportPath, reportPayload);
+  }
+
+  console.log("");
+  console.log(`Posts preparados: ${limitedPosts.length}`);
+  console.log(`Prontos para importar: ${reportReady.length}`);
+  console.log(`Ignorados: ${skipped}`);
+  if (!options.dryRun) {
+    console.log(`Importados no banco: ${imported}`);
+  }
+
+  if (missingSiteCategories.size > 0) {
+    console.log(
+      `Categorias faltando no site: ${[...missingSiteCategories].sort().join(", ")}`
+    );
+  }
+
+  console.log(
+    options.dryRun
+      ? "Dry-run concluído. Nenhum post foi gravado."
+      : "Importação concluída com sucesso."
+  );
+  console.log(
+    "As imagens continuam apontando para as URLs originais do WordPress. Se quiser hospedar localmente depois, isso pode ser feito em uma segunda etapa."
+  );
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(err instanceof Error ? err.message : err);
   process.exit(1);
 });
