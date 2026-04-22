@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, gte, lt } from "drizzle-orm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 import { db } from "@/lib/db";
@@ -58,6 +58,23 @@ function formatCategoryDate(date: Date | null) {
   return format(new Date(date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 }
 
+function parseDateFilter(value: string | undefined) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+
+  const start = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(start.getTime())) return null;
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return { raw: value, start, end };
+}
+
+function formatFilterLabel(value: string | null) {
+  if (!value) return null;
+  return format(new Date(`${value}T00:00:00`), "dd/MM/yyyy");
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -79,19 +96,31 @@ export default async function CategoryPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; date?: string }>;
 }) {
   const { slug } = await params;
   const resolvedSearch = await searchParams;
   const requestedPage = Number.parseInt(resolvedSearch.page ?? "1", 10);
+  const supportsDateFilter = slug === "reflexao-do-dia";
+  const activeDateFilter = supportsDateFilter ? parseDateFilter(resolvedSearch.date) : null;
+  const activeDateLabel = formatFilterLabel(activeDateFilter?.raw ?? null);
+  const todayFilter = format(new Date(), "yyyy-MM-dd");
 
   const [category] = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
   if (!category || !category.active) notFound();
 
+  const baseFilter = activeDateFilter
+    ? and(
+        eq(posts.categoryId, category.id),
+        gte(posts.publishedAt, activeDateFilter.start),
+        lt(posts.publishedAt, activeDateFilter.end)
+      )
+    : eq(posts.categoryId, category.id);
+
   const [{ totalItems }] = await db
     .select({ totalItems: count() })
     .from(posts)
-    .where(eq(posts.categoryId, category.id));
+    .where(baseFilter);
 
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
   const currentPage =
@@ -108,7 +137,7 @@ export default async function CategoryPage({
       publishedAt: posts.publishedAt,
     })
     .from(posts)
-    .where(eq(posts.categoryId, category.id))
+    .where(baseFilter)
     .orderBy(desc(posts.publishedAt))
     .limit(PAGE_SIZE)
     .offset(offset);
@@ -119,7 +148,18 @@ export default async function CategoryPage({
   const paginationItems = getPaginationItems(currentPage, totalPages);
 
   function pageHref(page: number) {
-    return page <= 1 ? `/categoria/${category.slug}` : `/categoria/${category.slug}?page=${page}`;
+    const query = new URLSearchParams();
+
+    if (activeDateFilter?.raw) {
+      query.set("date", activeDateFilter.raw);
+    }
+
+    if (page > 1) {
+      query.set("page", String(page));
+    }
+
+    const serialized = query.toString();
+    return serialized ? `/categoria/${category.slug}?${serialized}` : `/categoria/${category.slug}`;
   }
 
   return (
@@ -140,12 +180,54 @@ export default async function CategoryPage({
             {category.description && <p className="mt-3 text-base leading-7 text-[#5f707d]">{category.description}</p>}
           </div>
 
-          <div className="rounded-[22px] border border-[#eadfd2] bg-white/80 px-5 py-4 text-sm text-[#5f707d] shadow-[0_14px_40px_rgba(15,23,42,0.05)] backdrop-blur">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8a9aa5]">Navegação</p>
-            <p className="mt-2 font-medium text-[#102033]">
-              Página {currentPage} de {totalPages}
-            </p>
-            <p className="mt-1">{totalItems} conteúdos publicados nesta editoria.</p>
+          <div className="grid gap-4 md:min-w-[340px]">
+            <div className="rounded-[22px] border border-[#eadfd2] bg-white/80 px-5 py-4 text-sm text-[#5f707d] shadow-[0_14px_40px_rgba(15,23,42,0.05)] backdrop-blur">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8a9aa5]">Navegação</p>
+              <p className="mt-2 font-medium text-[#102033]">
+                Página {currentPage} de {totalPages}
+              </p>
+              <p className="mt-1">
+                {activeDateLabel
+                  ? `${totalItems} resultado(s) para ${activeDateLabel}.`
+                  : `${totalItems} conteúdos publicados nesta editoria.`}
+              </p>
+            </div>
+
+            {supportsDateFilter && (
+              <div className="rounded-[22px] border border-[#eadfd2] bg-white/85 px-5 py-4 text-sm text-[#5f707d] shadow-[0_14px_40px_rgba(15,23,42,0.05)] backdrop-blur">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8a9aa5]">Buscar por data</p>
+                <form className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <input
+                    type="date"
+                    name="date"
+                    defaultValue={activeDateFilter?.raw ?? ""}
+                    className="rounded-full border border-[#d8e0e7] bg-white px-4 py-2.5 text-sm text-[#102033] outline-none transition-colors focus:border-[#ff751f]"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center rounded-full bg-[#102033] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#ff751f]"
+                  >
+                    Buscar reflexão
+                  </button>
+                </form>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Link
+                    href={`/categoria/${category.slug}?date=${todayFilter}`}
+                    className="inline-flex rounded-full bg-[#fff4ea] px-3 py-1.5 text-xs font-semibold text-[#ff751f] transition-colors hover:bg-[#ffe9d6]"
+                  >
+                    Hoje
+                  </Link>
+                  {activeDateFilter && (
+                    <Link
+                      href={`/categoria/${category.slug}`}
+                      className="inline-flex rounded-full bg-[#f4f6f7] px-3 py-1.5 text-xs font-semibold text-[#5f707d] transition-colors hover:bg-[#e8edf1]"
+                    >
+                      Limpar filtro
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -184,7 +266,7 @@ export default async function CategoryPage({
 
                 <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 md:px-7">
                   <div className="min-w-0 flex-1">
-                    {lead.excerpt && <p className="text-sm leading-7 text-[#5f707d] line-clamp-3">{lead.excerpt}</p>}
+                    {lead.excerpt && <p className="line-clamp-3 text-sm leading-7 text-[#5f707d]">{lead.excerpt}</p>}
                     {lead.publishedAt && (
                       <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#8a9aa5]">
                         {formatCategoryDate(lead.publishedAt)}
@@ -219,10 +301,10 @@ export default async function CategoryPage({
                       <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#ff751f]">
                         {`${index + 2}`.padStart(2, "0")}
                       </p>
-                      <h3 className="mt-2 font-headline text-[1.15rem] font-semibold leading-snug text-[#102033] transition-colors group-hover:text-[#ff751f] line-clamp-3">
+                      <h3 className="mt-2 line-clamp-3 font-headline text-[1.15rem] font-semibold leading-snug text-[#102033] transition-colors group-hover:text-[#ff751f]">
                         {post.title}
                       </h3>
-                      {post.excerpt && <p className="mt-2 text-sm leading-6 text-[#5f707d] line-clamp-2">{post.excerpt}</p>}
+                      {post.excerpt && <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#5f707d]">{post.excerpt}</p>}
                       {post.publishedAt && (
                         <p className="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#8a9aa5]">
                           {formatCategoryDate(post.publishedAt)}
@@ -258,10 +340,10 @@ export default async function CategoryPage({
                     </div>
 
                     <div className="p-5">
-                      <h3 className="font-headline text-[1.15rem] font-semibold leading-snug text-[#102033] transition-colors group-hover:text-[#ff751f] line-clamp-3">
+                      <h3 className="line-clamp-3 font-headline text-[1.15rem] font-semibold leading-snug text-[#102033] transition-colors group-hover:text-[#ff751f]">
                         {post.title}
                       </h3>
-                      {post.excerpt && <p className="mt-2 text-sm leading-6 text-[#5f707d] line-clamp-3">{post.excerpt}</p>}
+                      {post.excerpt && <p className="mt-2 line-clamp-3 text-sm leading-6 text-[#5f707d]">{post.excerpt}</p>}
                       {post.publishedAt && (
                         <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#8a9aa5]">
                           {formatCategoryDate(post.publishedAt)}
@@ -276,7 +358,19 @@ export default async function CategoryPage({
         </>
       ) : (
         <div className="rounded-[24px] border border-dashed border-[#d8e0e7] bg-white px-6 py-16 text-center text-[#5f707d]">
-          Nenhum conteúdo publicado nesta editoria ainda.
+          <p>
+            {activeDateLabel
+              ? `Nenhuma reflexão encontrada em ${activeDateLabel}.`
+              : `Nenhum conteúdo publicado nesta editoria ainda.`}
+          </p>
+          {activeDateFilter && (
+            <Link
+              href={`/categoria/${category.slug}`}
+              className="mt-4 inline-flex rounded-full bg-[#fff4ea] px-4 py-2 text-sm font-semibold text-[#ff751f] transition-colors hover:bg-[#ffe9d6]"
+            >
+              Limpar filtro
+            </Link>
+          )}
         </div>
       )}
 
@@ -285,7 +379,9 @@ export default async function CategoryPage({
           <Link
             href={pageHref(Math.max(1, currentPage - 1))}
             className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              currentPage === 1 ? "pointer-events-none bg-[#f4f6f7] text-[#9aabb7]" : "bg-[#fff4ea] text-[#ff751f] hover:bg-[#ffe9d6]"
+              currentPage === 1
+                ? "pointer-events-none bg-[#f4f6f7] text-[#9aabb7]"
+                : "bg-[#fff4ea] text-[#ff751f] hover:bg-[#ffe9d6]"
             }`}
           >
             Página anterior
