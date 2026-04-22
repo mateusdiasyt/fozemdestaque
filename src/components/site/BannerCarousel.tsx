@@ -14,6 +14,7 @@ interface Banner {
 
 interface BannerCarouselProps {
   position: "header" | "rodape";
+  fallbackPosition?: "header" | "rodape";
   wrapperClassName?: string;
   contentClassName?: string;
   cardClassName?: string;
@@ -24,6 +25,7 @@ const AUTO_ROTATE_MS = 5000;
 
 export function BannerCarousel({
   position,
+  fallbackPosition,
   wrapperClassName,
   contentClassName,
   cardClassName,
@@ -35,18 +37,34 @@ export function BannerCarousel({
   useEffect(() => {
     let active = true;
 
-    fetch(`/api/banners?position=${position}`)
-      .then((r) => r.json())
-      .then((data) => {
+    async function loadBanners() {
+      try {
+        const res = await fetch(`/api/banners?position=${position}`);
+        const data = (await res.json()) as Banner[];
+
         if (!active || !Array.isArray(data)) return;
-        setBanners(data);
-      })
-      .catch(() => {});
+
+        if (data.length > 0 || !fallbackPosition || fallbackPosition === position) {
+          setBanners(data);
+          return;
+        }
+
+        const fallbackRes = await fetch(`/api/banners?position=${fallbackPosition}`);
+        const fallbackData = (await fallbackRes.json()) as Banner[];
+
+        if (!active || !Array.isArray(fallbackData)) return;
+        setBanners(fallbackData);
+      } catch {
+        if (active) setBanners([]);
+      }
+    }
+
+    loadBanners();
 
     return () => {
       active = false;
     };
-  }, [position]);
+  }, [position, fallbackPosition]);
 
   const visibleCount = Math.min(3, banners.length);
   const canRotate = banners.length > visibleCount;
