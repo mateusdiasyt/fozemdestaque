@@ -68,7 +68,7 @@ export default async function HomePage() {
       title: item.title,
       excerpt: item.excerpt,
       image: item.thumbnail,
-      href: item.link,
+      href: item.link || (item.slug ? `/post/${item.slug}` : null),
       dateLabel: null,
     })),
     ...aniversariosPosts.map((post) => ({

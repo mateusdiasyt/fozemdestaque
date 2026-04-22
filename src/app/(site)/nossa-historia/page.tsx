@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { Instagram, Facebook, Youtube, ExternalLink } from "lucide-react";
+import { Instagram, Facebook, Youtube, ExternalLink, Music2 } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Nossa História",
@@ -190,12 +190,13 @@ export default function NossaHistoriaPage() {
             YouTube
           </a>
           <a
-            href="https://x.com/fozemdestaque"
+            href="https://www.tiktok.com/@fozemdestaque"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-slate-200 text-slate-700 hover:border-[#ff751f] hover:text-[#ff751f] transition-colors text-sm"
           >
-            X
+            <Music2 className="w-4 h-4" />
+            TikTok
           </a>
           <a
             href="https://www.facebook.com/groups/fozemdestaque/"

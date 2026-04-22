@@ -9,15 +9,15 @@ import {
   type SocialPlatform,
 } from "@/lib/social-links";
 
-function XIcon({ className }: { className?: string }) {
+function TikTokIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+      <path d="M14.5 3c.48 1.95 1.74 3.5 3.57 4.32.96.43 1.99.65 3.04.66v3.17a9.4 9.4 0 0 1-3.61-.73v5.16c0 3.98-3.23 7.2-7.2 7.2S3.1 19.54 3.1 15.56s3.23-7.2 7.2-7.2c.39 0 .77.03 1.14.09v3.31a3.9 3.9 0 0 0-1.14-.17 3.98 3.98 0 1 0 0 7.95c2.2 0 4.01-1.78 4.01-3.98V3h3.19Z" />
     </svg>
   );
 }
 
-type SocialIcon = LucideIcon | typeof XIcon;
+type SocialIcon = LucideIcon | typeof TikTokIcon;
 
 interface SocialLinkItem {
   platform: SocialPlatform;
@@ -30,7 +30,7 @@ const ICON_BY_PLATFORM: Record<SocialPlatform, SocialIcon> = {
   instagram: Instagram,
   facebook: Facebook,
   youtube: Youtube,
-  x: XIcon,
+  tiktok: TikTokIcon,
 };
 
 const FALLBACK_LINKS: SocialLinkItem[] = SOCIAL_LINK_DEFAULTS.map((item) => ({
@@ -79,7 +79,7 @@ export function PresentationBar() {
         <div className="flex flex-col items-center text-center">
           <span className="inline-block h-1 w-12 bg-[#ff751f] rounded-full mb-4" />
           <h2 className="font-headline text-2xl md:text-3xl font-bold text-[#1a1a1a] tracking-tight leading-tight">
-            Região Trinacional
+            Foz em Destaque
           </h2>
           <p className="mt-2 text-[#4e5b60] text-sm md:text-base font-medium">
             🇦🇷 Argentina · 🇧🇷 Brasil · 🇵🇾 Paraguai
@@ -96,7 +96,7 @@ export function PresentationBar() {
                   className="p-2 text-[#4e5b60] hover:text-[#ff751f] transition-colors rounded-lg hover:bg-[#e8ebed]/50"
                   aria-label={label}
                 >
-                  <Icon className="w-5 h-5 md:w-6 md:h-6" {...(Icon !== XIcon && { strokeWidth: 1.5 })} />
+                  <Icon className="w-5 h-5 md:w-6 md:h-6" {...(Icon !== TikTokIcon && { strokeWidth: 1.5 })} />
                 </a>
               );
             })}

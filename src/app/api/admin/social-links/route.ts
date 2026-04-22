@@ -6,14 +6,14 @@ import { db } from "@/lib/db";
 import { contentBlocks } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
 import {
-  isSocialPlatform,
   mergeSocialLinks,
+  resolveSocialPlatform,
   SOCIAL_LINK_DEFAULTS,
   type SocialPlatform,
 } from "@/lib/social-links";
 
 const socialLinkSchema = z.object({
-  platform: z.enum(["instagram", "facebook", "youtube", "x"]),
+  platform: z.enum(["instagram", "facebook", "youtube", "tiktok"]),
   value: z.string().optional().nullable(),
   active: z.boolean(),
   order: z.number().int().min(0).max(99),
@@ -46,13 +46,18 @@ export async function GET() {
       .orderBy(asc(contentBlocks.order));
 
     const parsedRows = rows
-      .filter((row) => isSocialPlatform(row.platform))
-      .map((row) => ({
-        platform: row.platform as SocialPlatform,
-        value: row.value,
-        active: row.active,
-        order: row.order,
-      }));
+      .map((row) => {
+        const platform = resolveSocialPlatform(row.platform);
+        if (!platform) return null;
+
+        return {
+          platform,
+          value: row.value,
+          active: row.active,
+          order: row.order,
+        };
+      })
+      .filter((row): row is { platform: SocialPlatform; value: string | null; active: boolean; order: number } => !!row);
 
     return NextResponse.json({ links: mergeSocialLinks(parsedRows) });
   } catch {
@@ -87,8 +92,9 @@ export async function PUT(req: Request) {
 
     const firstByPlatform = new Map<string, string>();
     for (const row of existing) {
-      if (isSocialPlatform(row.platform) && !firstByPlatform.has(row.platform)) {
-        firstByPlatform.set(row.platform, row.id);
+      const platform = resolveSocialPlatform(row.platform);
+      if (platform && !firstByPlatform.has(platform)) {
+        firstByPlatform.set(platform, row.id);
       }
     }
 
@@ -100,6 +106,8 @@ export async function PUT(req: Request) {
         await db
           .update(contentBlocks)
           .set({
+            title: link.platform,
+            excerpt: SOCIAL_LINK_DEFAULTS.find((item) => item.platform === link.platform)?.label ?? link.platform,
             link: value,
             active: link.active,
             order: link.order,
@@ -121,9 +129,10 @@ export async function PUT(req: Request) {
     }
 
     const stale = existing.filter(
-      (row) =>
-        isSocialPlatform(row.platform) &&
-        !parsed.data.links.some((item) => item.platform === row.platform)
+      (row) => {
+        const platform = resolveSocialPlatform(row.platform);
+        return platform && !parsed.data.links.some((item) => item.platform === platform);
+      }
     );
 
     if (stale.length > 0) {

@@ -1,4 +1,4 @@
-export type SocialPlatform = "instagram" | "facebook" | "youtube" | "x";
+export type SocialPlatform = "instagram" | "facebook" | "youtube" | "tiktok";
 
 export interface SocialLinkConfig {
   platform: SocialPlatform;
@@ -35,12 +35,12 @@ export const SOCIAL_LINK_DEFAULTS: SocialLinkConfig[] = [
     placeholder: "@FozemDestaque ou https://youtube.com/...",
   },
   {
-    platform: "x",
-    label: "X",
-    value: "https://x.com/fozemdestaque",
+    platform: "tiktok",
+    label: "TikTok",
+    value: "https://www.tiktok.com/@fozemdestaque",
     active: true,
     order: 3,
-    placeholder: "@fozemdestaque ou https://x.com/...",
+    placeholder: "@fozemdestaque ou https://tiktok.com/@...",
   },
 ];
 
@@ -48,11 +48,26 @@ const SOCIAL_BASE_URL: Record<SocialPlatform, string> = {
   instagram: "https://www.instagram.com/",
   facebook: "https://www.facebook.com/",
   youtube: "https://www.youtube.com/@",
-  x: "https://x.com/",
+  tiktok: "https://www.tiktok.com/@",
 };
 
-export function isSocialPlatform(value: string): value is SocialPlatform {
-  return SOCIAL_LINK_DEFAULTS.some((item) => item.platform === value);
+const SOCIAL_PLATFORM_ALIASES: Record<string, SocialPlatform> = {
+  x: "tiktok",
+};
+
+export function resolveSocialPlatform(value: string | null | undefined): SocialPlatform | null {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return null;
+
+  if (SOCIAL_LINK_DEFAULTS.some((item) => item.platform === normalized)) {
+    return normalized as SocialPlatform;
+  }
+
+  return SOCIAL_PLATFORM_ALIASES[normalized] ?? null;
+}
+
+export function isSocialPlatform(value: string): boolean {
+  return resolveSocialPlatform(value) !== null;
 }
 
 export function normalizeSocialUrl(

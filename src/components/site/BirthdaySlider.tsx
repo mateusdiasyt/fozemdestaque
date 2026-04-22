@@ -154,13 +154,13 @@ function SlideContent({ item }: { item: BirthdaySlideItem }) {
           )}
         </div>
 
-        <div className="max-w-[540px] rounded-[28px] border border-[#ead7c5] bg-[rgba(255,249,243,0.92)] p-5 shadow-[0_22px_45px_rgba(15,23,42,0.16)] backdrop-blur-md md:p-6">
+        <div className="max-w-[500px] rounded-[28px] border border-[#ead7c5] bg-[rgba(255,249,243,0.92)] p-5 shadow-[0_22px_45px_rgba(15,23,42,0.16)] backdrop-blur-md md:p-6">
           <div className="flex items-center gap-3">
             <span className="h-[3px] w-9 rounded-full bg-[#ff751f]" />
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#ff751f]">Destaque principal</p>
           </div>
 
-          <h3 className="mt-4 font-headline text-[clamp(1.8rem,3.4vw,3rem)] font-semibold leading-[1.02] text-[#102033] transition-colors group-hover/slide:text-[#ff751f]">
+          <h3 className="mt-4 font-headline text-[clamp(1.55rem,2.8vw,2.45rem)] font-semibold leading-[1.04] text-[#102033] transition-colors group-hover/slide:text-[#ff751f]">
             {item.title}
           </h3>
 

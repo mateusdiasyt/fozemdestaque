@@ -3,9 +3,9 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { contentBlocks } from "@/lib/db/schema";
 import {
-  isSocialPlatform,
   mergeSocialLinks,
   normalizeSocialUrl,
+  resolveSocialPlatform,
   type SocialPlatform,
 } from "@/lib/social-links";
 
@@ -23,13 +23,18 @@ export async function GET() {
       .orderBy(asc(contentBlocks.order));
 
     const parsedRows = rows
-      .filter((row) => isSocialPlatform(row.platform))
-      .map((row) => ({
-        platform: row.platform as SocialPlatform,
-        value: row.value,
-        active: row.active,
-        order: row.order,
-      }));
+      .map((row) => {
+        const platform = resolveSocialPlatform(row.platform);
+        if (!platform) return null;
+
+        return {
+          platform,
+          value: row.value,
+          active: row.active,
+          order: row.order,
+        };
+      })
+      .filter((row): row is { platform: SocialPlatform; value: string | null; active: boolean; order: number } => !!row);
 
     const merged = mergeSocialLinks(parsedRows)
       .filter((item) => item.active)
