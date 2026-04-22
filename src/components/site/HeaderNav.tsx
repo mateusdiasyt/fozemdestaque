@@ -3,13 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Search, X, MoreHorizontal, Home } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { VisitCounter } from "@/components/site/VisitCounter";
 import { LanguageSwitcher } from "@/components/site/LanguageSwitcher";
-import {
-  HEADER_MORE_CATEGORIES,
-  HEADER_PRIMARY_CATEGORIES,
-} from "@/lib/menu-items";
+import { HEADER_PRIMARY_CATEGORIES } from "@/lib/menu-items";
 
 interface PreviewPost {
   id: string;
@@ -24,8 +21,6 @@ export function HeaderNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [searchOpen, setSearchOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef<HTMLDivElement>(null);
   const [q, setQ] = useState("");
   const [preview, setPreview] = useState<PreviewPost[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,21 +32,23 @@ export function HeaderNav() {
   }, [pathname, searchParams]);
 
   useEffect(() => {
-    const t = q.trim().length >= 2
-      ? setTimeout(async () => {
-          setLoading(true);
-          try {
-            const res = await fetch(`/api/posts?q=${encodeURIComponent(q.trim())}&limit=5`);
-            const data = await res.json();
-            setPreview(Array.isArray(data) ? data : []);
-            setShowPreview(true);
-          } catch {
-            setPreview([]);
-          } finally {
-            setLoading(false);
-          }
-        }, 300)
-      : (setPreview([]), setShowPreview(false), undefined);
+    const t =
+      q.trim().length >= 2
+        ? setTimeout(async () => {
+            setLoading(true);
+            try {
+              const res = await fetch(`/api/posts?q=${encodeURIComponent(q.trim())}&limit=5`);
+              const data = await res.json();
+              setPreview(Array.isArray(data) ? data : []);
+              setShowPreview(true);
+            } catch {
+              setPreview([]);
+            } finally {
+              setLoading(false);
+            }
+          }, 300)
+        : (setPreview([]), setShowPreview(false), undefined);
+
     return () => t && clearTimeout(t);
   }, [q]);
 
@@ -61,16 +58,12 @@ export function HeaderNav() {
       setSearchOpen(false);
       setShowPreview(false);
     }
-    if (moreRef.current && !moreRef.current.contains(target)) {
-      setMoreOpen(false);
-    }
   }, []);
 
   useEffect(() => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [handleClickOutside]);
-
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -84,25 +77,23 @@ export function HeaderNav() {
 
   return (
     <>
-      <header className="bg-[#000000] relative">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+      <header className="relative bg-[#000000]">
+        <div className="mx-auto max-w-7xl px-4 py-3">
           <div className="flex items-center justify-between gap-4">
-            {/* Esquerda: Busca */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex shrink-0 items-center gap-2">
               <div className="relative" ref={searchRef}>
                 {searchOpen ? (
-                  <form
-                    onSubmit={handleSearch}
-                    className="flex items-center gap-1"
-                  >
+                  <form onSubmit={handleSearch} className="flex items-center gap-1">
                     <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                       <input
                         type="search"
                         placeholder="Buscar..."
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
-                        onBlur={() => { /* keep open on blur for preview */ }}
+                        onBlur={() => {
+                          // keep open on blur for preview
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === "Escape") {
                             setSearchOpen(false);
@@ -110,138 +101,103 @@ export function HeaderNav() {
                           }
                         }}
                         autoFocus
-                        className="w-40 sm:w-48 pl-8 pr-3 py-1.5 bg-white/5 border border-white/20 rounded text-white placeholder:text-slate-500 focus:outline-none focus:border-white/40 text-sm"
+                        className="w-40 rounded border border-white/20 bg-white/5 py-1.5 pl-8 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-white/40 focus:outline-none sm:w-48"
                       />
                       {showPreview && q.trim().length >= 2 && (
-                        <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-[#e8ebed] overflow-hidden z-50 w-72 max-h-80 overflow-y-auto">
+                        <div className="absolute left-0 top-full z-50 mt-1 max-h-80 w-72 overflow-hidden overflow-y-auto rounded-lg border border-[#e8ebed] bg-white shadow-lg">
                           {loading ? (
-                            <div className="px-4 py-6 text-center text-[#859eac] text-sm">Buscando...</div>
+                            <div className="px-4 py-6 text-center text-sm text-[#859eac]">Buscando...</div>
                           ) : preview.length > 0 ? (
                             <>
                               {preview.map((post) => (
                                 <Link
                                   key={post.id}
                                   href={`/post/${post.slug}`}
-                                  className="flex gap-3 px-4 py-3 hover:bg-[#f5f6f7] border-b border-[#e8ebed]"
+                                  className="flex gap-3 border-b border-[#e8ebed] px-4 py-3 hover:bg-[#f5f6f7]"
                                   onClick={() => setSearchOpen(false)}
                                 >
-                                  <div className="w-12 h-12 shrink-0 rounded overflow-hidden bg-[#e8ebed]">
+                                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-[#e8ebed]">
                                     {post.featuredImage ? (
                                       /* eslint-disable-next-line @next/next/no-img-element */
-                                      <img src={post.featuredImage} alt="" className="w-full h-full object-cover" />
+                                      <img src={post.featuredImage} alt="" className="h-full w-full object-cover" />
                                     ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-[#859eac] text-xs">Foz</div>
+                                      <div className="flex h-full w-full items-center justify-center text-xs text-[#859eac]">Foz</div>
                                     )}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="font-headline font-bold text-[#4e5b60] line-clamp-1 text-sm">{post.title}</p>
+                                    <p className="line-clamp-1 font-headline text-sm font-bold text-[#4e5b60]">{post.title}</p>
                                   </div>
                                 </Link>
                               ))}
                               <Link
                                 href={`/busca?q=${encodeURIComponent(q.trim())}`}
-                                className="block px-4 py-3 bg-[#f5f6f7] text-[#ff751f] font-medium text-sm text-center"
+                                className="block bg-[#f5f6f7] px-4 py-3 text-center text-sm font-medium text-[#ff751f]"
                                 onClick={() => setSearchOpen(false)}
                               >
                                 Ver todos →
                               </Link>
                             </>
                           ) : (
-                            <div className="px-4 py-6 text-center text-[#859eac] text-sm">Nenhum resultado</div>
+                            <div className="px-4 py-6 text-center text-sm text-[#859eac]">Nenhum resultado</div>
                           )}
                         </div>
                       )}
                     </div>
                     <button
                       type="button"
-                      onClick={() => { setSearchOpen(false); setShowPreview(false); }}
+                      onClick={() => {
+                        setSearchOpen(false);
+                        setShowPreview(false);
+                      }}
                       className="p-1.5 text-white/60 hover:text-white"
                       aria-label="Fechar busca"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="h-4 w-4" />
                     </button>
                   </form>
                 ) : (
                   <button
                     onClick={() => setSearchOpen(true)}
-                    className="p-2 text-white/80 hover:text-white transition-colors"
+                    className="p-2 text-white/80 transition-colors hover:text-white"
                     aria-label="Buscar"
                   >
-                    <Search className="w-5 h-5" />
+                    <Search className="h-5 w-5" />
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Centro: Logo */}
             <Link
               href="/"
-              className="absolute left-1/2 -translate-x-1/2 flex items-center hover:opacity-90 transition-opacity"
+              className="absolute left-1/2 flex -translate-x-1/2 items-center transition-opacity hover:opacity-90"
               aria-label="Foz em Destaque - Página inicial"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/logo-foz-em-destaque.png"
-                alt="Foz em Destaque"
-                className="h-10 w-auto"
-              />
+              <img src="/images/logo-foz-em-destaque.png" alt="Foz em Destaque" className="h-10 w-auto" />
             </Link>
 
-            {/* Direita: Visitas + Idioma */}
-            <div className="flex items-center gap-4 sm:gap-6 shrink-0">
+            <div className="flex shrink-0 items-center gap-4 sm:gap-6">
               <VisitCounter />
-              <div className="hidden sm:block h-4 w-px bg-[#4e5b60]" />
+              <div className="hidden h-4 w-px bg-[#4e5b60] sm:block" />
               <LanguageSwitcher />
             </div>
           </div>
         </div>
         <div className="h-px bg-[#ff751f]/50" />
       </header>
-      <nav className="bg-white border-b border-[#e8ebed]">
-        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center gap-x-6 text-sm w-full">
-          <div className="flex items-center gap-x-6 min-w-0 overflow-x-auto overflow-y-visible">
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 text-[#ff751f] font-semibold hover:text-[#e56a1a] transition-colors whitespace-nowrap shrink-0 pr-2 border-r border-slate-200"
-            >
-              <Home className="w-4 h-4" />
-              Início
-            </Link>
+
+      <nav className="border-b border-[#e8ebed] bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-2.5 text-sm">
+          <div className="flex items-center justify-center gap-x-6 overflow-x-auto overflow-y-visible">
             {HEADER_PRIMARY_CATEGORIES.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-[#4e5b60] hover:text-[#ff751f] transition-colors whitespace-nowrap shrink-0"
+                className="shrink-0 whitespace-nowrap text-[#4e5b60] transition-colors hover:text-[#ff751f]"
               >
                 {item.label}
               </Link>
             ))}
-          </div>
-          <div className="relative shrink-0" ref={moreRef}>
-            <button
-              type="button"
-              onClick={() => setMoreOpen(!moreOpen)}
-              className="flex items-center gap-1 text-[#4e5b60] hover:text-[#ff751f] transition-colors"
-              aria-label="Ver mais categorias"
-              aria-expanded={moreOpen}
-            >
-              <MoreHorizontal className="w-4 h-4" />
-              <span>Ver mais</span>
-            </button>
-            {moreOpen && (
-              <div className="absolute top-full right-0 mt-1 py-2 bg-white rounded-lg shadow-lg border border-[#e8ebed] z-[100] min-w-[180px]">
-                {HEADER_MORE_CATEGORIES.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="block px-4 py-2 text-sm text-[#4e5b60] hover:text-[#ff751f] hover:bg-[#f8f9fa] transition-colors"
-                    onClick={() => setMoreOpen(false)}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </nav>
