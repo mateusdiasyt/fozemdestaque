@@ -115,19 +115,19 @@ export default async function HomePage() {
   const hasRightBanners = lateralRightBanners.length > 0;
   const desktopGridClass =
     hasLeftBanners && hasRightBanners
-      ? "xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(260px,300px)]"
+      ? "xl:grid-cols-[220px_minmax(0,1fr)_220px] 2xl:grid-cols-[240px_minmax(0,1fr)_240px]"
       : hasLeftBanners
-        ? "xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)]"
+        ? "xl:grid-cols-[220px_minmax(0,1fr)] 2xl:grid-cols-[240px_minmax(0,1fr)]"
         : hasRightBanners
-          ? "xl:grid-cols-[minmax(0,1fr)_minmax(260px,300px)]"
+          ? "xl:grid-cols-[minmax(0,1fr)_220px] 2xl:grid-cols-[minmax(0,1fr)_240px]"
           : "";
 
   return (
-    <div className="relative left-1/2 w-screen max-w-[1720px] -translate-x-1/2 px-4 xl:px-6">
-      <div className={`space-y-8 lg:space-y-10 ${hasLeftBanners || hasRightBanners ? `xl:grid xl:items-start xl:gap-6 ${desktopGridClass}` : ""}`}>
+    <div className="relative left-1/2 w-screen max-w-[1960px] -translate-x-1/2 px-4 lg:px-5 xl:px-3 2xl:px-4">
+      <div className={`space-y-8 lg:space-y-10 ${hasLeftBanners || hasRightBanners ? `xl:grid xl:items-start xl:gap-4 2xl:gap-6 ${desktopGridClass}` : ""}`}>
         {hasLeftBanners && (
           <div className="hidden xl:block">
-            <HomeAdsRail banners={lateralLeftBanners} title="Lateral esquerda" />
+            <HomeAdsRail banners={lateralLeftBanners} />
           </div>
         )}
 
@@ -211,7 +211,7 @@ export default async function HomePage() {
 
         {hasRightBanners && (
           <div className="hidden xl:block">
-            <HomeAdsRail banners={lateralRightBanners} title="Lateral direita" />
+            <HomeAdsRail banners={lateralRightBanners} />
           </div>
         )}
       </div>

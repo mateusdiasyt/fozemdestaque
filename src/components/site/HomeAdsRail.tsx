@@ -9,7 +9,7 @@ export interface HomeBannerAd {
 
 function BannerCard({ banner, mobile = false }: { banner: HomeBannerAd; mobile?: boolean }) {
   const card = (
-    <article className="overflow-hidden rounded-[26px] border border-[#dfe5ea] bg-white shadow-[0_16px_45px_rgba(15,23,42,0.08)]">
+    <article className="overflow-hidden rounded-[24px] border border-[#d8dee4] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
       <div className={`relative overflow-hidden bg-[#e8ebed] ${mobile ? "aspect-[4/5] sm:aspect-[300/600]" : "aspect-[300/600]"}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -32,21 +32,13 @@ function BannerCard({ banner, mobile = false }: { banner: HomeBannerAd; mobile?:
 
 export function HomeAdsRail({
   banners,
-  title,
 }: {
   banners: HomeBannerAd[];
-  title: string;
 }) {
   if (banners.length === 0) return null;
 
   return (
-    <aside className="space-y-4">
-      <div className="rounded-[24px] border border-[#eadfd2] bg-[linear-gradient(180deg,#fff7ef_0%,#ffffff_100%)] px-4 py-4 shadow-[0_14px_40px_rgba(15,23,42,0.06)]">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#ff751f]">Publicidade</p>
-        <p className="mt-2 font-headline text-xl font-semibold text-[#102033]">{title}</p>
-        <p className="mt-1 text-sm text-[#5f707d]">Espaços verticais 300x600 com rotação livre pelo admin.</p>
-      </div>
-
+    <aside className="space-y-4 xl:sticky xl:top-24">
       {banners.map((banner) => (
         <BannerCard key={banner.id} banner={banner} />
       ))}
