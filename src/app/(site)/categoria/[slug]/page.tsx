@@ -1,13 +1,42 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, count, desc, eq, gte, lt } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 import { db } from "@/lib/db";
 import { categories, posts } from "@/lib/db/schema";
 
 const PAGE_SIZE = 13;
+const MONTHS_PT: Record<string, number> = {
+  janeiro: 1,
+  fevereiro: 2,
+  marco: 3,
+  abril: 4,
+  maio: 5,
+  junho: 6,
+  julho: 7,
+  agosto: 8,
+  setembro: 9,
+  outubro: 10,
+  novembro: 11,
+  dezembro: 12,
+};
+
+type CategoryPost = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  featuredImage: string | null;
+  publishedAt: Date | null;
+};
+
+type ReflectionDateParts = {
+  day: number;
+  month: number;
+  year: number | null;
+};
 
 function getPaginationItems(currentPage: number, totalPages: number) {
   if (totalPages <= 7) {
@@ -56,6 +85,104 @@ function getPaginationItems(currentPage: number, totalPages: number) {
 function formatCategoryDate(date: Date | null) {
   if (!date) return null;
   return format(new Date(date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+}
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function extractReflectionDateParts(value: string): ReflectionDateParts | null {
+  const normalized = normalizeText(value);
+
+  const numericMatch = normalized.match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{4})\b/);
+  if (numericMatch) {
+    return {
+      day: Number.parseInt(numericMatch[1], 10),
+      month: Number.parseInt(numericMatch[2], 10),
+      year: Number.parseInt(numericMatch[3], 10),
+    };
+  }
+
+  const monthWithYearMatch = normalized.match(/\b(\d{1,2})\s+de\s+([a-z]+)(?:\s+de)?\s+(\d{4})\b/);
+  if (monthWithYearMatch) {
+    const month = MONTHS_PT[monthWithYearMatch[2]];
+    if (month) {
+      return {
+        day: Number.parseInt(monthWithYearMatch[1], 10),
+        month,
+        year: Number.parseInt(monthWithYearMatch[3], 10),
+      };
+    }
+  }
+
+  const monthMatch = normalized.match(/\b(\d{1,2})\s+de\s+([a-z]+)\b/);
+  if (monthMatch) {
+    const month = MONTHS_PT[monthMatch[2]];
+    if (month) {
+      return {
+        day: Number.parseInt(monthMatch[1], 10),
+        month,
+        year: null,
+      };
+    }
+  }
+
+  const compactMonthMatch = normalized.match(/\b(\d{1,2})\s+([a-z]+)\s+(\d{4})\b/);
+  if (compactMonthMatch) {
+    const month = MONTHS_PT[compactMonthMatch[2]];
+    if (month) {
+      return {
+        day: Number.parseInt(compactMonthMatch[1], 10),
+        month,
+        year: Number.parseInt(compactMonthMatch[3], 10),
+      };
+    }
+  }
+
+  return null;
+}
+
+function isSameCalendarDate(date: Date, target: Date) {
+  return (
+    date.getFullYear() === target.getFullYear() &&
+    date.getMonth() === target.getMonth() &&
+    date.getDate() === target.getDate()
+  );
+}
+
+function getReflectionDateMatchType(post: CategoryPost, target: Date) {
+  if (post.publishedAt && isSameCalendarDate(new Date(post.publishedAt), target)) {
+    return "exact" as const;
+  }
+
+  const parsedFromTitle = extractReflectionDateParts(`${post.title} ${post.excerpt ?? ""}`);
+  if (!parsedFromTitle) return null;
+
+  const targetDay = target.getDate();
+  const targetMonth = target.getMonth() + 1;
+  const targetYear = target.getFullYear();
+
+  if (parsedFromTitle.day !== targetDay || parsedFromTitle.month !== targetMonth) {
+    return null;
+  }
+
+  if (parsedFromTitle.year == null) {
+    return "fallback" as const;
+  }
+
+  return parsedFromTitle.year === targetYear ? ("exact" as const) : null;
+}
+
+function getReflectionSortValue(post: CategoryPost) {
+  if (post.publishedAt) return new Date(post.publishedAt).getTime();
+
+  const parsedFromTitle = extractReflectionDateParts(`${post.title} ${post.excerpt ?? ""}`);
+  if (!parsedFromTitle) return 0;
+
+  return Date.UTC(parsedFromTitle.year ?? 0, parsedFromTitle.month - 1, parsedFromTitle.day);
 }
 
 function parseDateFilter(value: string | undefined) {
@@ -109,25 +236,74 @@ export default async function CategoryPage({
   const [category] = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
   if (!category || !category.active) notFound();
 
-  const baseFilter = activeDateFilter
-    ? and(
-        eq(posts.categoryId, category.id),
-        gte(posts.publishedAt, activeDateFilter.start),
-        lt(posts.publishedAt, activeDateFilter.end)
-      )
-    : eq(posts.categoryId, category.id);
+  let totalItems = 0;
+  let items: CategoryPost[] = [];
 
-  const [{ totalItems }] = await db
+  if (supportsDateFilter && activeDateFilter) {
+    const allReflectionPosts = await db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        slug: posts.slug,
+        excerpt: posts.excerpt,
+        featuredImage: posts.featuredImage,
+        publishedAt: posts.publishedAt,
+      })
+      .from(posts)
+      .where(eq(posts.categoryId, category.id));
+
+    const reflectionMatches = allReflectionPosts
+      .map((post) => ({
+        post,
+        matchType: getReflectionDateMatchType(post, activeDateFilter.start),
+      }))
+      .filter((entry) => entry.matchType !== null);
+
+    const hasExactReflectionMatch = reflectionMatches.some((entry) => entry.matchType === "exact");
+
+    const filteredReflectionPosts = reflectionMatches
+      .filter((entry) => (hasExactReflectionMatch ? entry.matchType === "exact" : true))
+      .map((entry) => entry.post)
+      .sort((a, b) => getReflectionSortValue(b) - getReflectionSortValue(a));
+
+    totalItems = filteredReflectionPosts.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+    const currentPage =
+      Number.isFinite(requestedPage) && requestedPage > 0 ? Math.min(requestedPage, totalPages) : 1;
+    const offset = (currentPage - 1) * PAGE_SIZE;
+
+    items = filteredReflectionPosts.slice(offset, offset + PAGE_SIZE);
+
+    return renderCategoryPage({
+      category: {
+        slug: category.slug,
+        name: category.name,
+        description: category.description,
+      },
+      supportsDateFilter,
+      activeDateFilterRaw: activeDateFilter.raw,
+      activeDateLabel,
+      todayFilter,
+      totalItems,
+      currentPage,
+      totalPages,
+      items,
+    });
+  }
+
+  const [{ totalItems: countedItems }] = await db
     .select({ totalItems: count() })
     .from(posts)
-    .where(baseFilter);
+    .where(eq(posts.categoryId, category.id));
+
+  totalItems = countedItems;
 
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
   const currentPage =
     Number.isFinite(requestedPage) && requestedPage > 0 ? Math.min(requestedPage, totalPages) : 1;
   const offset = (currentPage - 1) * PAGE_SIZE;
 
-  const items = await db
+  items = await db
     .select({
       id: posts.id,
       title: posts.title,
@@ -137,11 +313,53 @@ export default async function CategoryPage({
       publishedAt: posts.publishedAt,
     })
     .from(posts)
-    .where(baseFilter)
+    .where(eq(posts.categoryId, category.id))
     .orderBy(desc(posts.publishedAt))
     .limit(PAGE_SIZE)
     .offset(offset);
 
+  return renderCategoryPage({
+    category: {
+      slug: category.slug,
+      name: category.name,
+      description: category.description,
+    },
+    supportsDateFilter,
+    activeDateFilterRaw: activeDateFilter?.raw ?? null,
+    activeDateLabel,
+    todayFilter,
+    totalItems,
+    currentPage,
+    totalPages,
+    items,
+  });
+}
+
+function renderCategoryPage({
+  category,
+  supportsDateFilter,
+  activeDateFilterRaw,
+  activeDateLabel,
+  todayFilter,
+  totalItems,
+  currentPage,
+  totalPages,
+  items,
+}: {
+  category: {
+    slug: string;
+    name: string;
+    description: string | null;
+  };
+  supportsDateFilter: boolean;
+  activeDateFilterRaw: string | null;
+  activeDateLabel: string | null;
+  todayFilter: string;
+  totalItems: number;
+  currentPage: number;
+  totalPages: number;
+  items: CategoryPost[];
+}) {
   const [lead, ...rest] = items;
   const sidebarStories = rest.slice(0, 4);
   const gridStories = rest.slice(4);
@@ -150,8 +368,8 @@ export default async function CategoryPage({
   function pageHref(page: number) {
     const query = new URLSearchParams();
 
-    if (activeDateFilter?.raw) {
-      query.set("date", activeDateFilter.raw);
+    if (activeDateFilterRaw) {
+      query.set("date", activeDateFilterRaw);
     }
 
     if (page > 1) {
@@ -168,10 +386,10 @@ export default async function CategoryPage({
         <div className="absolute -right-10 top-0 h-36 w-36 rounded-full bg-[#ff751f]/10 blur-3xl" />
 
         <Link href="/" className="inline-flex text-sm font-medium text-[#ff751f] transition-colors hover:text-[#e56a1a]">
-          ← Voltar ao início
+          ← Voltar ao inicio
         </Link>
 
-        <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+        <div className={supportsDateFilter ? "mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-end" : "mt-5"}>
           <div className="max-w-3xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#ff751f]">Editoria</p>
             <h1 className="mt-2 font-headline text-3xl font-semibold tracking-tight text-[#102033] md:text-5xl">
@@ -180,55 +398,55 @@ export default async function CategoryPage({
             {category.description && <p className="mt-3 text-base leading-7 text-[#5f707d]">{category.description}</p>}
           </div>
 
-          <div className="grid gap-4 md:min-w-[340px]">
-            <div className="rounded-[22px] border border-[#eadfd2] bg-white/80 px-5 py-4 text-sm text-[#5f707d] shadow-[0_14px_40px_rgba(15,23,42,0.05)] backdrop-blur">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8a9aa5]">Navegação</p>
-              <p className="mt-2 font-medium text-[#102033]">
-                Página {currentPage} de {totalPages}
-              </p>
-              <p className="mt-1">
-                {activeDateLabel
-                  ? `${totalItems} resultado(s) para ${activeDateLabel}.`
-                  : `${totalItems} conteúdos publicados nesta editoria.`}
-              </p>
-            </div>
-
-            {supportsDateFilter && (
-              <div className="rounded-[22px] border border-[#eadfd2] bg-white/85 px-5 py-4 text-sm text-[#5f707d] shadow-[0_14px_40px_rgba(15,23,42,0.05)] backdrop-blur">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8a9aa5]">Buscar por data</p>
-                <form className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <input
-                    type="date"
-                    name="date"
-                    defaultValue={activeDateFilter?.raw ?? ""}
-                    className="rounded-full border border-[#d8e0e7] bg-white px-4 py-2.5 text-sm text-[#102033] outline-none transition-colors focus:border-[#ff751f]"
-                  />
-                  <button
-                    type="submit"
-                    className="inline-flex items-center justify-center rounded-full bg-[#102033] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#ff751f]"
-                  >
-                    Buscar reflexão
-                  </button>
-                </form>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Link
-                    href={`/categoria/${category.slug}?date=${todayFilter}`}
-                    className="inline-flex rounded-full bg-[#fff4ea] px-3 py-1.5 text-xs font-semibold text-[#ff751f] transition-colors hover:bg-[#ffe9d6]"
-                  >
-                    Hoje
-                  </Link>
-                  {activeDateFilter && (
-                    <Link
-                      href={`/categoria/${category.slug}`}
-                      className="inline-flex rounded-full bg-[#f4f6f7] px-3 py-1.5 text-xs font-semibold text-[#5f707d] transition-colors hover:bg-[#e8edf1]"
-                    >
-                      Limpar filtro
-                    </Link>
-                  )}
+          {supportsDateFilter && (
+            <div className="rounded-[24px] border border-[#eadfd2] bg-white/88 px-5 py-5 text-sm text-[#5f707d] shadow-[0_14px_40px_rgba(15,23,42,0.05)] backdrop-blur">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8a9aa5]">Buscar por data</p>
+                  <p className="mt-2 max-w-[19rem] text-sm leading-6 text-[#5f707d]">
+                    Escolha uma data para localizar a reflexao correspondente pelo titulo ou pela data salva no post.
+                  </p>
                 </div>
+                {activeDateLabel && (
+                  <span className="inline-flex rounded-full bg-[#fff4ea] px-3 py-1.5 text-xs font-semibold text-[#ff751f]">
+                    {activeDateLabel}
+                  </span>
+                )}
               </div>
-            )}
-          </div>
+
+              <form className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <input
+                  type="date"
+                  name="date"
+                  defaultValue={activeDateFilterRaw ?? ""}
+                  className="rounded-full border border-[#d8e0e7] bg-white px-4 py-2.5 text-sm text-[#102033] outline-none transition-colors focus:border-[#ff751f]"
+                />
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-full bg-[#102033] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#ff751f]"
+                >
+                  Buscar reflexao
+                </button>
+              </form>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/categoria/${category.slug}?date=${todayFilter}`}
+                  className="inline-flex rounded-full bg-[#fff4ea] px-3 py-1.5 text-xs font-semibold text-[#ff751f] transition-colors hover:bg-[#ffe9d6]"
+                >
+                  Hoje
+                </Link>
+                {activeDateFilterRaw && (
+                  <Link
+                    href={`/categoria/${category.slug}`}
+                    className="inline-flex rounded-full bg-[#f4f6f7] px-3 py-1.5 text-xs font-semibold text-[#5f707d] transition-colors hover:bg-[#e8edf1]"
+                  >
+                    Limpar filtro
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -274,7 +492,7 @@ export default async function CategoryPage({
                     )}
                   </div>
                   <span className="inline-flex items-center text-sm font-semibold text-[#102033] transition-colors group-hover:text-[#ff751f]">
-                    Ler matéria →
+                    Ler materia →
                   </span>
                 </div>
               </article>
@@ -360,10 +578,10 @@ export default async function CategoryPage({
         <div className="rounded-[24px] border border-dashed border-[#d8e0e7] bg-white px-6 py-16 text-center text-[#5f707d]">
           <p>
             {activeDateLabel
-              ? `Nenhuma reflexão encontrada em ${activeDateLabel}.`
-              : `Nenhum conteúdo publicado nesta editoria ainda.`}
+              ? `Nenhuma reflexao encontrada em ${activeDateLabel}.`
+              : "Nenhum conteudo publicado nesta editoria ainda."}
           </p>
-          {activeDateFilter && (
+          {activeDateFilterRaw && (
             <Link
               href={`/categoria/${category.slug}`}
               className="mt-4 inline-flex rounded-full bg-[#fff4ea] px-4 py-2 text-sm font-semibold text-[#ff751f] transition-colors hover:bg-[#ffe9d6]"
@@ -384,7 +602,7 @@ export default async function CategoryPage({
                 : "bg-[#fff4ea] text-[#ff751f] hover:bg-[#ffe9d6]"
             }`}
           >
-            Página anterior
+            Pagina anterior
           </Link>
 
           {paginationItems.map((item, index) =>
@@ -418,7 +636,7 @@ export default async function CategoryPage({
                 : "bg-[#fff4ea] text-[#ff751f] hover:bg-[#ffe9d6]"
             }`}
           >
-            Próxima página
+            Proxima pagina
           </Link>
         </nav>
       )}
