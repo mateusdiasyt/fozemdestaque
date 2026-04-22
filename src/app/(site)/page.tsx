@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { db } from "@/lib/db";
-import { posts, categories, contentBlocks } from "@/lib/db/schema";
+import { posts, categories, contentBlocks, banners } from "@/lib/db/schema";
 import { eq, desc, and, asc } from "drizzle-orm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 import { BirthdaySlider, type BirthdaySlideItem } from "@/components/site/BirthdaySlider";
+import { HomeAdsMobile, HomeAdsRail, type HomeBannerAd } from "@/components/site/HomeAdsRail";
 
 type PostItem = {
   id: string;
@@ -15,6 +16,20 @@ type PostItem = {
   featuredImage: string | null;
   publishedAt: Date | null;
 };
+
+async function getBannersByPosition(position: "lateral_1" | "lateral_2", limit = 3): Promise<HomeBannerAd[]> {
+  return db
+    .select({
+      id: banners.id,
+      title: banners.title,
+      imageUrl: banners.imageUrl,
+      linkUrl: banners.linkUrl,
+    })
+    .from(banners)
+    .where(and(eq(banners.position, position), eq(banners.active, true)))
+    .orderBy(asc(banners.order))
+    .limit(limit);
+}
 
 async function getPostsByCategory(slug: string, limit: number): Promise<PostItem[]> {
   const [cat] = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
@@ -50,17 +65,29 @@ function formatPostDate(date: Date | null) {
 }
 
 export default async function HomePage() {
-  const [aniversariantesBlocks, aniversariosPosts, datas, reflexao, clickSociety, agenda, tiTiTi, merchandising] =
-    await Promise.all([
-      getAniversariantesDoDia(10),
-      getPostsByCategory("aniversariantes", 12),
-      getPostsByCategory("datas", 4),
-      getPostsByCategory("reflexao-do-dia", 3),
-      getPostsByCategory("click-society", 4),
-      getPostsByCategory("agenda", 4),
-      getPostsByCategory("ti-ti-ti", 2),
-      getPostsByCategory("merchandising", 2),
-    ]);
+  const [
+    aniversariantesBlocks,
+    aniversariosPosts,
+    datas,
+    reflexao,
+    clickSociety,
+    agenda,
+    tiTiTi,
+    merchandising,
+    lateralLeftBanners,
+    lateralRightBanners,
+  ] = await Promise.all([
+    getAniversariantesDoDia(10),
+    getPostsByCategory("aniversariantes", 12),
+    getPostsByCategory("datas", 4),
+    getPostsByCategory("reflexao-do-dia", 3),
+    getPostsByCategory("click-society", 4),
+    getPostsByCategory("agenda", 4),
+    getPostsByCategory("ti-ti-ti", 2),
+    getPostsByCategory("merchandising", 2),
+    getBannersByPosition("lateral_1", 3),
+    getBannersByPosition("lateral_2", 3),
+  ]);
 
   const birthdaySlides: BirthdaySlideItem[] = [
     ...aniversariantesBlocks.map((item) => ({
@@ -84,80 +111,109 @@ export default async function HomePage() {
       arr.findIndex((x) => (x.href ?? `id:${x.id}`) === (item.href ?? `id:${item.id}`)) === index
   );
 
+  const hasLeftBanners = lateralLeftBanners.length > 0;
+  const hasRightBanners = lateralRightBanners.length > 0;
+  const desktopGridClass =
+    hasLeftBanners && hasRightBanners
+      ? "xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(260px,300px)]"
+      : hasLeftBanners
+        ? "xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)]"
+        : hasRightBanners
+          ? "xl:grid-cols-[minmax(0,1fr)_minmax(260px,300px)]"
+          : "";
+
   return (
-    <div className="space-y-8 lg:space-y-10">
-      <section className="relative overflow-hidden rounded-[32px] border border-[#ebdfd2] bg-[radial-gradient(circle_at_top_left,_#fff5eb,_#ffffff_45%,_#f4f6f7_100%)] p-5 md:p-8 shadow-[0_26px_80px_rgba(15,23,42,0.08)]">
-        <div className="absolute -left-12 top-8 h-28 w-28 rounded-full bg-[#ff751f]/12 blur-3xl" />
-        <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-[#0f172a]/8 blur-3xl" />
-
-        <div className="relative grid gap-8 xl:grid-cols-[1.12fr_0.88fr]">
-          <div className="flex h-full flex-col gap-5">
-            <SectionHeading
-              title="Aniversários"
-              slug="aniversariantes"
-              eyebrow="Capa do dia"
-              description="Uma vitrine principal para celebrar os destaques e manter a sensação de capa logo na abertura do portal."
-            />
-            <BirthdaySlider items={birthdaySlides} className="flex-1" />
+    <div className="relative left-1/2 w-screen max-w-[1720px] -translate-x-1/2 px-4 xl:px-6">
+      <div className={`space-y-8 lg:space-y-10 ${hasLeftBanners || hasRightBanners ? `xl:grid xl:items-start xl:gap-6 ${desktopGridClass}` : ""}`}>
+        {hasLeftBanners && (
+          <div className="hidden xl:block">
+            <HomeAdsRail banners={lateralLeftBanners} title="Lateral esquerda" />
           </div>
+        )}
 
-          <FeatureSection
-            title="Click Society"
-            slug="click-society"
-            eyebrow="Vida social"
-            description="Eventos, bastidores e personagens da cena social em um bloco editorial mais forte e mais próximo de portal."
-            posts={clickSociety}
-          />
-        </div>
-      </section>
+        <div className="min-w-0 space-y-8 lg:space-y-10">
+          <section className="relative overflow-hidden rounded-[32px] border border-[#ebdfd2] bg-[radial-gradient(circle_at_top_left,_#fff5eb,_#ffffff_45%,_#f4f6f7_100%)] p-5 shadow-[0_26px_80px_rgba(15,23,42,0.08)] md:p-8">
+            <div className="absolute -left-12 top-8 h-28 w-28 rounded-full bg-[#ff751f]/12 blur-3xl" />
+            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-[#0f172a]/8 blur-3xl" />
 
-      <div className="grid gap-8 xl:grid-cols-[0.92fr_1.08fr]">
-        <div className="space-y-8">
-          <EditorialSection
-            title="Datas"
-            slug="datas"
-            eyebrow="Calendário editorial"
-            description="Efemérides, datas especiais e contexto rápido para sustentar a coluna da esquerda com ritmo jornalístico."
-            posts={datas}
-          />
+            <div className="relative grid gap-8 xl:grid-cols-[1.12fr_0.88fr]">
+              <div className="flex h-full flex-col gap-5">
+                <SectionHeading
+                  title="AniversÃƒÂ¡rios"
+                  slug="aniversariantes"
+                  eyebrow="Capa do dia"
+                  description="Uma vitrine principal para celebrar os destaques e manter a sensaÃƒÂ§ÃƒÂ£o de capa logo na abertura do portal."
+                />
+                <BirthdaySlider items={birthdaySlides} className="flex-1" />
+              </div>
 
-          <ReflectionSection
-            title="Reflexões"
-            slug="reflexao-do-dia"
-            eyebrow="Leitura breve"
-            description="Uma pausa de leitura com visual mais autoral, sem perder a lógica de portal e de hierarquia de navegação."
-            posts={reflexao}
-          />
-        </div>
+              <FeatureSection
+                title="Click Society"
+                slug="click-society"
+                eyebrow="Vida social"
+                description="Eventos, bastidores e personagens da cena social em um bloco editorial mais forte e mais prÃƒÂ³ximo de portal."
+                posts={clickSociety}
+              />
+            </div>
+          </section>
 
-        <div className="space-y-8">
-          <FeatureSection
-            title="Agenda"
-            slug="agenda"
-            eyebrow="Programação"
-            description="Eventos, estreias e movimentos da cidade em um módulo com mais respiro e mais cara de home editorial."
-            posts={agenda}
-            leadHeight="md:min-h-[320px]"
-          />
+          <HomeAdsMobile leftBanners={lateralLeftBanners} rightBanners={lateralRightBanners} />
 
-          <div className="grid items-start gap-6 lg:grid-cols-2">
-            <CompactSection
-              title="Ti-ti-ti"
-              slug="ti-ti-ti"
-              eyebrow="Bastidores"
-              description="Notas rápidas, bastidores e assunto quente em formato de coluna enxuta."
-              posts={tiTiTi}
-            />
+          <div className="grid gap-8 xl:grid-cols-[0.92fr_1.08fr]">
+            <div className="space-y-8">
+              <EditorialSection
+                title="Datas"
+                slug="datas"
+                eyebrow="CalendÃƒÂ¡rio editorial"
+                description="EfemÃƒÂ©rides, datas especiais e contexto rÃƒÂ¡pido para sustentar a coluna da esquerda com ritmo jornalÃƒÂ­stico."
+                posts={datas}
+              />
 
-            <CompactSection
-              title="Merchandising"
-              slug="merchandising"
-              eyebrow="Mercado"
-              description="Ofertas, lançamentos e presença comercial com leitura mais objetiva e visualmente organizada."
-              posts={merchandising}
-            />
+              <ReflectionSection
+                title="ReflexÃƒÂµes"
+                slug="reflexao-do-dia"
+                eyebrow="Leitura breve"
+                description="Uma pausa de leitura com visual mais autoral, sem perder a lÃƒÂ³gica de portal e de hierarquia de navegaÃƒÂ§ÃƒÂ£o."
+                posts={reflexao}
+              />
+            </div>
+
+            <div className="space-y-8">
+              <FeatureSection
+                title="Agenda"
+                slug="agenda"
+                eyebrow="ProgramaÃƒÂ§ÃƒÂ£o"
+                description="Eventos, estreias e movimentos da cidade em um mÃƒÂ³dulo com mais respiro e mais cara de home editorial."
+                posts={agenda}
+                leadHeight="md:min-h-[320px]"
+              />
+
+              <div className="grid items-start gap-6 lg:grid-cols-2">
+                <CompactSection
+                  title="Ti-ti-ti"
+                  slug="ti-ti-ti"
+                  eyebrow="Bastidores"
+                  description="Notas rÃƒÂ¡pidas, bastidores e assunto quente em formato de coluna enxuta."
+                  posts={tiTiTi}
+                />
+
+                <CompactSection
+                  title="Merchandising"
+                  slug="merchandising"
+                  eyebrow="Mercado"
+                  description="Ofertas, lanÃƒÂ§amentos e presenÃƒÂ§a comercial com leitura mais objetiva e visualmente organizada."
+                  posts={merchandising}
+                />
+              </div>
+            </div>
           </div>
         </div>
+
+        {hasRightBanners && (
+          <div className="hidden xl:block">
+            <HomeAdsRail banners={lateralRightBanners} title="Lateral direita" />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -577,7 +633,7 @@ function EmptySection({ title, dark = false }: { title: string; dark?: boolean }
           : "border-[#e8edf1] bg-[#fbfcfd] text-[#6a7b87]"
       }`}
     >
-      Nenhum conteúdo em {title.toLowerCase()} no momento.
+      Nenhum conteÃƒÆ’Ã‚Âºdo em {title.toLowerCase()} no momento.
     </div>
   );
 }
