@@ -384,12 +384,13 @@ function renderCategoryPage({
     <div className="space-y-8 lg:space-y-10">
       <header className="relative overflow-hidden rounded-[30px] border border-[#e6ddcf] bg-[radial-gradient(circle_at_top_left,_#fff4ea,_#ffffff_52%,_#f4f6f7_100%)] px-6 py-8 shadow-[0_24px_70px_rgba(15,23,42,0.08)] md:px-8 md:py-10">
         <div className="absolute -right-10 top-0 h-36 w-36 rounded-full bg-[#ff751f]/10 blur-3xl" />
+        <div className="absolute left-0 top-10 h-32 w-32 rounded-full bg-[#102033]/[0.04] blur-3xl" />
 
         <Link href="/" className="inline-flex text-sm font-medium text-[#ff751f] transition-colors hover:text-[#e56a1a]">
-          ← Voltar ao inicio
+          Voltar ao inicio
         </Link>
 
-        <div className={supportsDateFilter ? "mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-end" : "mt-5"}>
+        <div className="mt-8 flex flex-col items-center text-center">
           <div className="max-w-3xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#ff751f]">Editoria</p>
             <h1 className="mt-2 font-headline text-3xl font-semibold tracking-tight text-[#102033] md:text-5xl">
@@ -399,11 +400,11 @@ function renderCategoryPage({
           </div>
 
           {supportsDateFilter && (
-            <div className="rounded-[24px] border border-[#eadfd2] bg-white/88 px-5 py-5 text-sm text-[#5f707d] shadow-[0_14px_40px_rgba(15,23,42,0.05)] backdrop-blur">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+            <div className="mt-8 w-full max-w-3xl rounded-[26px] border border-[#eadfd2] bg-white/88 px-5 py-5 text-sm text-[#5f707d] shadow-[0_14px_40px_rgba(15,23,42,0.05)] backdrop-blur md:px-6">
+              <div className="flex flex-col items-center gap-3 text-center">
+                <div className="max-w-xl">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8a9aa5]">Buscar por data</p>
-                  <p className="mt-2 max-w-[19rem] text-sm leading-6 text-[#5f707d]">
+                  <p className="mt-2 text-sm leading-6 text-[#5f707d]">
                     Escolha uma data para localizar a reflexao correspondente pelo titulo ou pela data salva no post.
                   </p>
                 </div>
@@ -414,22 +415,22 @@ function renderCategoryPage({
                 )}
               </div>
 
-              <form className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <form className="mt-5 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center sm:justify-center">
                 <input
                   type="date"
                   name="date"
                   defaultValue={activeDateFilterRaw ?? ""}
-                  className="rounded-full border border-[#d8e0e7] bg-white px-4 py-2.5 text-sm text-[#102033] outline-none transition-colors focus:border-[#ff751f]"
+                  className="min-w-0 flex-1 rounded-full border border-[#d8e0e7] bg-white px-4 py-2.5 text-sm text-[#102033] outline-none transition-colors focus:border-[#ff751f] sm:max-w-[260px]"
                 />
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center rounded-full bg-[#102033] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#ff751f]"
+                  className="inline-flex items-center justify-center rounded-full bg-[#102033] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#ff751f]"
                 >
                   Buscar reflexao
                 </button>
               </form>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 <Link
                   href={`/categoria/${category.slug}?date=${todayFilter}`}
                   className="inline-flex rounded-full bg-[#fff4ea] px-3 py-1.5 text-xs font-semibold text-[#ff751f] transition-colors hover:bg-[#ffe9d6]"
@@ -492,7 +493,7 @@ function renderCategoryPage({
                     )}
                   </div>
                   <span className="inline-flex items-center text-sm font-semibold text-[#102033] transition-colors group-hover:text-[#ff751f]">
-                    Ler materia →
+                    Ler materia â†’
                   </span>
                 </div>
               </article>
@@ -611,7 +612,7 @@ function renderCategoryPage({
                 key={`ellipsis-${index}`}
                 className="inline-flex h-10 min-w-10 items-center justify-center rounded-full px-2 text-sm font-semibold text-[#9aabb7]"
               >
-                …
+                â€¦
               </span>
             ) : (
               <Link
