@@ -9,6 +9,50 @@ import { categories, posts } from "@/lib/db/schema";
 
 const PAGE_SIZE = 13;
 
+function getPaginationItems(currentPage: number, totalPages: number) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([1, totalPages, currentPage]);
+
+  for (let page = currentPage - 1; page <= currentPage + 1; page += 1) {
+    if (page > 1 && page < totalPages) {
+      pages.add(page);
+    }
+  }
+
+  if (currentPage <= 3) {
+    pages.add(2);
+    pages.add(3);
+    pages.add(4);
+  }
+
+  if (currentPage >= totalPages - 2) {
+    pages.add(totalPages - 1);
+    pages.add(totalPages - 2);
+    pages.add(totalPages - 3);
+  }
+
+  const sortedPages = Array.from(pages)
+    .filter((page) => page >= 1 && page <= totalPages)
+    .sort((a, b) => a - b);
+
+  const items: Array<number | "ellipsis"> = [];
+
+  sortedPages.forEach((page, index) => {
+    const previousPage = sortedPages[index - 1];
+
+    if (previousPage && page - previousPage > 1) {
+      items.push("ellipsis");
+    }
+
+    items.push(page);
+  });
+
+  return items;
+}
+
 function formatCategoryDate(date: Date | null) {
   if (!date) return null;
   return format(new Date(date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
@@ -72,6 +116,7 @@ export default async function CategoryPage({
   const [lead, ...rest] = items;
   const sidebarStories = rest.slice(0, 4);
   const gridStories = rest.slice(4);
+  const paginationItems = getPaginationItems(currentPage, totalPages);
 
   function pageHref(page: number) {
     return page <= 1 ? `/categoria/${category.slug}` : `/categoria/${category.slug}?page=${page}`;
@@ -246,19 +291,28 @@ export default async function CategoryPage({
             Página anterior
           </Link>
 
-          {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
-            <Link
-              key={pageNumber}
-              href={pageHref(pageNumber)}
-              className={`inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-sm font-semibold transition-colors ${
-                pageNumber === currentPage
-                  ? "bg-[#102033] text-white"
-                  : "bg-[#f4f6f7] text-[#5f707d] hover:bg-[#ffe9d6] hover:text-[#ff751f]"
-              }`}
-            >
-              {pageNumber}
-            </Link>
-          ))}
+          {paginationItems.map((item, index) =>
+            item === "ellipsis" ? (
+              <span
+                key={`ellipsis-${index}`}
+                className="inline-flex h-10 min-w-10 items-center justify-center rounded-full px-2 text-sm font-semibold text-[#9aabb7]"
+              >
+                …
+              </span>
+            ) : (
+              <Link
+                key={item}
+                href={pageHref(item)}
+                className={`inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-sm font-semibold transition-colors ${
+                  item === currentPage
+                    ? "bg-[#102033] text-white"
+                    : "bg-[#f4f6f7] text-[#5f707d] hover:bg-[#ffe9d6] hover:text-[#ff751f]"
+                }`}
+              >
+                {item}
+              </Link>
+            )
+          )}
 
           <Link
             href={pageHref(Math.min(totalPages, currentPage + 1))}
