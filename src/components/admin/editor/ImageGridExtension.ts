@@ -10,7 +10,7 @@ export interface ImageGridItem {
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     imageGrid: {
-      setImageGrid: (attrs: { columns: number; images: ImageGridItem[] }) => ReturnType;
+      setImageGrid: (attrs: { id?: string; columns: number; images: ImageGridItem[] }) => ReturnType;
     };
   }
 }
@@ -19,6 +19,10 @@ function normalizeColumns(value: unknown) {
   const numeric = Number(value || 3);
   if ([1, 2, 3, 4, 6].includes(numeric)) return numeric;
   return 3;
+}
+
+function createImageGridId() {
+  return globalThis.crypto?.randomUUID?.() ?? `grid-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function safeImages(value: unknown): ImageGridItem[] {
@@ -51,12 +55,19 @@ export const ImageGrid = Node.create({
 
   addAttributes() {
     return {
+      id: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-grid-id"),
+        renderHTML: () => ({}),
+      },
       columns: {
         default: 3,
         parseHTML: (element) => normalizeColumns(element.getAttribute("data-columns")),
+        renderHTML: () => ({}),
       },
       images: {
         default: [],
+        renderHTML: () => ({}),
         parseHTML: (element) => {
           const figures = Array.from(element.querySelectorAll("figure"));
           const images: ImageGridItem[] = [];
@@ -88,6 +99,7 @@ export const ImageGrid = Node.create({
   renderHTML({ HTMLAttributes }) {
     const columns = normalizeColumns(HTMLAttributes.columns);
     const images = safeImages(HTMLAttributes.images);
+    const gridId = typeof HTMLAttributes.id === "string" ? HTMLAttributes.id : "";
     const gridStyle = [
       "display:grid",
       `grid-template-columns:repeat(${columns},minmax(0,1fr))`,
@@ -95,7 +107,7 @@ export const ImageGrid = Node.create({
       "margin:32px 0",
     ].join(";");
 
-    const children = images.map((image) => {
+    const children = images.map((image, index) => {
       const imageNode = [
         "img",
         {
@@ -122,6 +134,7 @@ export const ImageGrid = Node.create({
       return [
         "figure",
         {
+          "data-image-index": String(index),
           style:
             "margin:0;min-width:0;border-radius:22px;background:#f8fafc;border:1px solid #e2e8f0;padding:8px",
         },
@@ -144,6 +157,7 @@ export const ImageGrid = Node.create({
       mergeAttributes(HTMLAttributes, {
         "data-image-grid": "true",
         "data-columns": String(columns),
+        ...(gridId ? { "data-grid-id": gridId } : {}),
         class: `foz-image-grid foz-image-grid-${columns}`,
         style: gridStyle,
       }),
@@ -159,6 +173,7 @@ export const ImageGrid = Node.create({
           commands.insertContent({
             type: this.name,
             attrs: {
+              id: attrs.id || createImageGridId(),
               columns: normalizeColumns(attrs.columns),
               images: safeImages(attrs.images),
             },

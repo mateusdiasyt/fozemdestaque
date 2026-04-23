@@ -138,6 +138,13 @@ interface LayerDragState {
   layer: ContentLayer;
 }
 
+interface SelectedGridImage {
+  gridPos: number;
+  imageIndex: number;
+  image: ImageGridItem;
+  total: number;
+}
+
 const GALLERY_LAYOUTS: Array<{ columns: GalleryColumns; label: string; hint: string }> = [
   { columns: 1, label: "1 coluna", hint: "Uma imagem por linha" },
   { columns: 2, label: "2x2", hint: "Duas colunas amplas" },
@@ -192,6 +199,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const [seoAnalysis, setSeoAnalysis] = useState<SEOAnalysis | null>(null);
   const [seoLoading, setSeoLoading] = useState(false);
   const [helpPopup, setHelpPopup] = useState(false);
+  const [selectedGridImage, setSelectedGridImage] = useState<SelectedGridImage | null>(null);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -199,6 +207,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       setHelpPopup(false);
       setLinkPopup(false);
       setImagePopup(false);
+      setSelectedGridImage(null);
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
@@ -259,6 +268,47 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const displayTitle = metaTitle || title || "Titulo da pagina";
   const displayDesc = metaDescription || excerpt || "Resumo estrategico para atrair o clique no resultado de busca.";
   const previewOrigin = typeof window !== "undefined" ? window.location.origin : "";
+
+  useEffect(() => {
+    if (!editor) return;
+    const editorDom = editor.view.dom;
+
+    function handleEditorClick(event: MouseEvent) {
+      const selection = getSelectedGridImageFromClick(editor, event.target);
+      editorDom.querySelectorAll(".foz-editor-selected-image").forEach((element) => {
+        element.classList.remove("foz-editor-selected-image");
+      });
+
+      if (!selection) {
+        setSelectedGridImage(null);
+        return;
+      }
+
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      const figure = target?.closest("figure[data-image-index]");
+      figure?.classList.add("foz-editor-selected-image");
+      event.preventDefault();
+      editor.chain().focus().setNodeSelection(selection.gridPos).run();
+      setSelectedGridImage(selection);
+    }
+
+    editorDom.addEventListener("click", handleEditorClick);
+    return () => editorDom.removeEventListener("click", handleEditorClick);
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const editorDom = editor.view.dom;
+    editorDom.querySelectorAll(".foz-editor-selected-image").forEach((element) => {
+      element.classList.remove("foz-editor-selected-image");
+    });
+
+    if (!selectedGridImage) return;
+    const grid = findImageGridElement(editor, selectedGridImage);
+    grid
+      ?.querySelector<HTMLElement>(`figure[data-image-index="${selectedGridImage.imageIndex}"]`)
+      ?.classList.add("foz-editor-selected-image");
+  }, [editor, selectedGridImage]);
 
   const slugWarnings: string[] = [];
   if (slug.length > 60) slugWarnings.push("URL muito longa (>60 caracteres)");
@@ -381,6 +431,34 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     editor.chain().focus().setImageGrid({ columns: galleryColumns, images: readyImages }).run();
     setImagePopup(false);
     setMediaImages([]);
+  }
+
+  function updateSelectedGridImage(patch: Partial<ImageGridItem>) {
+    if (!editor || !selectedGridImage) return;
+    const node = editor.state.doc.nodeAt(selectedGridImage.gridPos);
+    if (!node || node.type.name !== "imageGrid") return;
+
+    const images = safeImageGridItems(node.attrs.images);
+    if (!images[selectedGridImage.imageIndex]) return;
+
+    const nextImages = images.map((image, index) =>
+      index === selectedGridImage.imageIndex ? { ...image, ...patch } : image
+    );
+
+    editor
+      .chain()
+      .focus()
+      .command(({ tr, dispatch }) => {
+        dispatch?.(tr.setNodeMarkup(selectedGridImage.gridPos, undefined, { ...node.attrs, images: nextImages }));
+        return true;
+      })
+      .run();
+
+    setSelectedGridImage({
+      ...selectedGridImage,
+      image: nextImages[selectedGridImage.imageIndex],
+      total: nextImages.length,
+    });
   }
 
   function addFaqItem() {
@@ -551,9 +629,16 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             </div>
             <div className="grid gap-4 xl:grid-cols-[290px_minmax(0,1fr)]">
               <ContentLayers editor={editor} />
-              <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[#edf2f7] shadow-[0_24px_70px_rgba(0,0,0,0.22)]">
+              <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-[#edf2f7] shadow-[0_24px_70px_rgba(0,0,0,0.22)]">
                 <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={() => setImagePopup(true)} />
                 <EditorContent editor={editor} />
+                {selectedGridImage && (
+                  <ImageInlineSettings
+                    selection={selectedGridImage}
+                    onClose={() => setSelectedGridImage(null)}
+                    onUpdate={updateSelectedGridImage}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -762,15 +847,74 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             setMediaImages((current) => reorderList(current, fromIndex, toIndex))
           }
           onUpdateColumns={setGalleryColumns}
-          onUpdateImage={(id, patch) =>
-            setMediaImages((current) =>
-              current.map((image) => (image.id === id ? { ...image, ...patch } : image))
-            )
-          }
           uploading={uploadingContentImages}
         />
       )}
     </form>
+  );
+}
+
+function ImageInlineSettings({
+  selection,
+  onClose,
+  onUpdate,
+}: {
+  selection: SelectedGridImage;
+  onClose: () => void;
+  onUpdate: (patch: Partial<ImageGridItem>) => void;
+}) {
+  const image = selection.image;
+
+  return (
+    <div
+      className="absolute right-4 top-16 z-30 w-[min(360px,calc(100%-2rem))] rounded-[24px] border border-slate-200 bg-white p-4 text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,0.22)]"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-700">Imagem selecionada</p>
+          <h3 className="mt-1 text-base font-semibold">Imagem {selection.imageIndex + 1} de {selection.total}</h3>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950" aria-label="Fechar ajustes da imagem">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={image.src} alt="" className="h-36 w-full object-cover" />
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Texto alternativo</label>
+          <input
+            value={image.alt || ""}
+            onChange={(event) => onUpdate({ alt: event.target.value })}
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+            placeholder="Descreva a imagem para acessibilidade e SEO"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Link na imagem</label>
+          <input
+            value={image.href || ""}
+            onChange={(event) => onUpdate({ href: event.target.value })}
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+            placeholder="https://..."
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Legenda</label>
+          <input
+            value={image.caption || ""}
+            onChange={(event) => onUpdate({ caption: event.target.value })}
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+            placeholder="Texto exibido abaixo da imagem"
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -912,13 +1056,6 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
       .run();
   }
 
-  function updateImageAt(index: number, patch: Partial<ImageGridItem>) {
-    const nextImages = activeImages.map((image, imageIndex) =>
-      imageIndex === index ? { ...image, ...patch } : image
-    );
-    updateImageGridAttrs({ images: nextImages });
-  }
-
   function reorderActiveImage(fromIndex: number, toIndex: number) {
     updateImageGridAttrs({ images: reorderList(activeImages, fromIndex, toIndex) });
   }
@@ -1050,8 +1187,17 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
           <div className="mt-3 max-h-[280px] space-y-3 overflow-y-auto pr-1">
             {activeImages.map((image, index) => (
               <div key={`${image.src}-${index}`} className="rounded-xl border border-white/10 bg-[#070d18] p-2">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Imagem {index + 1}</p>
+                <div className="flex items-start gap-2">
+                  <div className="h-12 w-14 shrink-0 overflow-hidden rounded-lg bg-black/30">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={image.src} alt="" className="h-full w-full object-cover" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Imagem {index + 1}</p>
+                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-400">
+                      Clique na imagem dentro do editor para ajustar alt text, link e legenda.
+                    </p>
+                  </div>
                   <div className="flex gap-1">
                     <button
                       type="button"
@@ -1081,24 +1227,6 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
                     </button>
                   </div>
                 </div>
-                <input
-                  value={image.alt || ""}
-                  onChange={(event) => updateImageAt(index, { alt: event.target.value })}
-                  className={cn(compactFieldClass, "mb-2")}
-                  placeholder="Alt text"
-                />
-                <input
-                  value={image.href || ""}
-                  onChange={(event) => updateImageAt(index, { href: event.target.value })}
-                  className={cn(compactFieldClass, "mb-2")}
-                  placeholder="Link da imagem"
-                />
-                <input
-                  value={image.caption || ""}
-                  onChange={(event) => updateImageAt(index, { caption: event.target.value })}
-                  className={compactFieldClass}
-                  placeholder="Legenda"
-                />
               </div>
             ))}
           </div>
@@ -1106,6 +1234,63 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
       )}
     </aside>
   );
+}
+
+function getSelectedGridImageFromClick(editor: Editor, target: EventTarget | null): SelectedGridImage | null {
+  if (!(target instanceof HTMLElement)) return null;
+  const figure = target.closest<HTMLElement>("figure[data-image-index]");
+  const grid = figure?.closest<HTMLElement>("[data-image-grid]");
+  if (!figure || !grid || !editor.view.dom.contains(grid)) return null;
+
+  const imageIndex = Number(figure.dataset.imageIndex);
+  if (!Number.isInteger(imageIndex) || imageIndex < 0) return null;
+
+  const gridId = grid.getAttribute("data-grid-id") || "";
+  const domSources = Array.from(grid.querySelectorAll<HTMLImageElement>("img")).map((image) => image.getAttribute("src") || "");
+  let selected: SelectedGridImage | null = null;
+
+  editor.state.doc.descendants((node, pos) => {
+    if (node.type.name !== "imageGrid") return true;
+    const images = safeImageGridItems(node.attrs.images);
+    const nodeGridId = typeof node.attrs.id === "string" ? node.attrs.id : "";
+    const sameGridId = Boolean(gridId && nodeGridId && gridId === nodeGridId);
+    const sameSources = !gridId && isSameStringList(images.map((image) => image.src), domSources);
+
+    if (!sameGridId && !sameSources) return true;
+    const image = images[imageIndex];
+    if (!image) return false;
+    selected = {
+      gridPos: pos,
+      imageIndex,
+      image,
+      total: images.length,
+    };
+    return false;
+  });
+
+  return selected;
+}
+
+function findImageGridElement(editor: Editor, selection: SelectedGridImage) {
+  const node = editor.state.doc.nodeAt(selection.gridPos);
+  if (!node || node.type.name !== "imageGrid") return null;
+
+  const images = safeImageGridItems(node.attrs.images);
+  const nodeGridId = typeof node.attrs.id === "string" ? node.attrs.id : "";
+  const grids = Array.from(editor.view.dom.querySelectorAll<HTMLElement>("[data-image-grid]"));
+
+  return (
+    grids.find((grid) => {
+      const gridId = grid.getAttribute("data-grid-id") || "";
+      if (nodeGridId && gridId === nodeGridId) return true;
+      const domSources = Array.from(grid.querySelectorAll<HTMLImageElement>("img")).map((image) => image.getAttribute("src") || "");
+      return isSameStringList(images.map((image) => image.src), domSources);
+    }) ?? null
+  );
+}
+
+function isSameStringList(first: string[], second: string[]) {
+  return first.length === second.length && first.every((value, index) => value === second[index]);
 }
 
 function getEditorLayers(editor: Editor): ContentLayer[] {
@@ -1214,7 +1399,6 @@ function MediaDialog({
   onRemoveImage,
   onReorderImage,
   onUpdateColumns,
-  onUpdateImage,
   uploading,
 }: {
   galleryColumns: GalleryColumns;
@@ -1225,7 +1409,6 @@ function MediaDialog({
   onRemoveImage: (id: string) => void;
   onReorderImage: (fromIndex: number, toIndex: number) => void;
   onUpdateColumns: (columns: GalleryColumns) => void;
-  onUpdateImage: (id: string, patch: Partial<PendingImage>) => void;
   uploading: boolean;
 }) {
   const [draggingImageIndex, setDraggingImageIndex] = useState<number | null>(null);
@@ -1239,7 +1422,7 @@ function MediaDialog({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Biblioteca do conteudo</p>
             <h3 className="mt-1 text-2xl font-semibold text-white">Upload em massa e grade de imagens</h3>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-              Selecione varias imagens, defina o formato da grade e configure alt, link e legenda em cada item antes de inserir no corpo da materia.
+              Selecione varias imagens, escolha a grade e confira uma previa parecida com a exibicao final no blog.
             </p>
           </div>
           <button type="button" onClick={onClose} className="self-start rounded-xl p-2 text-slate-300 hover:bg-white/10" aria-label="Fechar">
@@ -1300,32 +1483,40 @@ function MediaDialog({
                 <Images className="h-10 w-10 text-slate-600" />
                 <h4 className="mt-4 text-lg font-semibold text-white">Nenhuma imagem selecionada</h4>
                 <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
-                  Clique em selecionar varias imagens para montar uma galeria com alt text, link e legenda por imagem.
+                  Clique em selecionar varias imagens para montar a previa da grade antes de inserir no texto.
                 </p>
               </div>
             ) : (
-              <div
-                className="grid gap-4"
-                style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}
-              >
-                {images.map((image, index) => (
-                  <article
-                    key={image.id}
-                    draggable
-                    onDragStart={() => setDraggingImageIndex(index)}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      if (draggingImageIndex !== null) onReorderImage(draggingImageIndex, index);
-                      setDraggingImageIndex(null);
-                    }}
-                    onDragEnd={() => setDraggingImageIndex(null)}
-                    className={cn(
-                      "overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03] transition",
-                      draggingImageIndex === index && "scale-[0.99] border-cyan-300/40 opacity-70"
-                    )}
-                  >
-                    <div className="relative aspect-[4/3] bg-black/20">
+              <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.18)] sm:p-6">
+                <div className="mb-4 flex flex-col gap-2 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Previa no blog</p>
+                    <h4 className="mt-1 text-xl font-semibold text-slate-950">Galeria em grade {galleryColumns}x{galleryColumns}</h4>
+                  </div>
+                  <p className="text-sm text-slate-500">Arraste uma imagem para mudar a ordem.</p>
+                </div>
+                <div
+                  className="grid gap-4 max-sm:!grid-cols-1"
+                  style={{ gridTemplateColumns: `repeat(${galleryColumns}, minmax(0, 1fr))` }}
+                >
+                  {images.map((image, index) => (
+                    <figure
+                      key={image.id}
+                      draggable
+                      onDragStart={() => setDraggingImageIndex(index)}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        if (draggingImageIndex !== null) onReorderImage(draggingImageIndex, index);
+                        setDraggingImageIndex(null);
+                      }}
+                      onDragEnd={() => setDraggingImageIndex(null)}
+                      className={cn(
+                        "group relative m-0 overflow-hidden rounded-[22px] border border-slate-200 bg-white p-2 shadow-sm transition",
+                        draggingImageIndex === index && "scale-[0.99] border-cyan-300 opacity-70"
+                      )}
+                    >
+                      <div className="relative aspect-[4/3] overflow-hidden rounded-[16px] bg-slate-200">
                       {image.uploading ? (
                         <div className="flex h-full items-center justify-center text-sm text-slate-400">
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1337,7 +1528,7 @@ function MediaDialog({
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={image.src} alt="" className="h-full w-full object-cover" />
                       )}
-                      <div className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">
+                      <div className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
                         <span className="inline-flex items-center gap-1">
                           <GripVertical className="h-3.5 w-3.5" />
                           #{index + 1}
@@ -1351,45 +1542,17 @@ function MediaDialog({
                       >
                         <X className="h-4 w-4" />
                       </button>
-                    </div>
-                    <div className="space-y-3 p-4">
-                      <div>
-                        <label className={labelClass}>Texto alternativo</label>
-                        <input
-                          value={image.alt || ""}
-                          onChange={(e) => onUpdateImage(image.id, { alt: e.target.value })}
-                          className={compactFieldClass}
-                          placeholder="Descreva a imagem"
-                        />
                       </div>
-                      <div>
-                        <label className={labelClass}>Link na imagem</label>
-                        <input
-                          value={image.href || ""}
-                          onChange={(e) => onUpdateImage(image.id, { href: e.target.value })}
-                          className={compactFieldClass}
-                          placeholder="https://..."
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Legenda opcional</label>
-                        <input
-                          value={image.caption || ""}
-                          onChange={(e) => onUpdateImage(image.id, { caption: e.target.value })}
-                          className={compactFieldClass}
-                          placeholder="Legenda exibida abaixo da imagem"
-                        />
-                      </div>
-                    </div>
-                  </article>
-                ))}
+                    </figure>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         </div>
 
         <div className="flex flex-col gap-3 border-t border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-500">As imagens entram como uma camada unica de galeria no corpo do editor.</p>
+          <p className="text-sm text-slate-500">Depois de inserir, clique em uma imagem no editor para ajustar alt text, link e legenda.</p>
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/5">
               Cancelar
