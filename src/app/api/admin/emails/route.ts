@@ -11,6 +11,12 @@ import {
   splitRecipients,
   textToHtml,
 } from "@/lib/email";
+import {
+  ensureEmailMailboxes,
+  getDefaultMailbox,
+  getMailboxDisplayFromAddress,
+  normalizeMailboxEmail,
+} from "@/lib/email-mailboxes";
 import { desc } from "drizzle-orm";
 import { z } from "zod";
 
@@ -19,6 +25,7 @@ const sendSchema = z.object({
   subject: z.string().min(2).max(500),
   body: z.string().min(1),
   replyTo: z.string().optional(),
+  mailboxEmail: z.string().email().optional(),
 });
 
 function canManageEmails(role?: string) {
@@ -33,6 +40,8 @@ export async function GET() {
   if (!session?.user || !canManageEmails(session.user.role)) {
     return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
   }
+
+  await ensureEmailMailboxes();
 
   const all = await db
     .select()
@@ -58,7 +67,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Informe ao menos um destinatario." }, { status: 400 });
   }
 
-  const from = getConfiguredFromAddress();
+  const mailboxes = await ensureEmailMailboxes();
+  const selectedMailboxEmail = parsed.data.mailboxEmail
+    ? normalizeMailboxEmail(parsed.data.mailboxEmail)
+    : null;
+  const mailbox =
+    (selectedMailboxEmail
+      ? mailboxes.find((item) => item.active && normalizeMailboxEmail(item.email) === selectedMailboxEmail)
+      : null) || getDefaultMailbox(mailboxes);
+
+  if (!mailbox) {
+    return NextResponse.json({ error: "Cadastre uma caixa ativa em Configurar Emails antes de enviar." }, { status: 400 });
+  }
+
+  const from = getMailboxDisplayFromAddress(mailbox) || getConfiguredFromAddress();
   const id = generateId();
   let providerId: string | null = null;
 
@@ -68,6 +90,7 @@ export async function POST(req: Request) {
       subject: parsed.data.subject,
       text: parsed.data.body,
       replyTo: parsed.data.replyTo || undefined,
+      from,
     });
     providerId = result.id;
 
@@ -75,6 +98,7 @@ export async function POST(req: Request) {
       id,
       direction: "outbound",
       status: "sent",
+      mailboxEmail: mailbox.email,
       fromName: extractEmailName(from),
       fromEmail: extractEmailAddress(from),
       toEmail: recipients.join(", "),
@@ -94,6 +118,7 @@ export async function POST(req: Request) {
       id,
       direction: "outbound",
       status: "failed",
+      mailboxEmail: mailbox.email,
       fromName: extractEmailName(from),
       fromEmail: extractEmailAddress(from),
       toEmail: recipients.join(", "),

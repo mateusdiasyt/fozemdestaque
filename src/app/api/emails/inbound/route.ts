@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { emailMessages } from "@/lib/db/schema";
+import { ensureEmailMailboxes, resolveMailboxEmailForRecipients } from "@/lib/email-mailboxes";
 import { generateId } from "@/lib/utils";
 
 type UnknownRecord = Record<string, unknown>;
@@ -18,12 +19,14 @@ export async function POST(req: Request) {
   }
 
   const payload = await readPayload(req);
-  const normalized = normalizeInboundEmail(payload);
+  const mailboxes = await ensureEmailMailboxes();
+  const normalized = normalizeInboundEmail(payload, mailboxes.filter((mailbox) => mailbox.active));
 
   await db.insert(emailMessages).values({
     id: generateId(),
     direction: "inbound",
     status: "received",
+    mailboxEmail: normalized.mailboxEmail,
     fromName: normalized.fromName,
     fromEmail: normalized.fromEmail,
     toEmail: normalized.toEmail,
@@ -59,7 +62,10 @@ async function readPayload(req: Request): Promise<UnknownRecord> {
   }
 }
 
-function normalizeInboundEmail(payload: UnknownRecord) {
+function normalizeInboundEmail(
+  payload: UnknownRecord,
+  mailboxes: Array<{ email: string; isDefault: boolean; active: boolean }>
+) {
   const fromValue =
     payload.from ||
     payload.sender ||
@@ -79,7 +85,8 @@ function normalizeInboundEmail(payload: UnknownRecord) {
   return {
     fromName: from.name,
     fromEmail: from.email || "desconhecido@local",
-    toEmail: to || "contato@fozemdestaque.com.br",
+    toEmail: to || "admin@fozemdestaque.com",
+    mailboxEmail: resolveMailboxEmailForRecipients(toValue, mailboxes),
     cc: cc || null,
     subject: String(payload.subject || getNested(payload, ["email", "subject"]) || "Sem assunto").slice(0, 500),
     textContent: stringOrNull(payload.text || payload.textContent || payload.plain || getNested(payload, ["body", "text"])),

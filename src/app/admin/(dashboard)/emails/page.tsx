@@ -5,6 +5,7 @@ import { auth, hasPermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { emailMessages } from "@/lib/db/schema";
 import { getConfiguredFromAddress, hasEmailProvider } from "@/lib/email";
+import { ensureEmailMailboxes, getDefaultMailbox } from "@/lib/email-mailboxes";
 
 export default async function AdminEmailsPage() {
   const session = await auth();
@@ -14,10 +15,12 @@ export default async function AdminEmailsPage() {
     notFound();
   }
 
+  const mailboxes = await ensureEmailMailboxes();
   const messages = await db
     .select()
     .from(emailMessages)
     .orderBy(desc(emailMessages.createdAt));
+  const defaultMailbox = getDefaultMailbox(mailboxes);
 
   return (
     <div className="space-y-6 pb-10 text-slate-100">
@@ -33,19 +36,21 @@ export default async function AdminEmailsPage() {
             </p>
           </div>
           <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-5 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Remetente</p>
-            <p className="mt-2 max-w-[340px] truncate text-sm font-semibold text-white">{getConfiguredFromAddress()}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Caixa padrao</p>
+            <p className="mt-2 max-w-[340px] truncate text-sm font-semibold text-white">{defaultMailbox?.email || getConfiguredFromAddress()}</p>
           </div>
         </div>
       </section>
 
       <EmailsManager
         messages={messages}
+        mailboxes={mailboxes}
         config={{
           canSend: hasEmailProvider(),
           fromAddress: getConfiguredFromAddress(),
           inboundWebhookUrl: getInboundWebhookUrl(),
           webhookSecretConfigured: Boolean(process.env.EMAIL_WEBHOOK_SECRET),
+          siteUrl: getBaseUrl(),
         }}
       />
     </div>
@@ -53,9 +58,13 @@ export default async function AdminEmailsPage() {
 }
 
 function getInboundWebhookUrl() {
-  const explicitUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
-  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
-  const baseUrl = explicitUrl || (vercelUrl ? `https://${vercelUrl}` : "");
+  const baseUrl = getBaseUrl();
 
   return baseUrl ? `${baseUrl.replace(/\/$/, "")}/api/emails/inbound` : "/api/emails/inbound";
+}
+
+function getBaseUrl() {
+  const explicitUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
+  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  return explicitUrl || (vercelUrl ? `https://${vercelUrl}` : "");
 }

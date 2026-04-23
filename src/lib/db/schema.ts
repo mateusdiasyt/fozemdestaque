@@ -86,10 +86,23 @@ export const comments = pgTable("comments", {
 });
 
 // Emails internos do painel
+export const emailMailboxes = pgTable("email_mailboxes", {
+  id: text("id").primaryKey(),
+  label: varchar("label", { length: 120 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  description: text("description"),
+  order: integer("order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const emailMessages = pgTable("email_messages", {
   id: text("id").primaryKey(),
   direction: varchar("direction", { length: 20 }).notNull(), // inbound, outbound
   status: varchar("status", { length: 30 }).notNull().default("received"),
+  mailboxEmail: varchar("mailbox_email", { length: 255 }),
   fromName: varchar("from_name", { length: 255 }),
   fromEmail: varchar("from_email", { length: 255 }).notNull(),
   toEmail: text("to_email").notNull(),
@@ -179,6 +192,8 @@ export type Post = typeof posts.$inferSelect;
 export type NewPost = typeof posts.$inferInsert;
 export type Comment = typeof comments.$inferSelect;
 export type NewComment = typeof comments.$inferInsert;
+export type EmailMailbox = typeof emailMailboxes.$inferSelect;
+export type NewEmailMailbox = typeof emailMailboxes.$inferInsert;
 export type EmailMessage = typeof emailMessages.$inferSelect;
 export type NewEmailMessage = typeof emailMessages.$inferInsert;
 export type Banner = typeof banners.$inferSelect;

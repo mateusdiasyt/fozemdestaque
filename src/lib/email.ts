@@ -3,6 +3,7 @@ export interface SendEmailInput {
   subject: string;
   text: string;
   replyTo?: string;
+  from?: string;
 }
 
 export interface SentEmailResult {
@@ -10,7 +11,7 @@ export interface SentEmailResult {
 }
 
 export function getConfiguredFromAddress() {
-  return process.env.EMAIL_FROM || "Foz em Destaque <admin@fozemdestaque.com.br>";
+  return process.env.EMAIL_FROM || "Foz em Destaque <admin@fozemdestaque.com>";
 }
 
 export function hasEmailProvider() {
@@ -56,7 +57,7 @@ export async function sendEmailWithResend(input: SendEmailInput): Promise<SentEm
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: getConfiguredFromAddress(),
+      from: input.from || getConfiguredFromAddress(),
       to: input.to,
       subject: input.subject,
       text: input.text,
