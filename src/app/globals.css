@@ -37,3 +37,25 @@ body {
 .font-headline {
   font-family: var(--font-sora), sans-serif;
 }
+
+.foz-image-grid {
+  align-items: stretch;
+}
+
+.foz-image-grid figure,
+.foz-image-grid img {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .foz-image-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .foz-image-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

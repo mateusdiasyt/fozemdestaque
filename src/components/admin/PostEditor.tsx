@@ -2,23 +2,29 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { JSONContent } from "@tiptap/core";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import { TableKit } from "@tiptap/extension-table";
 import {
+  ArrowDown,
+  ArrowUp,
   Bold,
   CalendarClock,
   Clock3,
   Eye,
   FileText,
+  GripVertical,
   Heading2,
   Heading3,
   Heading4,
   HelpCircle,
   ImagePlus,
+  Images,
   Italic,
+  LayoutGrid,
   Link2,
   List,
   ListOrdered,
@@ -41,6 +47,7 @@ import {
 import { slugify, cn } from "@/lib/utils";
 import type { SEOAnalysis } from "@/lib/seo-analyzer";
 import { EditorHelpContent } from "./EditorHelpContent";
+import { ImageGrid, type ImageGridItem } from "./editor/ImageGridExtension";
 
 interface Category {
   id: string;
@@ -100,6 +107,32 @@ const seoStatusColors: Record<"good" | "medium" | "bad", string> = {
   bad: "text-rose-300",
 };
 
+type GalleryColumns = 1 | 2 | 3 | 4 | 6;
+type PendingImage = ImageGridItem & {
+  id: string;
+  fileName: string;
+  uploading: boolean;
+  error?: string;
+};
+
+interface ContentLayer {
+  id: string;
+  index: number;
+  pos: number;
+  nodeSize: number;
+  type: string;
+  label: string;
+  preview: string;
+}
+
+const GALLERY_LAYOUTS: Array<{ columns: GalleryColumns; label: string; hint: string }> = [
+  { columns: 1, label: "1 coluna", hint: "Uma imagem por linha" },
+  { columns: 2, label: "2x2", hint: "Duas colunas amplas" },
+  { columns: 3, label: "3x3", hint: "Grade editorial classica" },
+  { columns: 4, label: "4x4", hint: "Mais imagens por linha" },
+  { columns: 6, label: "6x6", hint: "Mosaico compacto" },
+];
+
 export function PostEditor({ post, categories }: PostEditorProps) {
   const router = useRouter();
   const contentImageInputRef = useRef<HTMLInputElement>(null);
@@ -137,9 +170,9 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const [linkRel, setLinkRel] = useState<"follow" | "nofollow" | "sponsored">("follow");
   const [imagePopup, setImagePopup] = useState(false);
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageAlt, setImageAlt] = useState("");
-  const [uploadingContentImage, setUploadingContentImage] = useState(false);
+  const [mediaImages, setMediaImages] = useState<PendingImage[]>([]);
+  const [galleryColumns, setGalleryColumns] = useState<GalleryColumns>(3);
+  const [uploadingContentImages, setUploadingContentImages] = useState(false);
   const [uploadingFeaturedImage, setUploadingFeaturedImage] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -185,6 +218,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       }),
       LinkWithRel.configure({ openOnClick: false, HTMLAttributes: { rel: "follow" } }),
       TableKit,
+      ImageGrid,
     ],
     content: post?.content ?? "",
     editorProps: {
@@ -256,20 +290,50 @@ export function PostEditor({ post, categories }: PostEditorProps) {
 
   async function handleContentImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const input = e.currentTarget;
-    const file = input.files?.[0];
+    const files = Array.from(input.files ?? []);
     input.value = "";
-    if (!file) return;
-    setUploadingContentImage(true);
+    if (files.length === 0) return;
+    const pendingImages: PendingImage[] = files.map((file) => ({
+      id: crypto.randomUUID(),
+      src: "",
+      fileName: file.name,
+      alt: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
+      href: "",
+      caption: "",
+      uploading: true,
+    }));
+
+    setMediaImages((current) => [...current, ...pendingImages]);
+    setUploadingContentImages(true);
     setUploadError("");
-    try {
-      const url = await uploadImage(file);
-      setImageUrl(url);
-      setImageAlt(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Nao foi possivel enviar a imagem");
-    } finally {
-      setUploadingContentImage(false);
-    }
+
+    await Promise.all(
+      files.map(async (file, index) => {
+        const imageId = pendingImages[index].id;
+        try {
+          const url = await uploadImage(file);
+          setMediaImages((current) =>
+            current.map((image) =>
+              image.id === imageId ? { ...image, src: url, uploading: false } : image
+            )
+          );
+        } catch (err) {
+          setMediaImages((current) =>
+            current.map((image) =>
+              image.id === imageId
+                ? {
+                    ...image,
+                    uploading: false,
+                    error: err instanceof Error ? err.message : "Nao foi possivel enviar a imagem",
+                  }
+                : image
+            )
+          );
+        }
+      })
+    );
+
+    setUploadingContentImages(false);
   }
 
   async function handleFeaturedImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -291,12 +355,19 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   }
 
   function insertImageIntoContent() {
-    const src = imageUrl.trim();
-    if (!src || !editor) return;
-    editor.chain().focus().setImage({ src, alt: imageAlt.trim() || undefined }).run();
+    const readyImages = mediaImages
+      .filter((image) => image.src && !image.uploading && !image.error)
+      .map((image) => ({
+        src: image.src,
+        alt: image.alt?.trim() || "",
+        href: image.href?.trim() || "",
+        caption: image.caption?.trim() || "",
+      }));
+
+    if (readyImages.length === 0 || !editor) return;
+    editor.chain().focus().setImageGrid({ columns: galleryColumns, images: readyImages }).run();
     setImagePopup(false);
-    setImageUrl("");
-    setImageAlt("");
+    setMediaImages([]);
   }
 
   function addFaqItem() {
@@ -396,7 +467,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-10 text-slate-100">
-      <input ref={contentImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleContentImageUpload} />
+      <input ref={contentImageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleContentImageUpload} />
       <input ref={featuredImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleFeaturedImageUpload} />
 
       <div className="rounded-[30px] border border-white/10 bg-gradient-to-br from-[#111a2b] via-[#0b1220] to-[#070b14] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.32)] sm:p-5">
@@ -465,9 +536,12 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                 Inserir imagem
               </button>
             </div>
-            <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[#edf2f7] shadow-[0_24px_70px_rgba(0,0,0,0.22)]">
-              <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={() => setImagePopup(true)} />
-              <EditorContent editor={editor} />
+            <div className="grid gap-4 xl:grid-cols-[290px_minmax(0,1fr)]">
+              <ContentLayers editor={editor} />
+              <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[#edf2f7] shadow-[0_24px_70px_rgba(0,0,0,0.22)]">
+                <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={() => setImagePopup(true)} />
+                <EditorContent editor={editor} />
+              </div>
             </div>
           </div>
         </section>
@@ -664,53 +738,538 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       )}
 
       {imagePopup && (
-        <DialogShell onClose={() => setImagePopup(false)} label="Fechar imagem">
-          <div className="w-full max-w-2xl rounded-[28px] border border-white/10 bg-[#0b1220] p-5 shadow-2xl">
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Midia no conteudo</p>
-                <h3 className="mt-1 text-xl font-semibold text-white">Inserir imagem na materia</h3>
-                <p className="mt-2 text-sm text-slate-400">Envie uma imagem ou cole uma URL. O alt text ajuda em acessibilidade e SEO.</p>
-              </div>
-              <button type="button" onClick={() => setImagePopup(false)} className="rounded-xl p-2 text-slate-300 hover:bg-white/10" aria-label="Fechar">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_220px]">
-              <div className="space-y-4">
-                <button type="button" onClick={() => contentImageInputRef.current?.click()} disabled={uploadingContentImage} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-cyan-300/30 bg-cyan-300/10 px-4 py-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60">
-                  {uploadingContentImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-                  {uploadingContentImage ? "Enviando imagem..." : "Enviar do computador"}
-                </button>
-                <div>
-                  <label className={labelClass}>URL da imagem</label>
-                  <input type="url" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." className={fieldClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Alt text</label>
-                  <input type="text" value={imageAlt} onChange={(e) => setImageAlt(e.target.value)} placeholder="Descreva a imagem para leitores e buscadores" className={fieldClass} />
-                </div>
-              </div>
-              <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
-                {imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={imageUrl} alt="" className="h-full min-h-[220px] w-full object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
-                ) : (
-                  <div className="flex h-full min-h-[220px] items-center justify-center px-6 text-center text-sm text-slate-500">A previa aparece aqui assim que uma imagem for selecionada.</div>
-                )}
-              </div>
-            </div>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button type="button" onClick={insertImageIntoContent} disabled={!imageUrl.trim()} className="rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50">Inserir no texto</button>
-              <button type="button" onClick={() => setImagePopup(false)} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/5">Cancelar</button>
-            </div>
-          </div>
-        </DialogShell>
+        <MediaDialog
+          galleryColumns={galleryColumns}
+          images={mediaImages}
+          onClose={() => setImagePopup(false)}
+          onInsert={insertImageIntoContent}
+          onPickFiles={() => contentImageInputRef.current?.click()}
+          onRemoveImage={(id) => setMediaImages((current) => current.filter((image) => image.id !== id))}
+          onReorderImage={(fromIndex, toIndex) =>
+            setMediaImages((current) => reorderList(current, fromIndex, toIndex))
+          }
+          onUpdateColumns={setGalleryColumns}
+          onUpdateImage={(id, patch) =>
+            setMediaImages((current) =>
+              current.map((image) => (image.id === id ? { ...image, ...patch } : image))
+            )
+          }
+          uploading={uploadingContentImages}
+        />
       )}
     </form>
   );
 }
 
+function ContentLayers({ editor }: { editor: Editor | null }) {
+  const [layers, setLayers] = useState<ContentLayer[]>([]);
+  const [activeLayerId, setActiveLayerId] = useState("");
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!editor) {
+      setLayers([]);
+      return;
+    }
+
+    const refresh = () => {
+      const nextLayers = getEditorLayers(editor);
+      const selectionFrom = editor.state.selection.from;
+      const active = nextLayers.find(
+        (layer) => selectionFrom >= layer.pos && selectionFrom <= layer.pos + layer.nodeSize
+      );
+      setLayers(nextLayers);
+      setActiveLayerId(active?.id ?? "");
+    };
+
+    refresh();
+    editor.on("update", refresh);
+    editor.on("transaction", refresh);
+
+    return () => {
+      editor.off("update", refresh);
+      editor.off("transaction", refresh);
+    };
+  }, [editor]);
+
+  const activeLayer = layers.find((layer) => layer.id === activeLayerId) ?? null;
+  const activeNode = activeLayer && editor ? editor.state.doc.nodeAt(activeLayer.pos) : null;
+  const activeImages = activeNode?.type.name === "imageGrid" ? safeImageGridItems(activeNode.attrs.images) : [];
+
+  function selectLayer(layer: ContentLayer) {
+    if (!editor) return;
+    setActiveLayerId(layer.id);
+    if (["image", "imageGrid", "horizontalRule", "table"].includes(layer.type)) {
+      editor.chain().focus().setNodeSelection(layer.pos).run();
+      return;
+    }
+    editor.chain().focus().setTextSelection(layer.pos).run();
+  }
+
+  function moveLayer(fromIndex: number, toIndex: number) {
+    if (!editor || fromIndex === toIndex) return;
+    moveEditorLayer(editor, fromIndex, toIndex);
+  }
+
+  function updateImageGridAttrs(patch: { columns?: number; images?: ImageGridItem[] }) {
+    if (!editor || !activeLayer) return;
+    editor
+      .chain()
+      .focus()
+      .command(({ state, tr, dispatch }) => {
+        const node = state.doc.nodeAt(activeLayer.pos);
+        if (!node || node.type.name !== "imageGrid") return false;
+        dispatch?.(tr.setNodeMarkup(activeLayer.pos, undefined, { ...node.attrs, ...patch }));
+        return true;
+      })
+      .run();
+  }
+
+  function updateImageAt(index: number, patch: Partial<ImageGridItem>) {
+    const nextImages = activeImages.map((image, imageIndex) =>
+      imageIndex === index ? { ...image, ...patch } : image
+    );
+    updateImageGridAttrs({ images: nextImages });
+  }
+
+  function reorderActiveImage(fromIndex: number, toIndex: number) {
+    updateImageGridAttrs({ images: reorderList(activeImages, fromIndex, toIndex) });
+  }
+
+  function removeActiveImage(index: number) {
+    updateImageGridAttrs({ images: activeImages.filter((_, imageIndex) => imageIndex !== index) });
+  }
+
+  return (
+    <aside className="rounded-[24px] border border-white/10 bg-[#070d18] p-4 text-slate-100">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Camadas</p>
+          <h3 className="mt-1 text-sm font-semibold text-white">Corpo da materia</h3>
+        </div>
+        <GripVertical className="h-5 w-5 text-slate-600" />
+      </div>
+      <p className="mt-3 text-xs leading-5 text-slate-500">
+        Puxe os blocos para reorganizar textos, galerias e tabelas dentro do conteudo.
+      </p>
+
+      <div className="mt-4 max-h-[470px] space-y-2 overflow-y-auto pr-1">
+        {layers.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-white/10 p-4 text-center text-xs text-slate-500">
+            Comece escrevendo para ver as camadas aqui.
+          </div>
+        ) : (
+          layers.map((layer) => {
+            const active = layer.id === activeLayerId;
+            return (
+              <div
+                key={layer.id}
+                draggable
+                onDragStart={() => setDraggingIndex(layer.index)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  if (draggingIndex !== null) moveLayer(draggingIndex, layer.index);
+                  setDraggingIndex(null);
+                }}
+                onDragEnd={() => setDraggingIndex(null)}
+                className={cn(
+                  "group rounded-2xl border p-3 transition",
+                  active
+                    ? "border-cyan-300/50 bg-cyan-300/15"
+                    : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+                )}
+              >
+                <button type="button" onClick={() => selectLayer(layer)} className="w-full text-left">
+                  <div className="flex items-start gap-2">
+                    <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-slate-600 group-hover:text-slate-400" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100">{layer.label}</p>
+                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{layer.preview}</p>
+                    </div>
+                  </div>
+                </button>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => moveLayer(layer.index, Math.max(0, layer.index - 1))}
+                    disabled={layer.index === 0}
+                    className="rounded-lg border border-white/10 p-1.5 text-slate-400 hover:bg-white/10 disabled:opacity-30"
+                    aria-label="Mover camada para cima"
+                  >
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveLayer(layer.index, Math.min(layers.length - 1, layer.index + 1))}
+                    disabled={layer.index === layers.length - 1}
+                    className="rounded-lg border border-white/10 p-1.5 text-slate-400 hover:bg-white/10 disabled:opacity-30"
+                    aria-label="Mover camada para baixo"
+                  >
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {activeNode?.type.name === "imageGrid" && (
+        <div className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">Editar galeria</p>
+          <label className="mt-3 block text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Grade</label>
+          <select
+            value={Number(activeNode.attrs.columns || 3)}
+            onChange={(event) => updateImageGridAttrs({ columns: Number(event.target.value) })}
+            className={cn(compactFieldClass, "mt-1")}
+          >
+            {GALLERY_LAYOUTS.map((layout) => (
+              <option key={layout.columns} value={layout.columns}>{layout.label}</option>
+            ))}
+          </select>
+          <div className="mt-3 max-h-[280px] space-y-3 overflow-y-auto pr-1">
+            {activeImages.map((image, index) => (
+              <div key={`${image.src}-${index}`} className="rounded-xl border border-white/10 bg-[#070d18] p-2">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Imagem {index + 1}</p>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => reorderActiveImage(index, Math.max(0, index - 1))}
+                      disabled={index === 0}
+                      className="rounded-lg border border-white/10 p-1 text-slate-400 hover:bg-white/10 disabled:opacity-30"
+                      aria-label="Mover imagem para cima"
+                    >
+                      <ArrowUp className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => reorderActiveImage(index, Math.min(activeImages.length - 1, index + 1))}
+                      disabled={index === activeImages.length - 1}
+                      className="rounded-lg border border-white/10 p-1 text-slate-400 hover:bg-white/10 disabled:opacity-30"
+                      aria-label="Mover imagem para baixo"
+                    >
+                      <ArrowDown className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeActiveImage(index)}
+                      className="rounded-lg border border-rose-300/20 p-1 text-rose-200 hover:bg-rose-500/10"
+                      aria-label="Remover imagem da galeria"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+                <input
+                  value={image.alt || ""}
+                  onChange={(event) => updateImageAt(index, { alt: event.target.value })}
+                  className={cn(compactFieldClass, "mb-2")}
+                  placeholder="Alt text"
+                />
+                <input
+                  value={image.href || ""}
+                  onChange={(event) => updateImageAt(index, { href: event.target.value })}
+                  className={cn(compactFieldClass, "mb-2")}
+                  placeholder="Link da imagem"
+                />
+                <input
+                  value={image.caption || ""}
+                  onChange={(event) => updateImageAt(index, { caption: event.target.value })}
+                  className={compactFieldClass}
+                  placeholder="Legenda"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </aside>
+  );
+}
+
+function getEditorLayers(editor: Editor): ContentLayer[] {
+  const layers: ContentLayer[] = [];
+
+  editor.state.doc.forEach((node, offset, index) => {
+    const pos = offset + 1;
+    layers.push({
+      id: `${index}-${node.type.name}-${pos}-${node.nodeSize}`,
+      index,
+      pos,
+      nodeSize: node.nodeSize,
+      type: node.type.name,
+      label: getLayerLabel(node.type.name, node.attrs),
+      preview: getLayerPreview(node.type.name, node.textContent, node.attrs),
+    });
+  });
+
+  return layers;
+}
+
+function getLayerLabel(type: string, attrs: Record<string, unknown>) {
+  if (type === "heading") return `Titulo H${attrs.level || 2}`;
+  if (type === "paragraph") return "Texto";
+  if (type === "imageGrid") return "Galeria";
+  if (type === "image") return "Imagem";
+  if (type === "blockquote") return "Citacao";
+  if (type === "bulletList") return "Lista";
+  if (type === "orderedList") return "Lista numerada";
+  if (type === "table") return "Tabela";
+  if (type === "horizontalRule") return "Divisoria";
+  return type;
+}
+
+function getLayerPreview(type: string, text: string, attrs: Record<string, unknown>) {
+  if (type === "imageGrid") {
+    const images = safeImageGridItems(attrs.images);
+    return `${images.length} imagens em grade ${attrs.columns || 3}x${attrs.columns || 3}`;
+  }
+  if (type === "image") return String(attrs.alt || attrs.src || "Imagem sem descricao");
+  return text?.trim() || "Camada vazia";
+}
+
+function safeImageGridItems(value: unknown): ImageGridItem[] {
+  if (!Array.isArray(value)) return [];
+  const images: ImageGridItem[] = [];
+
+  value.forEach((item) => {
+    if (!item || typeof item !== "object") return;
+    const image = item as Partial<ImageGridItem>;
+    if (!image.src) return;
+    images.push({
+      src: String(image.src),
+      alt: image.alt ? String(image.alt) : "",
+      href: image.href ? String(image.href) : "",
+      caption: image.caption ? String(image.caption) : "",
+    });
+  });
+
+  return images;
+}
+
+function moveEditorLayer(editor: Editor, fromIndex: number, toIndex: number) {
+  const json = editor.getJSON() as JSONContent;
+  const content = Array.isArray(json.content) ? [...json.content] : [];
+  if (!content[fromIndex] || toIndex < 0 || toIndex >= content.length) return;
+
+  const [moved] = content.splice(fromIndex, 1);
+  content.splice(toIndex, 0, moved);
+  editor.commands.setContent({ ...json, content });
+}
+
+function reorderList<T>(items: T[], fromIndex: number, toIndex: number) {
+  if (fromIndex === toIndex || !items[fromIndex] || toIndex < 0 || toIndex >= items.length) return items;
+  const nextItems = [...items];
+  const [moved] = nextItems.splice(fromIndex, 1);
+  nextItems.splice(toIndex, 0, moved);
+  return nextItems;
+}
+
+function MediaDialog({
+  galleryColumns,
+  images,
+  onClose,
+  onInsert,
+  onPickFiles,
+  onRemoveImage,
+  onReorderImage,
+  onUpdateColumns,
+  onUpdateImage,
+  uploading,
+}: {
+  galleryColumns: GalleryColumns;
+  images: PendingImage[];
+  onClose: () => void;
+  onInsert: () => void;
+  onPickFiles: () => void;
+  onRemoveImage: (id: string) => void;
+  onReorderImage: (fromIndex: number, toIndex: number) => void;
+  onUpdateColumns: (columns: GalleryColumns) => void;
+  onUpdateImage: (id: string, patch: Partial<PendingImage>) => void;
+  uploading: boolean;
+}) {
+  const [draggingImageIndex, setDraggingImageIndex] = useState<number | null>(null);
+  const readyCount = images.filter((image) => image.src && !image.uploading && !image.error).length;
+
+  return (
+    <DialogShell onClose={onClose} label="Fechar midia">
+      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[30px] border border-white/10 bg-[#0b1220] shadow-2xl">
+        <div className="flex flex-col gap-4 border-b border-white/10 p-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Biblioteca do conteudo</p>
+            <h3 className="mt-1 text-2xl font-semibold text-white">Upload em massa e grade de imagens</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+              Selecione varias imagens, defina o formato da grade e configure alt, link e legenda em cada item antes de inserir no corpo da materia.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="self-start rounded-xl p-2 text-slate-300 hover:bg-white/10" aria-label="Fechar">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="grid min-h-0 flex-1 gap-0 overflow-hidden lg:grid-cols-[300px_minmax(0,1fr)]">
+          <aside className="border-b border-white/10 bg-[#070d18] p-5 lg:border-b-0 lg:border-r lg:border-white/10">
+            <button
+              type="button"
+              onClick={onPickFiles}
+              disabled={uploading}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-cyan-300/30 bg-cyan-300/10 px-4 py-5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60"
+            >
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+              {uploading ? "Enviando imagens..." : "Selecionar varias imagens"}
+            </button>
+
+            <div className="mt-6">
+              <p className={labelClass}>Formato da grade</p>
+              <div className="grid gap-2">
+                {GALLERY_LAYOUTS.map((layout) => {
+                  const active = galleryColumns === layout.columns;
+                  return (
+                    <button
+                      key={layout.columns}
+                      type="button"
+                      onClick={() => onUpdateColumns(layout.columns)}
+                      className={cn(
+                        "rounded-2xl border px-4 py-3 text-left transition",
+                        active
+                          ? "border-cyan-300/50 bg-cyan-300/15 text-cyan-100"
+                          : "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
+                      )}
+                    >
+                      <span className="flex items-center gap-2 text-sm font-semibold">
+                        <LayoutGrid className="h-4 w-4" />
+                        {layout.label}
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-500">{layout.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-400">
+              <p className="font-semibold text-slate-200">Resumo</p>
+              <p className="mt-2">{readyCount} imagens prontas para inserir.</p>
+              <p className="mt-1">A ordem dos cards define a ordem dentro da grade.</p>
+            </div>
+          </aside>
+
+          <div className="min-h-0 overflow-y-auto p-5">
+            {images.length === 0 ? (
+              <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[26px] border border-dashed border-white/10 bg-white/[0.03] px-6 text-center">
+                <Images className="h-10 w-10 text-slate-600" />
+                <h4 className="mt-4 text-lg font-semibold text-white">Nenhuma imagem selecionada</h4>
+                <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+                  Clique em selecionar varias imagens para montar uma galeria com alt text, link e legenda por imagem.
+                </p>
+              </div>
+            ) : (
+              <div
+                className="grid gap-4"
+                style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}
+              >
+                {images.map((image, index) => (
+                  <article
+                    key={image.id}
+                    draggable
+                    onDragStart={() => setDraggingImageIndex(index)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      if (draggingImageIndex !== null) onReorderImage(draggingImageIndex, index);
+                      setDraggingImageIndex(null);
+                    }}
+                    onDragEnd={() => setDraggingImageIndex(null)}
+                    className={cn(
+                      "overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03] transition",
+                      draggingImageIndex === index && "scale-[0.99] border-cyan-300/40 opacity-70"
+                    )}
+                  >
+                    <div className="relative aspect-[4/3] bg-black/20">
+                      {image.uploading ? (
+                        <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Enviando...
+                        </div>
+                      ) : image.error ? (
+                        <div className="flex h-full items-center justify-center px-4 text-center text-sm text-rose-200">{image.error}</div>
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={image.src} alt="" className="h-full w-full object-cover" />
+                      )}
+                      <div className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">
+                        <span className="inline-flex items-center gap-1">
+                          <GripVertical className="h-3.5 w-3.5" />
+                          #{index + 1}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveImage(image.id)}
+                        className="absolute right-3 top-3 rounded-full bg-black/60 p-2 text-white transition hover:bg-rose-500"
+                        aria-label="Remover imagem"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="space-y-3 p-4">
+                      <div>
+                        <label className={labelClass}>Texto alternativo</label>
+                        <input
+                          value={image.alt || ""}
+                          onChange={(e) => onUpdateImage(image.id, { alt: e.target.value })}
+                          className={compactFieldClass}
+                          placeholder="Descreva a imagem"
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Link na imagem</label>
+                        <input
+                          value={image.href || ""}
+                          onChange={(e) => onUpdateImage(image.id, { href: e.target.value })}
+                          className={compactFieldClass}
+                          placeholder="https://..."
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Legenda opcional</label>
+                        <input
+                          value={image.caption || ""}
+                          onChange={(e) => onUpdateImage(image.id, { caption: e.target.value })}
+                          className={compactFieldClass}
+                          placeholder="Legenda exibida abaixo da imagem"
+                        />
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-500">As imagens entram como uma camada unica de galeria no corpo do editor.</p>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/5">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={onInsert}
+              disabled={readyCount === 0 || uploading}
+              className="rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Inserir grade no texto
+            </button>
+          </div>
+        </div>
+      </div>
+    </DialogShell>
+  );
+}
 function MetricPill({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
