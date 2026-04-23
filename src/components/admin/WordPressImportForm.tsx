@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FileX, Loader2 } from "lucide-react";
+import { FileX, Loader2, Upload } from "lucide-react";
 import { upload } from "@vercel/blob/client";
 
 export function WordPressImportForm() {
@@ -46,9 +46,9 @@ export function WordPressImportForm() {
         const text = await res.text();
         try {
           const parsed = JSON.parse(text);
-          data = parsed ?? { ok: false, error: "Resposta inválida" };
+          data = parsed ?? { ok: false, error: "Resposta invalida" };
         } catch {
-          data = { ok: false, error: res.status >= 500 ? "Erro no servidor. Verifique os logs da Vercel e as variáveis de ambiente (AUTH_SECRET, BLOB_READ_WRITE_TOKEN, DATABASE_URL)." : `Erro ${res.status}` };
+          data = { ok: false, error: res.status >= 500 ? "Erro no servidor. Verifique os logs da Vercel e as variaveis de ambiente." : `Erro ${res.status}` };
         }
         if (!data.ok) {
           setResult({ ok: false, error: data.error ?? `Erro ${res.status}` });
@@ -67,7 +67,7 @@ export function WordPressImportForm() {
         router.refresh();
       }
     } catch (err) {
-      setResult({ ok: false, error: err instanceof Error ? err.message : "Erro na importação" });
+      setResult({ ok: false, error: err instanceof Error ? err.message : "Erro na importacao" });
     } finally {
       setLoading(false);
       setStatus("idle");
@@ -76,73 +76,82 @@ export function WordPressImportForm() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
-      <h2 className="text-lg font-semibold text-slate-800 mb-3 flex items-center gap-2">
-        <FileX className="w-5 h-5 text-amber-500" />
-        Importar do WordPress
-      </h2>
-      <p className="text-sm text-slate-500 mb-3">
-        Se a importação falhar (erro 405), use o script local:{" "}
-        <code className="bg-slate-100 px-1.5 py-0.5 rounded text-xs">npx tsx scripts/import-wordpress.ts caminho/export.xml</code>
-      </p>
-      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-        <div>
-          <label htmlFor="xml-file" className="block text-sm font-medium text-slate-600 mb-1">
-            Arquivo XML (WXR)
-          </label>
-          <input
-            id="xml-file"
-            type="file"
-            accept=".xml"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              setFile(f ?? null);
-              setResult(null);
-            }}
-            className="block text-sm text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded file:border-0 file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
-          />
+    <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,#0c1324_0%,#080d18_100%)] p-5 shadow-[0_22px_70px_rgba(2,6,23,0.32)] md:p-6">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <div className="max-w-3xl">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#dfe6ff]/20 bg-[#dfe6ff]/10 text-[#dfe6ff]">
+              <FileX className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Importador</p>
+              <h2 className="font-headline text-2xl font-semibold tracking-tight text-white">WordPress WXR</h2>
+            </div>
+          </div>
+          <p className="mt-4 text-sm leading-6 text-slate-400">
+            Envie o XML quando precisar trazer conteudos antigos. As imagens continuam por URL para evitar timeout.
+          </p>
         </div>
-        <button
-          type="submit"
-          disabled={!file || loading}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {status === "uploading" ? "Enviando arquivo..." : progress ?? "Importando posts..."}
-            </>
-          ) : (
-            <>
-              <Upload className="w-4 h-4" />
-              Importar
-            </>
-          )}
-        </button>
-      </form>
+
+        <form onSubmit={handleSubmit} className="grid gap-3 rounded-[24px] border border-white/10 bg-white/[0.04] p-3 sm:grid-cols-[minmax(220px,1fr)_auto] xl:min-w-[520px]">
+          <label htmlFor="xml-file" className="group cursor-pointer rounded-[18px] border border-white/10 bg-[#070d18] px-4 py-3 transition-colors hover:border-[#dfe6ff]/40">
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Arquivo XML</span>
+            <span className="mt-1 block truncate text-sm font-medium text-slate-200">
+              {file ? file.name : "Selecionar arquivo .xml"}
+            </span>
+            <input
+              id="xml-file"
+              type="file"
+              accept=".xml"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                setFile(f ?? null);
+                setResult(null);
+              }}
+              className="sr-only"
+            />
+          </label>
+
+          <button
+            type="submit"
+            disabled={!file || loading}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#dfe6ff] px-5 py-3 text-sm font-semibold text-[#091122] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {status === "uploading" ? "Enviando..." : progress ?? "Importando..."}
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4" />
+                Importar
+              </>
+            )}
+          </button>
+        </form>
+      </div>
 
       {result && (
         <div
-          className={`mt-3 p-3 rounded-lg text-sm ${
-            result.ok ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"
+          className={`mt-5 rounded-[22px] border px-4 py-3 text-sm ${
+            result.ok
+              ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200"
+              : "border-red-300/20 bg-red-300/10 text-red-200"
           }`}
         >
           {result.ok ? (
             <p>
-              Importação concluída: <strong>{result.imported ?? 0}</strong> posts importados
-              <span className="block text-xs mt-1 text-amber-700">Imagens mantidas nas URLs originais (evita timeout). Edite os posts para trocar por imagens locais se necessário.</span>
-              {typeof result.skipped === "number" && result.skipped > 0 && (
-                <>, {result.skipped} ignorados</>
-              )}
-              {typeof result.categoriesCreated === "number" && result.categoriesCreated > 0 && (
-                <> · {result.categoriesCreated} categorias criadas/mapeadas</>
-              )}
+              Importacao concluida: <strong>{result.imported ?? 0}</strong> posts importados
+              <span className="mt-1 block text-xs text-emerald-200/80">Imagens mantidas nas URLs originais. Edite posts especificos para trocar por imagens locais quando necessario.</span>
+              {typeof result.skipped === "number" && result.skipped > 0 && <span>, {result.skipped} ignorados</span>}
+              {typeof result.categoriesCreated === "number" && result.categoriesCreated > 0 && <span> - {result.categoriesCreated} categorias criadas/mapeadas</span>}
             </p>
           ) : (
             <p>{result.error ?? "Erro desconhecido"}</p>
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }
