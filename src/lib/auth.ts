@@ -68,7 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 export type UserRole = "administrador" | "editor" | "colaborador";
 
 export const PERMISSIONS = {
-  administrador: ["users", "posts", "categories", "comments", "banners", "aniversarios", "settings"],
+  administrador: ["users", "posts", "categories", "comments", "emails", "banners", "aniversarios", "settings"],
   editor: ["posts", "categories", "comments", "banners", "aniversarios"],
   colaborador: ["posts", "comments"],
 } as const;

@@ -8,6 +8,7 @@ import {
   FileText,
   FolderTree,
   MessageSquare,
+  Mail,
   Users,
   Image,
   Cake,
@@ -25,10 +26,11 @@ const menuItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, perm: "posts" },
   { href: "/admin/posts", label: "Posts", icon: FileText, perm: "posts" },
   { href: "/admin/categories", label: "Categorias", icon: FolderTree, perm: "categories" },
-  { href: "/admin/comments", label: "Comentários", icon: MessageSquare, perm: "comments" },
-  { href: "/admin/users", label: "Usuários", icon: Users, perm: "users" },
+  { href: "/admin/comments", label: "Comentarios", icon: MessageSquare, perm: "comments" },
+  { href: "/admin/emails", label: "Emails", icon: Mail, perm: "emails" },
+  { href: "/admin/users", label: "Usuarios", icon: Users, perm: "users" },
   { href: "/admin/banners", label: "Banners", icon: Image, perm: "banners" },
-  { href: "/admin/aniversarios", label: "Aniversários", icon: Cake, perm: "aniversarios" },
+  { href: "/admin/aniversarios", label: "Aniversarios", icon: Cake, perm: "aniversarios" },
   { href: "/admin/redes-sociais", label: "Redes Sociais", icon: Share2, perm: "settings" },
 ];
 
