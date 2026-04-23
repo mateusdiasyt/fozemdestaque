@@ -125,6 +125,19 @@ interface ContentLayer {
   preview: string;
 }
 
+interface LayerDragState {
+  originalIndex: number;
+  targetIndex: number;
+  pointerId: number;
+  offsetX: number;
+  offsetY: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  layer: ContentLayer;
+}
+
 const GALLERY_LAYOUTS: Array<{ columns: GalleryColumns; label: string; hint: string }> = [
   { columns: 1, label: "1 coluna", hint: "Uma imagem por linha" },
   { columns: 2, label: "2x2", hint: "Duas colunas amplas" },
@@ -764,7 +777,8 @@ export function PostEditor({ post, categories }: PostEditorProps) {
 function ContentLayers({ editor }: { editor: Editor | null }) {
   const [layers, setLayers] = useState<ContentLayer[]>([]);
   const [activeLayerId, setActiveLayerId] = useState("");
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [layerDrag, setLayerDrag] = useState<LayerDragState | null>(null);
+  const layerRefs = useRef(new Map<string, HTMLDivElement>());
 
   useEffect(() => {
     if (!editor) {
@@ -792,9 +806,51 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
     };
   }, [editor]);
 
+  useEffect(() => {
+    if (!layerDrag) return;
+    const pointerId = layerDrag.pointerId;
+
+    function handlePointerMove(event: PointerEvent) {
+      if (event.pointerId !== pointerId) return;
+      event.preventDefault();
+      setLayerDrag((current) => {
+        if (!current) return null;
+        const targetIndex = getLayerDropIndex(layers, layerRefs.current, current.originalIndex, event.clientY);
+        return {
+          ...current,
+          x: event.clientX - current.offsetX,
+          y: event.clientY - current.offsetY,
+          targetIndex,
+        };
+      });
+    }
+
+    function finishDrag(event: PointerEvent) {
+      if (event.pointerId !== pointerId) return;
+      event.preventDefault();
+      setLayerDrag((current) => {
+        if (current && current.targetIndex !== current.originalIndex) {
+          moveLayer(current.originalIndex, current.targetIndex);
+        }
+        return null;
+      });
+    }
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: false });
+    window.addEventListener("pointerup", finishDrag);
+    window.addEventListener("pointercancel", finishDrag);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", finishDrag);
+      window.removeEventListener("pointercancel", finishDrag);
+    };
+  }, [layerDrag?.pointerId, layers]);
+
   const activeLayer = layers.find((layer) => layer.id === activeLayerId) ?? null;
   const activeNode = activeLayer && editor ? editor.state.doc.nodeAt(activeLayer.pos) : null;
   const activeImages = activeNode?.type.name === "imageGrid" ? safeImageGridItems(activeNode.attrs.images) : [];
+  const visibleLayers = layerDrag ? reorderList(layers, layerDrag.originalIndex, layerDrag.targetIndex) : layers;
 
   function selectLayer(layer: ContentLayer) {
     if (!editor) return;
@@ -809,6 +865,37 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
   function moveLayer(fromIndex: number, toIndex: number) {
     if (!editor || fromIndex === toIndex) return;
     moveEditorLayer(editor, fromIndex, toIndex);
+  }
+
+  function setLayerRef(layerId: string, element: HTMLDivElement | null) {
+    if (element) {
+      layerRefs.current.set(layerId, element);
+      return;
+    }
+    layerRefs.current.delete(layerId);
+  }
+
+  function startLayerDrag(event: React.PointerEvent, layer: ContentLayer) {
+    if (event.button !== 0) return;
+    const card = layerRefs.current.get(layer.id);
+    if (!card) return;
+
+    const rect = card.getBoundingClientRect();
+    event.preventDefault();
+    event.stopPropagation();
+    selectLayer(layer);
+    setLayerDrag({
+      originalIndex: layer.index,
+      targetIndex: layer.index,
+      pointerId: event.pointerId,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height,
+      layer,
+    });
   }
 
   function updateImageGridAttrs(patch: { columns?: number; images?: ImageGridItem[] }) {
@@ -859,22 +946,18 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
             Comece escrevendo para ver as camadas aqui.
           </div>
         ) : (
-          layers.map((layer) => {
+          visibleLayers.map((layer) => {
             const active = layer.id === activeLayerId;
+            const dragging = layerDrag?.layer.id === layer.id;
             return (
               <div
                 key={layer.id}
-                draggable
-                onDragStart={() => setDraggingIndex(layer.index)}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  if (draggingIndex !== null) moveLayer(draggingIndex, layer.index);
-                  setDraggingIndex(null);
-                }}
-                onDragEnd={() => setDraggingIndex(null)}
+                ref={(element) => setLayerRef(layer.id, element)}
+                style={dragging ? { minHeight: layerDrag.height } : undefined}
                 className={cn(
                   "group rounded-2xl border p-3 transition",
+                  dragging && "pointer-events-none opacity-0",
+                  layerDrag && !dragging && "duration-150",
                   active
                     ? "border-cyan-300/50 bg-cyan-300/15"
                     : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
@@ -882,7 +965,13 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
               >
                 <button type="button" onClick={() => selectLayer(layer)} className="w-full text-left">
                   <div className="flex items-start gap-2">
-                    <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-slate-600 group-hover:text-slate-400" />
+                    <span
+                      onPointerDown={(event) => startLayerDrag(event, layer)}
+                      className="mt-0.5 inline-flex h-5 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-slate-600 transition hover:bg-white/10 hover:text-cyan-100 active:cursor-grabbing"
+                      aria-label="Arrastar camada"
+                    >
+                      <GripVertical className="h-4 w-4" />
+                    </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100">{layer.label}</p>
                       <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{layer.preview}</p>
@@ -914,6 +1003,36 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
           })
         )}
       </div>
+
+      {layerDrag && (
+        <div
+          className="pointer-events-none fixed z-[80] rounded-2xl border border-cyan-300/60 bg-[#101827] p-3 text-slate-100 shadow-[0_24px_70px_rgba(0,0,0,0.45)] ring-1 ring-cyan-200/20"
+          style={{
+            left: layerDrag.x,
+            top: layerDrag.y,
+            width: layerDrag.width,
+            minHeight: layerDrag.height,
+          }}
+        >
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-cyan-300/10 text-cyan-100">
+              <GripVertical className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100">{layerDrag.layer.label}</p>
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-400">{layerDrag.layer.preview}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex gap-2 opacity-50">
+            <span className="rounded-lg border border-white/10 p-1.5 text-slate-400">
+              <ArrowUp className="h-3.5 w-3.5" />
+            </span>
+            <span className="rounded-lg border border-white/10 p-1.5 text-slate-400">
+              <ArrowDown className="h-3.5 w-3.5" />
+            </span>
+          </div>
+        </div>
+      )}
 
       {activeNode?.type.name === "imageGrid" && (
         <div className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3">
@@ -1057,6 +1176,25 @@ function moveEditorLayer(editor: Editor, fromIndex: number, toIndex: number) {
   const [moved] = content.splice(fromIndex, 1);
   content.splice(toIndex, 0, moved);
   editor.commands.setContent({ ...json, content });
+}
+
+function getLayerDropIndex(
+  layers: ContentLayer[],
+  refs: Map<string, HTMLDivElement>,
+  originalIndex: number,
+  clientY: number
+) {
+  const layerRects = layers
+    .filter((layer) => layer.index !== originalIndex)
+    .map((layer) => {
+      const rect = refs.get(layer.id)?.getBoundingClientRect();
+      return rect ? { rect } : null;
+    })
+    .filter((item): item is { rect: DOMRect } => Boolean(item))
+    .sort((a, b) => a.rect.top - b.rect.top);
+
+  const targetIndex = layerRects.findIndex(({ rect }) => clientY < rect.top + rect.height / 2);
+  return targetIndex === -1 ? layerRects.length : targetIndex;
 }
 
 function reorderList<T>(items: T[], fromIndex: number, toIndex: number) {
