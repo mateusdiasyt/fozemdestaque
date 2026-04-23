@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq, like, or } from "drizzle-orm";
@@ -128,42 +128,50 @@ export default async function PostPage({
         : "<p>Conteúdo disponível em breve.</p>";
 
   return (
-    <article className="overflow-hidden rounded-[30px] border border-[#e6ebef] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
-      <header className="border-b border-[#edf2f5] bg-[linear-gradient(180deg,#fff8f2_0%,#ffffff_100%)] px-6 py-8 md:px-10 md:py-12">
-        <Link
-          href={category ? `/categoria/${category.slug}` : "/"}
-          className="inline-flex text-sm font-medium text-[#ff751f] transition-colors hover:text-[#e56a1a]"
-        >
-          ← Voltar
-        </Link>
-
-        {category && (
+    <article className="overflow-hidden rounded-[38px] border border-[#e5dccd] bg-[linear-gradient(180deg,#fffdf9_0%,#f7f2ea_100%)] shadow-[0_32px_90px_rgba(15,23,42,0.10)]">
+      <header className="border-b border-[#ece2d3] px-6 py-8 md:px-12 md:py-14">
+        <div className="mx-auto max-w-4xl">
           <Link
-            href={`/categoria/${category.slug}`}
-            className="mt-4 inline-flex rounded-full border border-[#ffd9bf] bg-[#fff4ea] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-[#ff751f]"
+            href={category ? `/categoria/${category.slug}` : "/"}
+            className="inline-flex text-sm font-medium text-[#8d5f33] transition-colors hover:text-[#102033]"
           >
-            {category.label}
+            Voltar
           </Link>
-        )}
 
-        <h1 className="mt-4 max-w-4xl font-headline text-3xl font-semibold leading-tight text-[#102033] md:text-5xl">
-          {title}
-        </h1>
+          {category && (
+            <Link
+              href={`/categoria/${category.slug}`}
+              className="mt-6 inline-flex rounded-full border border-[#dbc6ab] bg-[#f7efe2] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8d5f33]"
+            >
+              {category.label}
+            </Link>
+          )}
 
-        {displayDate && <time className="mt-4 block text-sm text-[#5f707d]">{displayDate}</time>}
+          <h1 className="mt-6 max-w-4xl font-headline text-[clamp(2.4rem,5vw,4.6rem)] font-semibold leading-[1.02] tracking-[-0.05em] text-[#102033]">
+            {title}
+          </h1>
+
+          {displayDate && <time className="mt-6 block font-medium text-[#5f707d]">{displayDate}</time>}
+        </div>
       </header>
 
       {image && (
-        <div className="aspect-[16/9] bg-[#eef2f4] md:aspect-[21/9]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={image} alt={title} className="h-full w-full object-cover" />
+        <div className="px-6 pt-6 md:px-12 md:pt-10">
+          <div className="mx-auto max-w-5xl overflow-hidden rounded-[34px] border border-[#e5dccd] bg-[#f1eadf] shadow-[0_22px_60px_rgba(15,23,42,0.08)]">
+            <div className="aspect-[16/9] md:aspect-[21/9]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={image} alt={title} className="h-full w-full object-cover" />
+            </div>
+          </div>
         </div>
       )}
 
-      <div
-        className="prose prose-lg max-w-none px-6 py-8 font-sans text-[#42515d] md:px-10 md:py-12 [&_a]:text-[#ff751f] [&_a]:transition-colors [&_a]:hover:text-[#e56a1a] [&_blockquote]:border-l-4 [&_blockquote]:border-[#ff751f] [&_blockquote]:bg-[#fff7f0] [&_blockquote]:px-4 [&_blockquote]:py-1 [&_h2]:font-headline [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:text-[#102033] [&_h3]:font-headline [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-[#102033] [&_img]:rounded-[22px] [&_img]:shadow-[0_16px_40px_rgba(15,23,42,0.12)] [&_p]:leading-8"
-        dangerouslySetInnerHTML={{ __html: contentHtml }}
-      />
+      <div className="px-6 py-10 md:px-12 md:py-14">
+        <div
+          className="editorial-prose mx-auto max-w-[820px]"
+          dangerouslySetInnerHTML={{ __html: contentHtml }}
+        />
+      </div>
 
       {isPost && <PostComments postId={entry.post.id} />}
     </article>

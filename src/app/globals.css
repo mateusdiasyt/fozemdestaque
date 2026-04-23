@@ -22,6 +22,7 @@
   --color-green: var(--green);
   --font-serif: var(--font-sora);
   --font-sans: var(--font-manrope);
+  --font-editorial: var(--font-newsreader);
 }
 
 .font-poppins {
@@ -36,6 +37,192 @@ body {
 
 .font-headline {
   font-family: var(--font-sora), sans-serif;
+}
+
+.font-editorial {
+  font-family: var(--font-newsreader), serif;
+}
+
+.editorial-compose {
+  background:
+    radial-gradient(circle at top right, rgba(210, 184, 148, 0.12), transparent 26%),
+    linear-gradient(180deg, #fffdf8 0%, #f8f3ea 100%);
+  color: #243342;
+  font-family: var(--font-newsreader), serif;
+  font-size: clamp(1.08rem, 1rem + 0.25vw, 1.22rem);
+  line-height: 1.95;
+  letter-spacing: -0.01em;
+}
+
+.editorial-compose > *:first-child,
+.editorial-prose > *:first-child {
+  margin-top: 0;
+}
+
+.editorial-compose > * + *,
+.editorial-prose > * + * {
+  margin-top: 1.4em;
+}
+
+.editorial-compose p,
+.editorial-prose p {
+  color: #344454;
+}
+
+.editorial-compose h1,
+.editorial-compose h2,
+.editorial-compose h3,
+.editorial-compose h4,
+.editorial-prose h1,
+.editorial-prose h2,
+.editorial-prose h3,
+.editorial-prose h4 {
+  font-family: var(--font-sora), sans-serif;
+  color: #122033;
+  letter-spacing: -0.04em;
+  line-height: 1.12;
+  font-weight: 600;
+}
+
+.editorial-compose h2,
+.editorial-prose h2 {
+  font-size: clamp(2rem, 1.7rem + 0.9vw, 2.7rem);
+  margin-top: 2.4em;
+}
+
+.editorial-compose h3,
+.editorial-prose h3 {
+  font-size: clamp(1.45rem, 1.2rem + 0.5vw, 1.85rem);
+  margin-top: 2em;
+}
+
+.editorial-compose h4,
+.editorial-prose h4 {
+  font-size: clamp(1.15rem, 1.05rem + 0.35vw, 1.35rem);
+  margin-top: 1.8em;
+}
+
+.editorial-compose a,
+.editorial-prose a {
+  color: #0f4c81;
+  text-decoration-line: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.16em;
+  text-decoration-color: rgba(15, 76, 129, 0.28);
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+.editorial-compose a:hover,
+.editorial-prose a:hover {
+  color: #0b385f;
+  text-decoration-color: rgba(11, 56, 95, 0.58);
+}
+
+.editorial-compose hr,
+.editorial-prose hr {
+  border: 0;
+  height: 1px;
+  margin: 2.8rem auto;
+  max-width: 132px;
+  background: linear-gradient(90deg, transparent 0%, rgba(18, 32, 51, 0.18) 18%, rgba(18, 32, 51, 0.72) 50%, rgba(18, 32, 51, 0.18) 82%, transparent 100%);
+}
+
+.editorial-compose blockquote,
+.editorial-prose blockquote {
+  margin: 2rem 0;
+  border: 0;
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(18, 32, 51, 0.06) 0%, rgba(255, 255, 255, 0.92) 100%);
+  padding: 1.5rem 1.7rem;
+  box-shadow: inset 0 0 0 1px rgba(18, 32, 51, 0.08);
+}
+
+.editorial-compose blockquote p,
+.editorial-prose blockquote p {
+  color: #1f3143;
+  font-size: 1.06em;
+}
+
+.editorial-compose ul,
+.editorial-compose ol,
+.editorial-prose ul,
+.editorial-prose ol {
+  padding-left: 1.3rem;
+}
+
+.editorial-compose li + li,
+.editorial-prose li + li {
+  margin-top: 0.45rem;
+}
+
+.editorial-compose figure,
+.editorial-prose figure {
+  margin: 2.4rem auto;
+}
+
+.editorial-compose img,
+.editorial-prose img {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 30px;
+  border: 1px solid rgba(160, 174, 192, 0.24);
+  background: #fff;
+  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.12);
+}
+
+.editorial-compose figcaption,
+.editorial-prose figcaption {
+  margin-top: 0.9rem;
+  text-align: center;
+  font-family: var(--font-manrope), sans-serif;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: #708295;
+}
+
+.editorial-compose table,
+.editorial-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 0 0 1px rgba(18, 32, 51, 0.08);
+}
+
+.editorial-compose th,
+.editorial-compose td,
+.editorial-prose th,
+.editorial-prose td {
+  border-bottom: 1px solid rgba(18, 32, 51, 0.08);
+  padding: 0.95rem 1rem;
+  text-align: left;
+}
+
+.editorial-compose th,
+.editorial-prose th {
+  font-family: var(--font-manrope), sans-serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5d6d7b;
+  background: rgba(18, 32, 51, 0.04);
+}
+
+.editorial-prose > p:first-of-type {
+  font-size: clamp(1.2rem, 1.1rem + 0.35vw, 1.38rem);
+  line-height: 1.88;
+  color: #243342;
+}
+
+.editorial-prose > p:first-of-type::first-letter {
+  float: left;
+  margin-right: 0.18em;
+  font-family: var(--font-sora), sans-serif;
+  font-size: 4.25rem;
+  line-height: 0.9;
+  font-weight: 600;
+  color: #122033;
 }
 
 .foz-image-grid {

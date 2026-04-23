@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Manrope, Sora } from "next/font/google";
+import { Manrope, Newsreader, Sora } from "next/font/google";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";
 
@@ -12,6 +12,11 @@ const manrope = Manrope({
 const sora = Sora({
   subsets: ["latin"],
   variable: "--font-sora",
+});
+
+const newsreader = Newsreader({
+  subsets: ["latin"],
+  variable: "--font-newsreader",
 });
 
 export const metadata: Metadata = {
@@ -46,7 +51,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${manrope.variable} ${sora.variable} antialiased`}
+        className={`${manrope.variable} ${sora.variable} ${newsreader.variable} antialiased`}
       >
         <div id="google_translate_element" className="invisible absolute w-0 h-0 overflow-hidden" aria-hidden />
         <SessionProvider>{children}</SessionProvider>

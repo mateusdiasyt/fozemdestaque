@@ -301,7 +301,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     editorProps: {
       attributes: {
         class:
-          "prose prose-slate max-w-none min-h-[620px] bg-[#f8fafc] px-5 py-5 text-slate-900 outline-none sm:px-7 sm:py-7 [&_a]:text-cyan-700 [&_blockquote]:rounded-2xl [&_blockquote]:border-l-4 [&_blockquote]:border-cyan-500 [&_blockquote]:bg-cyan-50 [&_blockquote]:px-5 [&_blockquote]:py-3 [&_blockquote]:text-slate-700 [&_h1]:text-slate-950 [&_h2]:text-slate-950 [&_h3]:text-slate-950 [&_h4]:text-slate-950 [&_img]:my-6 [&_img]:max-h-[680px] [&_img]:w-full [&_img]:object-contain [&_p]:leading-8 [&_p]:text-slate-800 [&_table]:w-full [&_td]:border [&_td]:border-slate-200 [&_td]:p-2 [&_th]:border [&_th]:border-slate-200 [&_th]:bg-slate-100 [&_th]:p-2",
+          "editorial-compose max-w-none min-h-[720px] px-6 py-8 outline-none sm:px-10 sm:py-10",
       },
     },
   });
@@ -720,7 +720,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             </div>
             <div className="grid gap-4 xl:grid-cols-[290px_minmax(0,1fr)]">
               <ContentLayers editor={editor} />
-              <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-[#edf2f7] shadow-[0_24px_70px_rgba(0,0,0,0.22)]">
+              <div className="relative overflow-hidden rounded-[30px] border border-[#e7dccd] bg-[linear-gradient(180deg,#fffdf8_0%,#f8f3ea_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.12)]">
                 <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={() => setImagePopup(true)} />
                 <EditorContent editor={editor} />
                 {selectedGridImage && (
@@ -1759,11 +1759,11 @@ function EditorToolbar({ editor, onLinkClick, onImageClick }: { editor: Editor |
   const buttonClass = (active = false) =>
     cn(
       "inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm transition",
-      active ? "bg-cyan-200 text-slate-950 shadow-[0_10px_30px_rgba(103,232,249,0.16)]" : "text-slate-500 hover:bg-slate-200 hover:text-slate-950"
+      active ? "bg-[#102033] text-white shadow-[0_12px_30px_rgba(16,32,51,0.18)]" : "text-[#6d7b88] hover:bg-[#efe7da] hover:text-[#102033]"
     );
 
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 bg-white px-3 py-2">
+    <div className="flex flex-wrap items-center gap-1 border-b border-[#e7dccd] bg-[rgba(255,253,248,0.95)] px-3 py-2 backdrop-blur">
       <button type="button" title="Negrito" onClick={() => editor.chain().focus().toggleBold().run()} className={buttonClass(editor.isActive("bold"))}><Bold className="h-4 w-4" /></button>
       <button type="button" title="Italico" onClick={() => editor.chain().focus().toggleItalic().run()} className={buttonClass(editor.isActive("italic"))}><Italic className="h-4 w-4" /></button>
       <ToolbarDivider />
