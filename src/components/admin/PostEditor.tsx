@@ -104,16 +104,12 @@ const ImageWithLink = Image.extend({
         parseHTML: (element) => element.closest("a")?.getAttribute("href") ?? element.getAttribute("data-href"),
         renderHTML: () => ({}),
       },
-      caption: {
-        default: null,
-        parseHTML: (element) => element.closest("figure")?.querySelector("figcaption")?.textContent ?? null,
-        renderHTML: () => ({}),
-      },
     };
   },
 
   renderHTML({ HTMLAttributes }) {
-    const { href, caption, ...imageAttributes } = HTMLAttributes as Record<string, unknown>;
+    const { href, ...imageAttributes } = HTMLAttributes as Record<string, unknown>;
+    const altText = typeof imageAttributes.alt === "string" ? imageAttributes.alt.trim() : "";
     const imageNode = [
       "img",
       mergeAttributes(this.options.HTMLAttributes, imageAttributes, {
@@ -130,10 +126,8 @@ const ImageWithLink = Image.extend({
             style: "display:block;color:inherit;text-decoration:none",
           },
           imageNode,
-        ]
+      ]
       : imageNode;
-
-    if (!caption) return mediaNode as any;
 
     return [
       "figure",
@@ -147,7 +141,7 @@ const ImageWithLink = Image.extend({
         {
           style: "margin-top:10px;color:#64748b;font-size:14px;line-height:1.5",
         },
-        String(caption),
+        altText,
       ],
     ] as any;
   },
@@ -431,7 +425,6 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       fileName: file.name,
       alt: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
       href: "",
-      caption: "",
       uploading: true,
     }));
 
@@ -493,7 +486,6 @@ export function PostEditor({ post, categories }: PostEditorProps) {
         src: image.src,
         alt: image.alt?.trim() || "",
         href: image.href?.trim() || "",
-        caption: image.caption?.trim() || "",
       }));
 
     if (readyImages.length === 0 || !editor) return;
@@ -514,7 +506,6 @@ export function PostEditor({ post, categories }: PostEditorProps) {
         src: String(node.attrs.src || ""),
         alt: String(patch.alt ?? node.attrs.alt ?? ""),
         href: String(patch.href ?? node.attrs.href ?? ""),
-        caption: String(patch.caption ?? node.attrs.caption ?? ""),
       };
 
       editor
@@ -994,8 +985,11 @@ function ImageInlineSettings({
             value={image.alt || ""}
             onChange={(event) => onUpdate({ alt: event.target.value })}
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
-            placeholder="Descreva a imagem para acessibilidade e SEO"
+            placeholder="Esse texto aparece abaixo da imagem"
           />
+          <p className="mt-1.5 text-xs leading-5 text-slate-500">
+            Esse texto tambem sera usado como descricao para SEO e acessibilidade.
+          </p>
         </div>
         <div>
           <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Link na imagem</label>
@@ -1004,15 +998,6 @@ function ImageInlineSettings({
             onChange={(event) => onUpdate({ href: event.target.value })}
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
             placeholder="https://..."
-          />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Legenda</label>
-          <input
-            value={image.caption || ""}
-            onChange={(event) => onUpdate({ caption: event.target.value })}
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
-            placeholder="Texto exibido abaixo da imagem"
           />
         </div>
       </div>
@@ -1297,7 +1282,7 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Imagem {index + 1}</p>
                     <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-400">
-                      Clique na imagem dentro do editor para ajustar alt text, link e legenda.
+                      Clique na imagem dentro do editor para ajustar texto alternativo e link.
                     </p>
                   </div>
                   <div className="flex gap-1">
@@ -1388,12 +1373,11 @@ function getSelectedSingleImageFromClick(editor: Editor, target: HTMLElement): S
     gridPos: undefined,
     imagePos: nodeMatch.pos,
     imageIndex: 0,
-    image: {
-      src: String(nodeMatch.node.attrs.src || ""),
-      alt: String(nodeMatch.node.attrs.alt || ""),
-      href: String(nodeMatch.node.attrs.href || ""),
-      caption: String(nodeMatch.node.attrs.caption || ""),
-    },
+      image: {
+        src: String(nodeMatch.node.attrs.src || ""),
+        alt: String(nodeMatch.node.attrs.alt || ""),
+        href: String(nodeMatch.node.attrs.href || ""),
+      },
     total: 1,
   };
 }
@@ -1512,7 +1496,6 @@ function safeImageGridItems(value: unknown): ImageGridItem[] {
       src: String(image.src),
       alt: image.alt ? String(image.alt) : "",
       href: image.href ? String(image.href) : "",
-      caption: image.caption ? String(image.caption) : "",
     });
   });
 
@@ -1718,7 +1701,7 @@ function MediaDialog({
         </div>
 
         <div className="flex flex-col gap-3 border-t border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-500">Depois de inserir, clique em uma imagem no editor para ajustar alt text, link e legenda.</p>
+          <p className="text-sm text-slate-500">Depois de inserir, clique em uma imagem no editor para ajustar texto alternativo e link.</p>
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/5">
               Cancelar

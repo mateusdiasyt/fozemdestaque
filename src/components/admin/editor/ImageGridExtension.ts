@@ -4,7 +4,6 @@ export interface ImageGridItem {
   src: string;
   alt?: string;
   href?: string;
-  caption?: string;
 }
 
 declare module "@tiptap/core" {
@@ -39,7 +38,6 @@ function safeImages(value: unknown): ImageGridItem[] {
       src: String(image.src),
       alt: image.alt ? String(image.alt) : "",
       href: image.href ? String(image.href) : "",
-      caption: image.caption ? String(image.caption) : "",
     });
   });
 
@@ -75,14 +73,12 @@ export const ImageGrid = Node.create({
           figures.forEach((figure) => {
             const img = figure.querySelector("img");
             const link = figure.querySelector("a");
-            const caption = figure.querySelector("figcaption");
             if (!img?.getAttribute("src")) return;
 
             images.push({
               src: img.getAttribute("src") || "",
               alt: img.getAttribute("alt") || "",
               href: link?.getAttribute("href") || "",
-              caption: caption?.textContent || "",
             });
           });
 
@@ -139,14 +135,14 @@ export const ImageGrid = Node.create({
             "margin:0;min-width:0;border-radius:22px;background:#f8fafc;border:1px solid #e2e8f0;padding:8px",
         },
         media,
-        image.caption
+        image.alt
           ? [
               "figcaption",
               {
                 style:
                   "margin:8px 4px 0;color:#64748b;font-size:13px;line-height:1.45;text-align:center",
               },
-              image.caption,
+              image.alt,
             ]
           : ["span", { style: "display:none" }, ""],
       ];
