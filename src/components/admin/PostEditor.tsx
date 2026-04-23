@@ -1,30 +1,45 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import { TableKit } from "@tiptap/extension-table";
-import { slugify } from "@/lib/utils";
-import { cn } from "@/lib/utils";
-import type { SEOAnalysis } from "@/lib/seo-analyzer";
 import {
   Bold,
-  Italic,
-  List,
-  ListOrdered,
+  CalendarClock,
+  Clock3,
+  Eye,
+  FileText,
   Heading2,
   Heading3,
   Heading4,
-  Link2,
-  Table,
-  Loader2,
-  TrendingUp,
-  X,
   HelpCircle,
+  ImagePlus,
+  Italic,
+  Link2,
+  List,
+  ListOrdered,
+  Loader2,
+  Minus,
+  PanelRight,
+  Plus,
+  Quote,
+  Save,
+  Search,
+  Sparkles,
+  Table,
+  Trash2,
+  TrendingUp,
+  Undo2,
+  Redo2,
+  UploadCloud,
+  X,
 } from "lucide-react";
+import { slugify, cn } from "@/lib/utils";
+import type { SEOAnalysis } from "@/lib/seo-analyzer";
 import { EditorHelpContent } from "./EditorHelpContent";
 
 interface Category {
@@ -72,8 +87,24 @@ const LinkWithRel = Link.extend({
   },
 });
 
+const fieldClass =
+  "w-full rounded-2xl border border-white/10 bg-[#070d18] px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/10";
+const compactFieldClass =
+  "w-full rounded-xl border border-white/10 bg-[#070d18] px-3 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/10";
+const labelClass = "mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400";
+const cardClass =
+  "rounded-[28px] border border-white/10 bg-[#0b1220]/95 p-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.03]";
+const seoStatusColors: Record<"good" | "medium" | "bad", string> = {
+  good: "text-emerald-300",
+  medium: "text-amber-300",
+  bad: "text-rose-300",
+};
+
 export function PostEditor({ post, categories }: PostEditorProps) {
   const router = useRouter();
+  const contentImageInputRef = useRef<HTMLInputElement>(null);
+  const featuredImageInputRef = useRef<HTMLInputElement>(null);
+
   const [title, setTitle] = useState(post?.title ?? "");
   const [slug, setSlug] = useState(post?.slug ?? "");
   const [excerpt, setExcerpt] = useState(post?.excerpt ?? "");
@@ -96,15 +127,21 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     }
   });
   const [scheduledAt, setScheduledAt] = useState(() => {
-    const v = post?.scheduledAt;
-    if (!v) return "";
-    const d = v instanceof Date ? v : new Date(v);
-    return d.toISOString().slice(0, 16);
+    const value = post?.scheduledAt;
+    if (!value) return "";
+    const date = value instanceof Date ? value : new Date(value);
+    return date.toISOString().slice(0, 16);
   });
   const [faqItems, setFaqItems] = useState<{ q: string; a: string }[]>([]);
   const [linkPopup, setLinkPopup] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkRel, setLinkRel] = useState<"follow" | "nofollow" | "sponsored">("follow");
+  const [imagePopup, setImagePopup] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageAlt, setImageAlt] = useState("");
+  const [uploadingContentImage, setUploadingContentImage] = useState(false);
+  const [uploadingFeaturedImage, setUploadingFeaturedImage] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const [loading, setLoading] = useState(false);
   const [seoAnalysis, setSeoAnalysis] = useState<SEOAnalysis | null>(null);
   const [seoLoading, setSeoLoading] = useState(false);
@@ -112,40 +149,48 @@ export function PostEditor({ post, categories }: PostEditorProps) {
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setHelpPopup(false);
+      if (e.key !== "Escape") return;
+      setHelpPopup(false);
+      setLinkPopup(false);
+      setImagePopup(false);
     };
-    if (helpPopup) {
-      document.addEventListener("keydown", handleEscape);
-      return () => document.removeEventListener("keydown", handleEscape);
-    }
-  }, [helpPopup]);
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, []);
 
   useEffect(() => {
-    if (post?.faqJson) {
-      try {
-        const parsed = JSON.parse(post.faqJson);
-        const mainEntity = parsed["@graph"]?.[0] ?? parsed;
-        const faq = mainEntity?.mainEntity ?? [];
-        setFaqItems(faq.map((item: { name: string; acceptedAnswer: { text: string } }) => ({ q: item.name, a: item.acceptedAnswer?.text ?? "" })));
-      } catch {
-        setFaqItems([]);
-      }
+    if (!post?.faqJson) return;
+    try {
+      const parsed = JSON.parse(post.faqJson);
+      const mainEntity = parsed["@graph"]?.[0] ?? parsed;
+      const faq = mainEntity?.mainEntity ?? [];
+      setFaqItems(
+        faq.map((item: { name: string; acceptedAnswer: { text: string } }) => ({
+          q: item.name,
+          a: item.acceptedAnswer?.text ?? "",
+        }))
+      );
+    } catch {
+      setFaqItems([]);
     }
   }, [post?.faqJson]);
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3, 4] },
+      StarterKit.configure({ heading: { levels: [1, 2, 3, 4] } }),
+      Image.configure({
+        inline: false,
+        allowBase64: false,
+        HTMLAttributes: { class: "rounded-2xl border border-slate-200 shadow-sm" },
       }),
-      Image.configure({ inline: true }),
       LinkWithRel.configure({ openOnClick: false, HTMLAttributes: { rel: "follow" } }),
       TableKit,
     ],
     content: post?.content ?? "",
     editorProps: {
       attributes: {
-        class: "prose prose-slate max-w-none min-h-[460px] bg-white px-4 py-3 text-slate-900 focus:outline-none [&_p]:text-slate-800 [&_h1]:text-slate-900 [&_h2]:text-slate-900 [&_h3]:text-slate-900 [&_h4]:text-slate-900",
+        class:
+          "prose prose-slate max-w-none min-h-[620px] bg-[#f8fafc] px-5 py-5 text-slate-900 outline-none sm:px-7 sm:py-7 [&_a]:text-cyan-700 [&_blockquote]:rounded-2xl [&_blockquote]:border-l-4 [&_blockquote]:border-cyan-500 [&_blockquote]:bg-cyan-50 [&_blockquote]:px-5 [&_blockquote]:py-3 [&_blockquote]:text-slate-700 [&_h1]:text-slate-950 [&_h2]:text-slate-950 [&_h3]:text-slate-950 [&_h4]:text-slate-950 [&_img]:my-6 [&_img]:max-h-[680px] [&_img]:w-full [&_img]:object-contain [&_p]:leading-8 [&_p]:text-slate-800 [&_table]:w-full [&_td]:border [&_td]:border-slate-200 [&_td]:p-2 [&_th]:border [&_th]:border-slate-200 [&_th]:bg-slate-100 [&_th]:p-2",
       },
     },
   });
@@ -158,19 +203,19 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     updateSlugFromTitle();
   }, [updateSlugFromTitle]);
 
-  const wordCount = editor ? (editor.getText().replace(/\s+/g, " ").trim().split(" ").filter(Boolean).length || 0) : 0;
+  const wordCount = editor ? editor.getText().replace(/\s+/g, " ").trim().split(" ").filter(Boolean).length || 0 : 0;
   const readTime = Math.max(1, Math.ceil(wordCount / 200));
-
   const metaTitleLen = (metaTitle || title).length;
   const metaDescLen = (metaDescription || excerpt).length;
-  const metaTitleColor = metaTitleLen <= 50 ? "text-green-600" : metaTitleLen <= 60 ? "text-amber-600" : "text-red-600";
-  const metaDescColor = metaDescLen >= 120 && metaDescLen <= 160 ? "text-green-600" : metaDescLen >= 100 ? "text-amber-600" : "text-red-600";
+  const metaTitleColor = metaTitleLen <= 50 ? "text-emerald-300" : metaTitleLen <= 60 ? "text-amber-300" : "text-rose-300";
+  const metaDescColor = metaDescLen >= 120 && metaDescLen <= 160 ? "text-emerald-300" : metaDescLen >= 100 ? "text-amber-300" : "text-rose-300";
+  const displayTitle = metaTitle || title || "Titulo da pagina";
+  const displayDesc = metaDescription || excerpt || "Resumo estrategico para atrair o clique no resultado de busca.";
+  const previewOrigin = typeof window !== "undefined" ? window.location.origin : "";
 
   const slugWarnings: string[] = [];
-  if (slug.length > 60) slugWarnings.push("URL muito longa (>60 chars)");
-  if (focusKeyword && slug && !slug.toLowerCase().includes(focusKeyword.toLowerCase())) {
-    slugWarnings.push("Keyword não está na URL");
-  }
+  if (slug.length > 60) slugWarnings.push("URL muito longa (>60 caracteres)");
+  if (focusKeyword && slug && !slug.toLowerCase().includes(focusKeyword.toLowerCase())) slugWarnings.push("Keyword nao esta na URL");
 
   const densityCheck = focusKeyword
     ? {
@@ -198,6 +243,60 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     }
     setLinkPopup(false);
     setLinkUrl("");
+  }
+
+  async function uploadImage(file: File) {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error ?? "Erro ao enviar imagem");
+    return data.url as string;
+  }
+
+  async function handleContentImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    setUploadingContentImage(true);
+    setUploadError("");
+    try {
+      const url = await uploadImage(file);
+      setImageUrl(url);
+      setImageAlt(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Nao foi possivel enviar a imagem");
+    } finally {
+      setUploadingContentImage(false);
+    }
+  }
+
+  async function handleFeaturedImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    setUploadingFeaturedImage(true);
+    setUploadError("");
+    try {
+      const url = await uploadImage(file);
+      setFeaturedImage(url);
+      if (!featuredImageAlt.trim()) setFeaturedImageAlt(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Nao foi possivel enviar a imagem");
+    } finally {
+      setUploadingFeaturedImage(false);
+    }
+  }
+
+  function insertImageIntoContent() {
+    const src = imageUrl.trim();
+    if (!src || !editor) return;
+    editor.chain().focus().setImage({ src, alt: imageAlt.trim() || undefined }).run();
+    setImagePopup(false);
+    setImageUrl("");
+    setImageAlt("");
   }
 
   function addFaqItem() {
@@ -237,13 +336,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       const res = await fetch("/api/admin/seo/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          content,
-          metaTitle: metaTitle || undefined,
-          metaDescription: metaDescription || undefined,
-          focusKeyword: focusKeyword || undefined,
-        }),
+        body: JSON.stringify({ title, content, metaTitle: metaTitle || undefined, metaDescription: metaDescription || undefined, focusKeyword: focusKeyword || undefined }),
       });
       const data = await res.json();
       setSeoAnalysis(data);
@@ -255,7 +348,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (featuredImage && !featuredImageAlt?.trim()) {
-      alert("Alt Text da imagem de destaque é obrigatório para SEO.");
+      alert("Alt Text da imagem de destaque e obrigatorio para SEO.");
       return;
     }
     setLoading(true);
@@ -301,398 +394,389 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     }
   }
 
-  const statusColors = { good: "text-green-600", medium: "text-amber-600", bad: "text-red-600" };
-  const displayTitle = metaTitle || title || "Título da página";
-  const displayDesc = metaDescription || excerpt || "Meta description...";
-  const fieldClass = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
-  const fieldCompactClass = "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
-
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col h-full w-full max-w-[1700px]">
-      <div className="flex justify-end mb-2">
-        <button
-          type="button"
-          onClick={() => setHelpPopup(true)}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-200 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-          title="Ajuda"
-        >
-          <HelpCircle className="w-4 h-4" />
-          Ajuda
-        </button>
-      </div>
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-6">
-        <div className="space-y-4 overflow-y-auto min-h-0 bg-white rounded-xl border border-slate-200 p-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-0.5">Título</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              className={fieldClass}
-            />
+    <form onSubmit={handleSubmit} className="space-y-6 pb-10 text-slate-100">
+      <input ref={contentImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleContentImageUpload} />
+      <input ref={featuredImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleFeaturedImageUpload} />
+
+      <div className="rounded-[30px] border border-white/10 bg-gradient-to-br from-[#111a2b] via-[#0b1220] to-[#070b14] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.32)] sm:p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap gap-3">
+            <MetricPill icon={<FileText className="h-4 w-4" />} label="Palavras" value={wordCount.toString()} />
+            <MetricPill icon={<Clock3 className="h-4 w-4" />} label="Leitura" value={`~${readTime} min`} />
+            <MetricPill icon={<Sparkles className="h-4 w-4" />} label="Status" value={status.replace("_", " ")} />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-0.5">Slug (URL)</label>
-            <input
-              type="text"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              className={fieldClass}
-              placeholder="url-amigavel"
-            />
-            {slugWarnings.length > 0 && (
-              <p className="text-xs text-amber-600 mt-1">{slugWarnings.join(" • ")}</p>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={() => setHelpPopup(true)} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/40 hover:bg-white/5">
+              <HelpCircle className="h-4 w-4" />
+              Ajuda
+            </button>
+            {post && (
+              <a href={`/post/${post.slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/40 hover:bg-white/5">
+                <Eye className="h-4 w-4" />
+                Visualizar
+              </a>
             )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-0.5">Resumo</label>
-            <textarea
-              value={excerpt}
-              onChange={(e) => setExcerpt(e.target.value)}
-              rows={3}
-              className={`${fieldClass} resize-y min-h-[84px]`}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-0.5">Conteúdo</label>
-            <EditorToolbar editor={editor} onLinkClick={openLinkPopup} />
-            <div className="border border-slate-300 rounded-b-lg overflow-hidden bg-white">
-              <EditorContent editor={editor} />
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              {wordCount} palavras • ~{readTime} min de leitura
-            </p>
+            <button type="submit" disabled={loading} className="inline-flex items-center gap-2 rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-bold text-slate-950 shadow-[0_18px_50px_rgba(103,232,249,0.18)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {post ? "Salvar alteracoes" : "Criar post"}
+            </button>
           </div>
         </div>
+      </div>
 
-        <div className="space-y-4 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-8rem)] overflow-y-auto min-h-0 content-start pr-1">
-          <div className="bg-white p-4 rounded-xl border border-slate-200">
-            <h3 className="font-semibold text-slate-800 mb-2 text-sm">Publicação</h3>
-            <div className="space-y-2">
+      {uploadError && <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">{uploadError}</div>}
+
+      <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1fr)_410px]">
+        <section className={cn(cardClass, "space-y-6 p-5 sm:p-7")}>
+          <div className="flex flex-col gap-2 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200/80">Estudio editorial</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Construa a materia</h2>
+            </div>
+            <p className="max-w-md text-sm leading-6 text-slate-400">Escreva, organize imagens no corpo do texto e prepare SEO sem sair da mesma tela.</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
+            <div>
+              <label className={labelClass}>Titulo</label>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Headline da materia" className="w-full rounded-[22px] border border-white/10 bg-[#070d18] px-5 py-4 text-2xl font-semibold tracking-tight text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/10 sm:text-3xl" />
+            </div>
+            <div>
+              <label className={labelClass}>URL amigavel</label>
+              <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} className={fieldClass} placeholder="url-amigavel" />
+              {slugWarnings.length > 0 && <p className="mt-2 text-xs text-amber-200">{slugWarnings.join(" | ")}</p>}
+            </div>
+          </div>
+
+          <div>
+            <label className={labelClass}>Resumo editorial</label>
+            <textarea value={excerpt} onChange={(e) => setExcerpt(e.target.value)} rows={3} className={cn(fieldClass, "min-h-[112px] resize-y leading-6")} placeholder="Um paragrafo curto que aparece nos cards, chamadas e SEO quando nao houver meta description." />
+          </div>
+
+          <div>
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <label className="block text-sm text-slate-600 mb-1">Status</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className={fieldClass}
-                >
+                <label className={labelClass}>Conteudo</label>
+                <p className="text-sm text-slate-400">Use titulos, links, tabelas, citacoes e imagens no meio da materia.</p>
+              </div>
+              <button type="button" onClick={() => setImagePopup(true)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20">
+                <ImagePlus className="h-4 w-4" />
+                Inserir imagem
+              </button>
+            </div>
+            <div className="overflow-hidden rounded-[26px] border border-white/10 bg-[#edf2f7] shadow-[0_24px_70px_rgba(0,0,0,0.22)]">
+              <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={() => setImagePopup(true)} />
+              <EditorContent editor={editor} />
+            </div>
+          </div>
+        </section>
+
+        <aside className="space-y-5 2xl:sticky 2xl:top-6 2xl:self-start">
+          <section className={cardClass}>
+            <SidebarTitle icon={<PanelRight className="h-4 w-4" />} eyebrow="Workflow" title="Publicacao" />
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className={labelClass}>Status</label>
+                <select value={status} onChange={(e) => setStatus(e.target.value)} className={fieldClass}>
                   <option value="rascunho">Rascunho</option>
-                  <option value="em_analise">Em análise</option>
+                  <option value="em_analise">Em analise</option>
                   <option value="publicado">Publicado</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-slate-600 mb-1">Agendar publicação</label>
-                <input
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
-                  className={fieldClass}
-                />
-              </div>
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} />
-                  Destaque
-                </label>
-              </div>
-              <div>
-                <label className="block text-sm text-slate-600 mb-1">Categoria</label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className={fieldClass}
-                >
+                <label className={labelClass}>Categoria</label>
+                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={fieldClass}>
                   <option value="">Selecione</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-slate-600 mb-1">Tags (separadas por vírgula)</label>
-                <input
-                  type="text"
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  placeholder="tag1, tag2, tag3"
-                  className={fieldClass}
-                />
+                <label className={labelClass}>Agendar</label>
+                <div className="relative">
+                  <CalendarClock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className={cn(fieldClass, "pl-11")} />
+                </div>
               </div>
+              <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-200">
+                <span>Destaque na home</span>
+                <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} className="h-4 w-4 accent-cyan-300" />
+              </label>
               <div>
-                <label className="block text-sm text-slate-600 mb-1">Imagem de destaque (URL)</label>
-                <input
-                  type="url"
-                  value={featuredImage}
-                  onChange={(e) => setFeaturedImage(e.target.value)}
-                  placeholder="https://..."
-                  className={fieldClass}
-                />
-                {featuredImage && (
-                  <div className="mt-1.5 rounded-lg overflow-hidden border border-slate-200 max-h-20">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={featuredImage} alt="" className="w-full h-auto object-contain max-h-20" onError={(e) => (e.currentTarget.style.display = "none")} />
-                  </div>
-                )}
-                <label className="block text-sm text-slate-600 mt-2 mb-1">Alt Text (obrigatório para SEO) *</label>
-                <input
-                  type="text"
-                  value={featuredImageAlt}
-                  onChange={(e) => setFeaturedImageAlt(e.target.value)}
-                  placeholder="Descrição da imagem"
-                  className={fieldClass}
-                />
+                <label className={labelClass}>Tags</label>
+                <input type="text" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="sociedade, agenda, foz" className={fieldClass} />
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200">
-            <h3 className="font-semibold text-slate-800 mb-2 text-sm">SEO</h3>
-            <button
-              type="button"
-              onClick={analyzeSEO}
-              disabled={seoLoading}
-              className="mb-2 flex items-center gap-2 px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
-            >
-              {seoLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TrendingUp className="w-3.5 h-3.5" />}
-              Analisar SEO
-            </button>
-            <div className="space-y-2">
+          <section className={cardClass}>
+            <SidebarTitle icon={<ImagePlus className="h-4 w-4" />} eyebrow="Midia" title="Imagem de destaque" />
+            <div className="mt-5 space-y-4">
+              <button type="button" onClick={() => featuredImageInputRef.current?.click()} disabled={uploadingFeaturedImage} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-cyan-300/30 bg-cyan-300/10 px-4 py-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60">
+                {uploadingFeaturedImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+                {uploadingFeaturedImage ? "Enviando imagem..." : "Enviar imagem"}
+              </button>
               <div>
-                <div className="flex justify-between text-xs text-slate-500 mb-1">
-                  <span>Meta Title</span>
-                  <span className={cn("font-medium", metaTitleColor)}>{(metaTitle || title).length}/60</span>
+                <label className={labelClass}>Ou cole uma URL</label>
+                <input type="url" value={featuredImage} onChange={(e) => setFeaturedImage(e.target.value)} placeholder="https://..." className={fieldClass} />
+              </div>
+              {featuredImage && (
+                <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={featuredImage} alt="" className="h-44 w-full object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
                 </div>
-                <input
-                  type="text"
-                  value={metaTitle}
-                  onChange={(e) => setMetaTitle(e.target.value)}
-                  maxLength={70}
-                  placeholder={title || "Título da página"}
-                  className={cn(fieldCompactClass, metaTitleLen <= 60 ? "border-slate-300" : "border-amber-500")}
-                />
-              </div>
+              )}
               <div>
-                <div className="flex justify-between text-xs text-slate-500 mb-1">
-                  <span>Meta Description</span>
-                  <span className={cn("font-medium", metaDescColor)}>{(metaDescription || excerpt).length}/160</span>
-                </div>
-                <textarea
-                  value={metaDescription}
-                  onChange={(e) => setMetaDescription(e.target.value)}
-                  maxLength={165}
-                  rows={2}
-                  className={cn(`${fieldCompactClass} resize-y min-h-[72px]`, metaDescLen >= 120 && metaDescLen <= 160 ? "border-slate-300" : "border-amber-500")}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">Palavra-chave foco</label>
-                <input
-                  type="text"
-                  value={focusKeyword}
-                  onChange={(e) => setFocusKeyword(e.target.value)}
-                  className={fieldCompactClass}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">Canonical URL</label>
-                <input
-                  type="url"
-                  value={canonicalUrl}
-                  onChange={(e) => setCanonicalUrl(e.target.value)}
-                  placeholder="https://..."
-                  className={fieldCompactClass}
-                />
+                <label className={labelClass}>Alt text obrigatorio</label>
+                <input type="text" value={featuredImageAlt} onChange={(e) => setFeaturedImageAlt(e.target.value)} placeholder="Descreva objetivamente a imagem" className={fieldClass} />
               </div>
             </div>
+          </section>
 
-            <details className="mt-2 group">
-              <summary className="text-xs font-medium text-slate-600 cursor-pointer hover:text-slate-800">Preview & Análise</summary>
-              <div className="mt-2 space-y-2">
-                <div className="p-2 bg-slate-50 rounded border border-slate-200 text-xs">
-                  <p className="text-blue-600 font-medium truncate">{displayTitle}</p>
-                  <p className="text-green-700">{typeof window !== "undefined" ? window.location.origin : ""}/post/{slug || "url"}</p>
-                  <p className="text-slate-600 line-clamp-2">{displayDesc}</p>
-                </div>
-                {densityCheck && focusKeyword && (
-                  <div className="p-2 bg-slate-50 rounded border border-slate-200 text-xs space-y-0.5">
-                    <p className={densityCheck.h1 ? "text-green-600" : "text-slate-500"}>H1: {densityCheck.h1 ? "✓" : "✗"}</p>
-                    <p className={densityCheck.firstP ? "text-green-600" : "text-slate-500"}>1º parágrafo: {densityCheck.firstP ? "✓" : "✗"}</p>
-                    <p className={densityCheck.url ? "text-green-600" : "text-slate-500"}>URL: {densityCheck.url ? "✓" : "✗"}</p>
-                  </div>
-                )}
-                {seoAnalysis && (
-                  <div className="p-2 bg-slate-50 rounded border border-slate-200 text-xs space-y-1">
-                    <p className={cn("font-medium", statusColors[seoAnalysis.overall])}>SEO: {seoAnalysis.overall === "good" ? "Bom" : seoAnalysis.overall === "medium" ? "Médio" : "Ruim"}</p>
-                    <p className={statusColors[seoAnalysis.metaTitle.status]}>{seoAnalysis.metaTitle.message}</p>
-                    <p className={statusColors[seoAnalysis.metaDescription.status]}>{seoAnalysis.metaDescription.message}</p>
-                  </div>
-                )}
+          <section className={cardClass}>
+            <div className="flex items-start justify-between gap-3">
+              <SidebarTitle icon={<Search className="h-4 w-4" />} eyebrow="Performance" title="SEO" />
+              <button type="button" onClick={analyzeSEO} disabled={seoLoading} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-60">
+                {seoLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <TrendingUp className="h-3.5 w-3.5" />}
+                Analisar
+              </button>
+            </div>
+            <div className="mt-5 space-y-4">
+              <div>
+                <div className="mb-2 flex justify-between text-xs text-slate-400"><span>Meta title</span><span className={cn("font-semibold", metaTitleColor)}>{metaTitleLen}/60</span></div>
+                <input type="text" value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} maxLength={70} placeholder={title || "Titulo da pagina"} className={compactFieldClass} />
               </div>
-            </details>
-          </div>
+              <div>
+                <div className="mb-2 flex justify-between text-xs text-slate-400"><span>Meta description</span><span className={cn("font-semibold", metaDescColor)}>{metaDescLen}/160</span></div>
+                <textarea value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} maxLength={165} rows={3} className={cn(compactFieldClass, "min-h-[92px] resize-y")} />
+              </div>
+              <div>
+                <label className={labelClass}>Palavra-chave foco</label>
+                <input type="text" value={focusKeyword} onChange={(e) => setFocusKeyword(e.target.value)} className={compactFieldClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Canonical URL</label>
+                <input type="url" value={canonicalUrl} onChange={(e) => setCanonicalUrl(e.target.value)} placeholder="https://..." className={compactFieldClass} />
+              </div>
+              <details className="group rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <summary className="cursor-pointer text-sm font-semibold text-slate-200">Preview e analise</summary>
+                <div className="mt-4 space-y-3 text-xs">
+                  <div className="rounded-2xl border border-white/10 bg-[#070d18] p-4">
+                    <p className="truncate font-semibold text-cyan-200">{displayTitle}</p>
+                    <p className="mt-1 text-emerald-300">{previewOrigin}/post/{slug || "url"}</p>
+                    <p className="mt-2 line-clamp-3 text-slate-400">{displayDesc}</p>
+                  </div>
+                  {densityCheck && focusKeyword && (
+                    <div className="rounded-2xl border border-white/10 bg-[#070d18] p-4 text-slate-300">
+                      <p className={densityCheck.h1 ? "text-emerald-300" : "text-slate-500"}>H1: {densityCheck.h1 ? "ok" : "pendente"}</p>
+                      <p className={densityCheck.firstP ? "text-emerald-300" : "text-slate-500"}>Primeiro paragrafo: {densityCheck.firstP ? "ok" : "pendente"}</p>
+                      <p className={densityCheck.url ? "text-emerald-300" : "text-slate-500"}>URL: {densityCheck.url ? "ok" : "pendente"}</p>
+                    </div>
+                  )}
+                  {seoAnalysis && (
+                    <div className="rounded-2xl border border-white/10 bg-[#070d18] p-4 text-slate-300">
+                      <p className={cn("font-semibold", seoStatusColors[seoAnalysis.overall])}>SEO: {seoAnalysis.overall === "good" ? "Bom" : seoAnalysis.overall === "medium" ? "Medio" : "Ruim"}</p>
+                      <p className={seoStatusColors[seoAnalysis.metaTitle.status]}>{seoAnalysis.metaTitle.message}</p>
+                      <p className={seoStatusColors[seoAnalysis.metaDescription.status]}>{seoAnalysis.metaDescription.message}</p>
+                    </div>
+                  )}
+                </div>
+              </details>
+            </div>
+          </section>
 
-          <details className="bg-white rounded-xl border border-slate-200 group">
-            <summary className="font-semibold text-slate-800 p-3 cursor-pointer hover:bg-slate-50 rounded-xl text-sm">FAQ (JSON-LD)</summary>
-            <div className="px-3 pb-3 pt-0 border-t border-slate-100">
-              <p className="text-xs text-slate-500 mb-2 mt-2">Perguntas e respostas para Featured Snippets</p>
+          <details className={cn(cardClass, "group p-0")}>
+            <summary className="cursor-pointer list-none p-5">
+              <SidebarTitle icon={<Sparkles className="h-4 w-4" />} eyebrow="Schema" title="FAQ JSON-LD" />
+            </summary>
+            <div className="space-y-3 border-t border-white/10 px-5 pb-5 pt-4">
+              <p className="text-sm text-slate-400">Perguntas e respostas podem ajudar o Google a entender melhor a materia.</p>
               {faqItems.map((item, i) => (
-              <div key={i} className="mb-2 p-2 bg-slate-50 rounded-lg flex gap-2">
-                <div className="flex-1 space-y-1">
-                  <input
-                    type="text"
-                    value={item.q}
-                    onChange={(e) => updateFaqItem(i, "q", e.target.value)}
-                    placeholder="Pergunta"
-                    className={fieldCompactClass}
-                  />
-                  <textarea
-                    value={item.a}
-                    onChange={(e) => updateFaqItem(i, "a", e.target.value)}
-                    placeholder="Resposta"
-                    rows={2}
-                    className={`${fieldCompactClass} resize-y min-h-[72px]`}
-                  />
+                <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="flex gap-2">
+                    <div className="flex-1 space-y-2">
+                      <input type="text" value={item.q} onChange={(e) => updateFaqItem(i, "q", e.target.value)} placeholder="Pergunta" className={compactFieldClass} />
+                      <textarea value={item.a} onChange={(e) => updateFaqItem(i, "a", e.target.value)} placeholder="Resposta" rows={2} className={cn(compactFieldClass, "min-h-[80px] resize-y")} />
+                    </div>
+                    <button type="button" onClick={() => removeFaqItem(i)} className="rounded-xl p-2 text-rose-200 transition hover:bg-rose-500/10" aria-label="Remover FAQ">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <button type="button" onClick={() => removeFaqItem(i)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-            <button type="button" onClick={addFaqItem} className="text-sm text-blue-600 hover:underline">
-              + Adicionar FAQ
-            </button>
+              ))}
+              <button type="button" onClick={addFaqItem} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.06]">
+                <Plus className="h-4 w-4" />
+                Adicionar FAQ
+              </button>
             </div>
           </details>
-        </div>
-      </div>
-
-      <div className="shrink-0 flex gap-3 pt-4">
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-        >
-          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {post ? "Salvar" : "Criar"}
-        </button>
-        {post && (
-          <a
-            href={`/post/${post.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-2 border border-slate-500 text-slate-100 rounded-lg hover:bg-slate-800"
-          >
-            Visualizar
-          </a>
-        )}
+        </aside>
       </div>
 
       {helpPopup && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setHelpPopup(false)}
-          role="button"
-          tabIndex={0}
-          aria-label="Fechar ajuda"
-        >
-          <div
-            className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-4 border-b border-slate-200 shrink-0">
-              <h2 className="text-lg font-semibold text-slate-900">Guia do Editor de Posts</h2>
-              <button
-                type="button"
-                onClick={() => setHelpPopup(false)}
-                className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
-                aria-label="Fechar"
-              >
-                <X className="w-5 h-5" />
+        <DialogShell onClose={() => setHelpPopup(false)} label="Fechar ajuda">
+          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#0b1220] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 p-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Guia rapido</p>
+                <h2 className="mt-1 text-xl font-semibold text-white">Editor de posts</h2>
+              </div>
+              <button type="button" onClick={() => setHelpPopup(false)} className="rounded-xl p-2 text-slate-300 hover:bg-white/10" aria-label="Fechar">
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-4 overflow-y-auto flex-1">
+            <div className="flex-1 overflow-y-auto bg-slate-50 p-5">
               <EditorHelpContent />
             </div>
           </div>
-        </div>
+        </DialogShell>
       )}
 
       {linkPopup && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-xl shadow-xl max-w-md w-full mx-4">
-            <h3 className="font-semibold mb-3">Inserir link</h3>
-            <input
-              type="url"
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              placeholder="https://..."
-              className="w-full px-3 py-2 border rounded-lg mb-3"
-              autoFocus
-            />
-            <div className="flex gap-2 mb-3">
-              {(["follow", "nofollow", "sponsored"] as const).map((r) => (
-                <label key={r} className="flex items-center gap-1 text-sm cursor-pointer">
-                  <input type="radio" checked={linkRel === r} onChange={() => setLinkRel(r)} />
-                  {r}
+        <DialogShell onClose={() => setLinkPopup(false)} label="Fechar link">
+          <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#0b1220] p-5 shadow-2xl">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Link</p>
+                <h3 className="mt-1 text-xl font-semibold text-white">Inserir link</h3>
+              </div>
+              <button type="button" onClick={() => setLinkPopup(false)} className="rounded-xl p-2 text-slate-300 hover:bg-white/10" aria-label="Fechar">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <input type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://..." className={fieldClass} autoFocus />
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {(["follow", "nofollow", "sponsored"] as const).map((rel) => (
+                <label key={rel} className={cn("cursor-pointer rounded-2xl border px-3 py-2 text-center text-xs font-semibold transition", linkRel === rel ? "border-cyan-300/50 bg-cyan-300/15 text-cyan-100" : "border-white/10 text-slate-400 hover:bg-white/5")}>
+                  <input type="radio" checked={linkRel === rel} onChange={() => setLinkRel(rel)} className="sr-only" />
+                  {rel}
                 </label>
               ))}
             </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={applyLink} className="px-4 py-2 bg-blue-600 text-white rounded-lg">
-                Aplicar
-              </button>
-              <button type="button" onClick={() => setLinkPopup(false)} className="px-4 py-2 border rounded-lg">
-                Cancelar
-              </button>
+            <div className="mt-5 flex gap-3">
+              <button type="button" onClick={applyLink} className="rounded-2xl bg-cyan-200 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-white">Aplicar</button>
+              <button type="button" onClick={() => setLinkPopup(false)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-200 hover:bg-white/5">Cancelar</button>
             </div>
           </div>
-        </div>
+        </DialogShell>
+      )}
+
+      {imagePopup && (
+        <DialogShell onClose={() => setImagePopup(false)} label="Fechar imagem">
+          <div className="w-full max-w-2xl rounded-[28px] border border-white/10 bg-[#0b1220] p-5 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Midia no conteudo</p>
+                <h3 className="mt-1 text-xl font-semibold text-white">Inserir imagem na materia</h3>
+                <p className="mt-2 text-sm text-slate-400">Envie uma imagem ou cole uma URL. O alt text ajuda em acessibilidade e SEO.</p>
+              </div>
+              <button type="button" onClick={() => setImagePopup(false)} className="rounded-xl p-2 text-slate-300 hover:bg-white/10" aria-label="Fechar">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_220px]">
+              <div className="space-y-4">
+                <button type="button" onClick={() => contentImageInputRef.current?.click()} disabled={uploadingContentImage} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-cyan-300/30 bg-cyan-300/10 px-4 py-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20 disabled:opacity-60">
+                  {uploadingContentImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+                  {uploadingContentImage ? "Enviando imagem..." : "Enviar do computador"}
+                </button>
+                <div>
+                  <label className={labelClass}>URL da imagem</label>
+                  <input type="url" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." className={fieldClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Alt text</label>
+                  <input type="text" value={imageAlt} onChange={(e) => setImageAlt(e.target.value)} placeholder="Descreva a imagem para leitores e buscadores" className={fieldClass} />
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                {imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imageUrl} alt="" className="h-full min-h-[220px] w-full object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
+                ) : (
+                  <div className="flex h-full min-h-[220px] items-center justify-center px-6 text-center text-sm text-slate-500">A previa aparece aqui assim que uma imagem for selecionada.</div>
+                )}
+              </div>
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button type="button" onClick={insertImageIntoContent} disabled={!imageUrl.trim()} className="rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50">Inserir no texto</button>
+              <button type="button" onClick={() => setImagePopup(false)} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/5">Cancelar</button>
+            </div>
+          </div>
+        </DialogShell>
       )}
     </form>
   );
 }
 
-function EditorToolbar({ editor, onLinkClick }: { editor: Editor | null; onLinkClick: () => void }) {
+function MetricPill({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+      <span className="text-cyan-200">{icon}</span>
+      <span>
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</span>
+        <span className="block text-sm font-semibold text-slate-100">{value}</span>
+      </span>
+    </div>
+  );
+}
+
+function SidebarTitle({ icon, eyebrow, title }: { icon: React.ReactNode; eyebrow: string; title: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-2 text-cyan-100">{icon}</span>
+      <span>
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">{eyebrow}</span>
+        <span className="block text-lg font-semibold tracking-tight text-white">{title}</span>
+      </span>
+    </div>
+  );
+}
+
+function DialogShell({ children, onClose, label }: { children: React.ReactNode; onClose: () => void; label: string }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose} role="button" tabIndex={0} aria-label={label}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function EditorToolbar({ editor, onLinkClick, onImageClick }: { editor: Editor | null; onLinkClick: () => void; onImageClick: () => void }) {
   if (!editor) return null;
   const buttonClass = (active = false) =>
     cn(
-      "p-2 rounded transition-colors",
-      active
-        ? "bg-slate-200 text-slate-900"
-        : "text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+      "inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm transition",
+      active ? "bg-cyan-200 text-slate-950 shadow-[0_10px_30px_rgba(103,232,249,0.16)]" : "text-slate-500 hover:bg-slate-200 hover:text-slate-950"
     );
 
   return (
-    <div className="flex flex-wrap gap-1 p-1.5 bg-slate-100 border border-slate-300 border-b-0 rounded-t-lg">
-      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={buttonClass(editor.isActive("bold"))}>
-        <Bold className="w-4 h-4" />
-      </button>
-      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={buttonClass(editor.isActive("italic"))}>
-        <Italic className="w-4 h-4" />
-      </button>
-      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={buttonClass(editor.isActive("heading", { level: 2 }))}>
-        <Heading2 className="w-4 h-4" />
-      </button>
-      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={buttonClass(editor.isActive("heading", { level: 3 }))}>
-        <Heading3 className="w-4 h-4" />
-      </button>
-      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()} className={buttonClass(editor.isActive("heading", { level: 4 }))}>
-        <Heading4 className="w-4 h-4" />
-      </button>
-      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={buttonClass(editor.isActive("bulletList"))}>
-        <List className="w-4 h-4" />
-      </button>
-      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={buttonClass(editor.isActive("orderedList"))}>
-        <ListOrdered className="w-4 h-4" />
-      </button>
-      <button type="button" onClick={onLinkClick} className={buttonClass(editor.isActive("link"))}>
-        <Link2 className="w-4 h-4" />
-      </button>
-      <button type="button" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} className={buttonClass()}>
-        <Table className="w-4 h-4" />
-      </button>
+    <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 bg-white px-3 py-2">
+      <button type="button" title="Negrito" onClick={() => editor.chain().focus().toggleBold().run()} className={buttonClass(editor.isActive("bold"))}><Bold className="h-4 w-4" /></button>
+      <button type="button" title="Italico" onClick={() => editor.chain().focus().toggleItalic().run()} className={buttonClass(editor.isActive("italic"))}><Italic className="h-4 w-4" /></button>
+      <ToolbarDivider />
+      <button type="button" title="Titulo H2" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={buttonClass(editor.isActive("heading", { level: 2 }))}><Heading2 className="h-4 w-4" /></button>
+      <button type="button" title="Titulo H3" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={buttonClass(editor.isActive("heading", { level: 3 }))}><Heading3 className="h-4 w-4" /></button>
+      <button type="button" title="Titulo H4" onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()} className={buttonClass(editor.isActive("heading", { level: 4 }))}><Heading4 className="h-4 w-4" /></button>
+      <ToolbarDivider />
+      <button type="button" title="Lista" onClick={() => editor.chain().focus().toggleBulletList().run()} className={buttonClass(editor.isActive("bulletList"))}><List className="h-4 w-4" /></button>
+      <button type="button" title="Lista numerada" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={buttonClass(editor.isActive("orderedList"))}><ListOrdered className="h-4 w-4" /></button>
+      <button type="button" title="Citacao" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={buttonClass(editor.isActive("blockquote"))}><Quote className="h-4 w-4" /></button>
+      <button type="button" title="Linha divisoria" onClick={() => editor.chain().focus().setHorizontalRule().run()} className={buttonClass()}><Minus className="h-4 w-4" /></button>
+      <ToolbarDivider />
+      <button type="button" title="Link" onClick={onLinkClick} className={buttonClass(editor.isActive("link"))}><Link2 className="h-4 w-4" /></button>
+      <button type="button" title="Imagem" onClick={onImageClick} className={buttonClass()}><ImagePlus className="h-4 w-4" /></button>
+      <button type="button" title="Tabela" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} className={buttonClass()}><Table className="h-4 w-4" /></button>
+      <ToolbarDivider />
+      <button type="button" title="Desfazer" onClick={() => editor.chain().focus().undo().run()} className={buttonClass()}><Undo2 className="h-4 w-4" /></button>
+      <button type="button" title="Refazer" onClick={() => editor.chain().focus().redo().run()} className={buttonClass()}><Redo2 className="h-4 w-4" /></button>
     </div>
   );
+}
+
+function ToolbarDivider() {
+  return <span className="mx-1 h-6 w-px bg-slate-200" />;
 }

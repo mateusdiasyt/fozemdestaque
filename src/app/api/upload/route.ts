@@ -2,7 +2,7 @@ import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { auth, hasPermission } from "@/lib/auth";
 
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB (Vercel body limit ~4.5MB)
+const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = [
   "image/jpeg",
   "image/jpg",
@@ -14,9 +14,16 @@ const ALLOWED_TYPES = [
 export async function POST(request: Request) {
   try {
     const session = await auth();
-    if (!session?.user || !hasPermission((session.user.role as "administrador" | "editor" | "colaborador") ?? "colaborador", "banners")) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    const role =
+      (session?.user?.role as "administrador" | "editor" | "colaborador") ??
+      "colaborador";
+    const canUpload =
+      hasPermission(role, "banners") || hasPermission(role, "posts");
+
+    if (!session?.user || !canUpload) {
+      return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
     }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
@@ -29,16 +36,14 @@ export async function POST(request: Request) {
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
-        {
-          error: `Tipo não permitido. Use: JPEG, PNG, WebP ou GIF`,
-        },
+        { error: "Tipo nao permitido. Use: JPEG, PNG, WebP ou GIF" },
         { status: 400 }
       );
     }
 
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
-        { error: "Arquivo muito grande. Máximo 5MB" },
+        { error: "Arquivo muito grande. Maximo 5MB" },
         { status: 400 }
       );
     }
@@ -47,14 +52,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "BLOB_READ_WRITE_TOKEN não configurado. Crie um Blob Store no painel da Vercel e adicione a variável de ambiente.",
+            "BLOB_READ_WRITE_TOKEN nao configurado. Crie um Blob Store no painel da Vercel e adicione a variavel de ambiente.",
         },
         { status: 500 }
       );
     }
 
     const ext = file.name.split(".").pop() || "jpg";
-    const pathname = `banners/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const pathname = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
     const blob = await put(pathname, file, {
       access: "public",

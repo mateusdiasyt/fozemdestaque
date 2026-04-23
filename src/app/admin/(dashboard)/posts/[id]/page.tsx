@@ -13,12 +13,26 @@ export default async function EditPostPage({
   const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
   if (!post) notFound();
   const allCategories = await db.select().from(categories);
+
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)]">
-      <h1 className="text-2xl font-bold text-slate-100 mb-4 shrink-0">Editar Post</h1>
-      <div className="flex-1 min-h-0">
-        <PostEditor post={post} categories={allCategories} />
-      </div>
+    <div className="space-y-6 pb-10">
+      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(103,232,249,0.18),transparent_32%),linear-gradient(135deg,#111a2b,#070b14)] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.28)] sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-200/80">Admin / Conteudo</p>
+        <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Editar Post</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+              Ajuste texto, imagens, publicacao e SEO de forma centralizada, com uma area de escrita mais clara e moderna.
+            </p>
+          </div>
+          <div className="max-w-md rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
+            <span className="block text-xs uppercase tracking-[0.2em] text-slate-500">Editando</span>
+            <span className="line-clamp-1 font-semibold text-slate-100">{post.title}</span>
+          </div>
+        </div>
+      </section>
+
+      <PostEditor post={post} categories={allCategories} />
     </div>
   );
 }
