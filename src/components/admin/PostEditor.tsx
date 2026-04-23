@@ -80,6 +80,28 @@ interface PostEditorProps {
   categories: Category[];
 }
 
+const DEFAULT_SINGLE_IMAGE_WIDTH = 720;
+const MIN_SINGLE_IMAGE_WIDTH = 220;
+const MAX_SINGLE_IMAGE_WIDTH = 1100;
+
+function clampSingleImageWidth(value: unknown) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return DEFAULT_SINGLE_IMAGE_WIDTH;
+  return Math.min(MAX_SINGLE_IMAGE_WIDTH, Math.max(MIN_SINGLE_IMAGE_WIDTH, Math.round(numeric)));
+}
+
+function parseSingleImageWidth(element: Element) {
+  const figure = element.closest("figure[data-single-image]");
+  const directValue = figure?.getAttribute("data-width") ?? element.getAttribute("data-width");
+  if (directValue) return clampSingleImageWidth(directValue);
+
+  const figureStyle = figure?.getAttribute("style") ?? "";
+  const widthMatch = figureStyle.match(/width:\s*(?:min\(100%,\s*)?(\d+(?:\.\d+)?)px/i);
+  if (widthMatch?.[1]) return clampSingleImageWidth(widthMatch[1]);
+
+  return DEFAULT_SINGLE_IMAGE_WIDTH;
+}
+
 const LinkWithRel = Link.extend({
   addAttributes() {
     const parent = this.parent?.() ?? {};
@@ -104,11 +126,17 @@ const ImageWithLink = Image.extend({
         parseHTML: (element) => element.closest("a")?.getAttribute("href") ?? element.getAttribute("data-href"),
         renderHTML: () => ({}),
       },
+      width: {
+        default: DEFAULT_SINGLE_IMAGE_WIDTH,
+        parseHTML: (element) => parseSingleImageWidth(element),
+        renderHTML: () => ({}),
+      },
     };
   },
 
   renderHTML({ HTMLAttributes }) {
-    const { href, ...imageAttributes } = HTMLAttributes as Record<string, unknown>;
+    const { href, width, ...imageAttributes } = HTMLAttributes as Record<string, unknown>;
+    const resolvedWidth = clampSingleImageWidth(width);
     const altText = typeof imageAttributes.alt === "string" ? imageAttributes.alt.trim() : "";
     const imageNode = [
       "img",
@@ -133,7 +161,8 @@ const ImageWithLink = Image.extend({
       "figure",
       {
         "data-single-image": "true",
-        style: "margin:32px 0;text-align:center",
+        "data-width": String(resolvedWidth),
+        style: `margin:32px auto;text-align:center;width:min(100%,${resolvedWidth}px)`,
       },
       mediaNode,
       [
@@ -168,6 +197,10 @@ type PendingImage = ImageGridItem & {
   error?: string;
 };
 
+type EditableContentImage = ImageGridItem & {
+  width?: number;
+};
+
 interface ContentLayer {
   id: string;
   index: number;
@@ -196,7 +229,7 @@ interface SelectedGridImage {
   gridPos?: number;
   imagePos?: number;
   imageIndex: number;
-  image: ImageGridItem;
+  image: EditableContentImage;
   total: number;
 }
 
@@ -212,6 +245,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const router = useRouter();
   const contentImageInputRef = useRef<HTMLInputElement>(null);
   const featuredImageInputRef = useRef<HTMLInputElement>(null);
+  const editorSurfaceRef = useRef<HTMLDivElement>(null);
 
   const [title, setTitle] = useState(post?.title ?? "");
   const [slug, setSlug] = useState(post?.slug ?? "");
@@ -494,25 +528,27 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     setMediaImages([]);
   }
 
-  function updateSelectedGridImage(patch: Partial<ImageGridItem>) {
+  function updateSelectedGridImage(patch: Partial<EditableContentImage>) {
     if (!editor || !selectedGridImage) return;
     if (selectedGridImage.type === "single") {
       const imagePos = selectedGridImage.imagePos;
       if (typeof imagePos !== "number") return;
       const node = editor.state.doc.nodeAt(imagePos);
       if (!node || node.type.name !== "image") return;
+      const nextWidth = clampSingleImageWidth(patch.width ?? node.attrs.width);
 
       const nextImage = {
         src: String(node.attrs.src || ""),
         alt: String(patch.alt ?? node.attrs.alt ?? ""),
         href: String(patch.href ?? node.attrs.href ?? ""),
+        width: nextWidth,
       };
 
       editor
         .chain()
         .focus()
         .command(({ tr, dispatch }) => {
-          dispatch?.(tr.setNodeMarkup(imagePos, undefined, { ...node.attrs, ...patch }));
+          dispatch?.(tr.setNodeMarkup(imagePos, undefined, { ...node.attrs, ...patch, width: nextWidth }));
           return true;
         })
         .run();
@@ -533,7 +569,13 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     if (!images[selectedGridImage.imageIndex]) return;
 
     const nextImages = images.map((image, index) =>
-      index === selectedGridImage.imageIndex ? { ...image, ...patch } : image
+      index === selectedGridImage.imageIndex
+        ? {
+            ...image,
+            alt: patch.alt ?? image.alt,
+            href: patch.href ?? image.href,
+          }
+        : image
     );
 
     editor
@@ -720,9 +762,17 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             </div>
             <div className="grid gap-4 xl:grid-cols-[290px_minmax(0,1fr)]">
               <ContentLayers editor={editor} />
-              <div className="relative overflow-hidden rounded-[30px] border border-[#e7dccd] bg-[linear-gradient(180deg,#fffdf8_0%,#f8f3ea_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.12)]">
+              <div ref={editorSurfaceRef} className="relative overflow-hidden rounded-[30px] border border-[#e7dccd] bg-[linear-gradient(180deg,#fffdf8_0%,#f8f3ea_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.12)]">
                 <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={() => setImagePopup(true)} />
                 <EditorContent editor={editor} />
+                {editor && selectedGridImage?.type === "single" && (
+                  <ImageResizeOverlay
+                    editor={editor}
+                    selection={selectedGridImage}
+                    containerRef={editorSurfaceRef}
+                    onResize={updateSelectedGridImage}
+                  />
+                )}
                 {selectedGridImage && (
                   <ImageInlineSettings
                     selection={selectedGridImage}
@@ -952,7 +1002,7 @@ function ImageInlineSettings({
 }: {
   selection: SelectedGridImage;
   onClose: () => void;
-  onUpdate: (patch: Partial<ImageGridItem>) => void;
+  onUpdate: (patch: Partial<EditableContentImage>) => void;
 }) {
   const image = selection.image;
 
@@ -1001,6 +1051,179 @@ function ImageInlineSettings({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function ImageResizeOverlay({
+  editor,
+  selection,
+  containerRef,
+  onResize,
+}: {
+  editor: Editor;
+  selection: SelectedGridImage;
+  containerRef: { current: HTMLDivElement | null };
+  onResize: (patch: Partial<EditableContentImage>) => void;
+}) {
+  const [frame, setFrame] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const [activeHandle, setActiveHandle] = useState<"left" | "right" | null>(null);
+  const dragStateRef = useRef<{
+    handle: "left" | "right";
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+    width: number;
+  } | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const measureFrame = useCallback(() => {
+    const container = containerRef.current;
+    const imageElement = findSingleImageElement(editor, selection);
+    if (!container || !imageElement) {
+      setFrame(null);
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const imageRect = imageElement.getBoundingClientRect();
+    setFrame({
+      left: imageRect.left - containerRect.left,
+      top: imageRect.top - containerRect.top,
+      width: imageRect.width,
+      height: imageRect.height,
+    });
+  }, [containerRef, editor, selection]);
+
+  const queueMeasure = useCallback(() => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = window.requestAnimationFrame(() => {
+      rafRef.current = null;
+      measureFrame();
+    });
+  }, [measureFrame]);
+
+  const applyPreviewWidth = useCallback(
+    (nextWidth: number) => {
+      const imageElement = findSingleImageElement(editor, selection);
+      const figureElement = imageElement?.closest<HTMLElement>("figure[data-single-image]");
+      if (!figureElement) return;
+
+      const clampedWidth = clampSingleImageWidth(nextWidth);
+      figureElement.dataset.width = String(clampedWidth);
+      figureElement.style.width = `${clampedWidth}px`;
+      figureElement.style.maxWidth = "100%";
+      queueMeasure();
+    },
+    [editor, queueMeasure, selection]
+  );
+
+  useEffect(() => {
+    measureFrame();
+    const imageElement = findSingleImageElement(editor, selection);
+    if (!imageElement || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => measureFrame());
+    observer.observe(imageElement);
+    window.addEventListener("resize", measureFrame);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measureFrame);
+    };
+  }, [editor, measureFrame, selection]);
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeHandle) return;
+
+    function handlePointerMove(event: PointerEvent) {
+      const dragState = dragStateRef.current;
+      if (!dragState || event.pointerId !== dragState.pointerId) return;
+      event.preventDefault();
+
+      const delta = event.clientX - dragState.startX;
+      const nextWidth = clampSingleImageWidth(
+        dragState.handle === "right" ? dragState.startWidth + delta : dragState.startWidth - delta
+      );
+      dragState.width = nextWidth;
+      applyPreviewWidth(nextWidth);
+    }
+
+    function finishResize(event: PointerEvent) {
+      const dragState = dragStateRef.current;
+      if (!dragState || event.pointerId !== dragState.pointerId) return;
+      event.preventDefault();
+      onResize({ width: dragState.width });
+      dragStateRef.current = null;
+      setActiveHandle(null);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: false });
+    window.addEventListener("pointerup", finishResize);
+    window.addEventListener("pointercancel", finishResize);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", finishResize);
+      window.removeEventListener("pointercancel", finishResize);
+    };
+  }, [activeHandle, applyPreviewWidth, onResize]);
+
+  if (!frame) return null;
+
+  const displayWidth = Math.round(dragStateRef.current?.width ?? selection.image.width ?? frame.width);
+
+  function beginResize(handle: "left" | "right", event: React.PointerEvent<HTMLButtonElement>) {
+    if (!frame) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const currentWidth = clampSingleImageWidth(selection.image.width ?? frame.width);
+    dragStateRef.current = {
+      handle,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startWidth: currentWidth,
+      width: currentWidth,
+    };
+    setActiveHandle(handle);
+  }
+
+  return (
+    <div
+      className="pointer-events-none absolute z-20"
+      style={{
+        left: frame.left,
+        top: frame.top,
+        width: frame.width,
+        height: frame.height,
+      }}
+    >
+      <div className="foz-editor-resize-frame absolute inset-0 rounded-[32px]" />
+      <div className="editorial-image-resize-pill absolute left-1/2 top-3 -translate-x-1/2">
+        {displayWidth}px
+      </div>
+      <button
+        type="button"
+        className="editorial-image-resize-handle pointer-events-auto"
+        data-side="left"
+        aria-label="Diminuir ou aumentar imagem pela esquerda"
+        onPointerDown={(event) => beginResize("left", event)}
+        onClick={(event) => event.stopPropagation()}
+      />
+      <button
+        type="button"
+        className="editorial-image-resize-handle pointer-events-auto"
+        data-side="right"
+        aria-label="Diminuir ou aumentar imagem pela direita"
+        onPointerDown={(event) => beginResize("right", event)}
+        onClick={(event) => event.stopPropagation()}
+      />
     </div>
   );
 }
@@ -1373,11 +1596,12 @@ function getSelectedSingleImageFromClick(editor: Editor, target: HTMLElement): S
     gridPos: undefined,
     imagePos: nodeMatch.pos,
     imageIndex: 0,
-      image: {
-        src: String(nodeMatch.node.attrs.src || ""),
-        alt: String(nodeMatch.node.attrs.alt || ""),
-        href: String(nodeMatch.node.attrs.href || ""),
-      },
+    image: {
+      src: String(nodeMatch.node.attrs.src || ""),
+      alt: String(nodeMatch.node.attrs.alt || ""),
+      href: String(nodeMatch.node.attrs.href || ""),
+      width: clampSingleImageWidth(nodeMatch.node.attrs.width),
+    },
     total: 1,
   };
 }
