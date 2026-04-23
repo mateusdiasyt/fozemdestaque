@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { JSONContent } from "@tiptap/core";
+import { mergeAttributes, type JSONContent } from "@tiptap/core";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -94,6 +94,65 @@ const LinkWithRel = Link.extend({
   },
 });
 
+const ImageWithLink = Image.extend({
+  addAttributes() {
+    const parent = this.parent?.() ?? {};
+    return {
+      ...parent,
+      href: {
+        default: null,
+        parseHTML: (element) => element.closest("a")?.getAttribute("href") ?? element.getAttribute("data-href"),
+        renderHTML: () => ({}),
+      },
+      caption: {
+        default: null,
+        parseHTML: (element) => element.closest("figure")?.querySelector("figcaption")?.textContent ?? null,
+        renderHTML: () => ({}),
+      },
+    };
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    const { href, caption, ...imageAttributes } = HTMLAttributes as Record<string, unknown>;
+    const imageNode = [
+      "img",
+      mergeAttributes(this.options.HTMLAttributes, imageAttributes, {
+        "data-editable-image": "true",
+      }),
+    ];
+    const mediaNode = href
+      ? [
+          "a",
+          {
+            href: String(href),
+            target: "_blank",
+            rel: "noopener noreferrer",
+            style: "display:block;color:inherit;text-decoration:none",
+          },
+          imageNode,
+        ]
+      : imageNode;
+
+    if (!caption) return mediaNode as any;
+
+    return [
+      "figure",
+      {
+        "data-single-image": "true",
+        style: "margin:32px 0;text-align:center",
+      },
+      mediaNode,
+      [
+        "figcaption",
+        {
+          style: "margin-top:10px;color:#64748b;font-size:14px;line-height:1.5",
+        },
+        String(caption),
+      ],
+    ] as any;
+  },
+});
+
 const fieldClass =
   "w-full rounded-2xl border border-white/10 bg-[#070d18] px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/10";
 const compactFieldClass =
@@ -139,7 +198,9 @@ interface LayerDragState {
 }
 
 interface SelectedGridImage {
-  gridPos: number;
+  type: "grid" | "single";
+  gridPos?: number;
+  imagePos?: number;
   imageIndex: number;
   image: ImageGridItem;
   total: number;
@@ -233,7 +294,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3, 4] } }),
-      Image.configure({
+      ImageWithLink.configure({
         inline: false,
         allowBase64: false,
         HTMLAttributes: { class: "rounded-2xl border border-slate-200 shadow-sm" },
@@ -285,10 +346,13 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       }
 
       const target = event.target instanceof HTMLElement ? event.target : null;
-      const figure = target?.closest("figure[data-image-index]");
-      figure?.classList.add("foz-editor-selected-image");
+      const imageElement =
+        selection.type === "grid"
+          ? target?.closest("figure[data-image-index]")
+          : target?.closest("img") ?? findSingleImageElement(editor, selection);
+      imageElement?.classList.add("foz-editor-selected-image");
       event.preventDefault();
-      editor.chain().focus().setNodeSelection(selection.gridPos).run();
+      editor.chain().focus().setNodeSelection(selection.type === "grid" ? selection.gridPos ?? 0 : selection.imagePos ?? 0).run();
       setSelectedGridImage(selection);
     }
 
@@ -304,10 +368,15 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     });
 
     if (!selectedGridImage) return;
-    const grid = findImageGridElement(editor, selectedGridImage);
-    grid
-      ?.querySelector<HTMLElement>(`figure[data-image-index="${selectedGridImage.imageIndex}"]`)
-      ?.classList.add("foz-editor-selected-image");
+    if (selectedGridImage.type === "grid") {
+      const grid = findImageGridElement(editor, selectedGridImage);
+      grid
+        ?.querySelector<HTMLElement>(`figure[data-image-index="${selectedGridImage.imageIndex}"]`)
+        ?.classList.add("foz-editor-selected-image");
+      return;
+    }
+
+    findSingleImageElement(editor, selectedGridImage)?.classList.add("foz-editor-selected-image");
   }, [editor, selectedGridImage]);
 
   const slugWarnings: string[] = [];
@@ -435,7 +504,38 @@ export function PostEditor({ post, categories }: PostEditorProps) {
 
   function updateSelectedGridImage(patch: Partial<ImageGridItem>) {
     if (!editor || !selectedGridImage) return;
-    const node = editor.state.doc.nodeAt(selectedGridImage.gridPos);
+    if (selectedGridImage.type === "single") {
+      const imagePos = selectedGridImage.imagePos;
+      if (typeof imagePos !== "number") return;
+      const node = editor.state.doc.nodeAt(imagePos);
+      if (!node || node.type.name !== "image") return;
+
+      const nextImage = {
+        src: String(node.attrs.src || ""),
+        alt: String(patch.alt ?? node.attrs.alt ?? ""),
+        href: String(patch.href ?? node.attrs.href ?? ""),
+        caption: String(patch.caption ?? node.attrs.caption ?? ""),
+      };
+
+      editor
+        .chain()
+        .focus()
+        .command(({ tr, dispatch }) => {
+          dispatch?.(tr.setNodeMarkup(imagePos, undefined, { ...node.attrs, ...patch }));
+          return true;
+        })
+        .run();
+
+      setSelectedGridImage({
+        ...selectedGridImage,
+        image: nextImage,
+      });
+      return;
+    }
+
+    const gridPos = selectedGridImage.gridPos;
+    if (typeof gridPos !== "number") return;
+    const node = editor.state.doc.nodeAt(gridPos);
     if (!node || node.type.name !== "imageGrid") return;
 
     const images = safeImageGridItems(node.attrs.images);
@@ -449,7 +549,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       .chain()
       .focus()
       .command(({ tr, dispatch }) => {
-        dispatch?.(tr.setNodeMarkup(selectedGridImage.gridPos, undefined, { ...node.attrs, images: nextImages }));
+        dispatch?.(tr.setNodeMarkup(gridPos, undefined, { ...node.attrs, images: nextImages }));
         return true;
       })
       .run();
@@ -873,7 +973,9 @@ function ImageInlineSettings({
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-700">Imagem selecionada</p>
-          <h3 className="mt-1 text-base font-semibold">Imagem {selection.imageIndex + 1} de {selection.total}</h3>
+          <h3 className="mt-1 text-base font-semibold">
+            {selection.type === "grid" ? `Imagem ${selection.imageIndex + 1} de ${selection.total}` : "Imagem do conteudo"}
+          </h3>
         </div>
         <button type="button" onClick={onClose} className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950" aria-label="Fechar ajustes da imagem">
           <X className="h-4 w-4" />
@@ -1240,7 +1342,9 @@ function getSelectedGridImageFromClick(editor: Editor, target: EventTarget | nul
   if (!(target instanceof HTMLElement)) return null;
   const figure = target.closest<HTMLElement>("figure[data-image-index]");
   const grid = figure?.closest<HTMLElement>("[data-image-grid]");
-  if (!figure || !grid || !editor.view.dom.contains(grid)) return null;
+  if (!figure || !grid || !editor.view.dom.contains(grid)) {
+    return getSelectedSingleImageFromClick(editor, target);
+  }
 
   const imageIndex = Number(figure.dataset.imageIndex);
   if (!Number.isInteger(imageIndex) || imageIndex < 0) return null;
@@ -1260,6 +1364,7 @@ function getSelectedGridImageFromClick(editor: Editor, target: EventTarget | nul
     const image = images[imageIndex];
     if (!image) return false;
     selected = {
+      type: "grid",
       gridPos: pos,
       imageIndex,
       image,
@@ -1271,7 +1376,60 @@ function getSelectedGridImageFromClick(editor: Editor, target: EventTarget | nul
   return selected;
 }
 
+function getSelectedSingleImageFromClick(editor: Editor, target: HTMLElement): SelectedGridImage | null {
+  const imageElement = target.closest<HTMLImageElement>("img");
+  if (!imageElement || imageElement.closest("[data-image-grid]") || !editor.view.dom.contains(imageElement)) return null;
+
+  const nodeMatch = findImageNodeFromDom(editor, imageElement);
+  if (!nodeMatch) return null;
+
+  return {
+    type: "single",
+    gridPos: undefined,
+    imagePos: nodeMatch.pos,
+    imageIndex: 0,
+    image: {
+      src: String(nodeMatch.node.attrs.src || ""),
+      alt: String(nodeMatch.node.attrs.alt || ""),
+      href: String(nodeMatch.node.attrs.href || ""),
+      caption: String(nodeMatch.node.attrs.caption || ""),
+    },
+    total: 1,
+  };
+}
+
+function findImageNodeFromDom(editor: Editor, imageElement: HTMLImageElement) {
+  const maybePos = editor.view.posAtDOM(imageElement, 0);
+  const candidatePositions = [maybePos, maybePos - 1, maybePos + 1].filter(
+    (pos) => pos >= 0 && pos <= editor.state.doc.content.size
+  );
+
+  for (const pos of candidatePositions) {
+    const node = editor.state.doc.nodeAt(pos);
+    if (node?.type.name === "image") return { pos, node };
+  }
+
+  const singleImages = Array.from(editor.view.dom.querySelectorAll<HTMLImageElement>("img")).filter(
+    (image) => !image.closest("[data-image-grid]")
+  );
+  const imageDomIndex = singleImages.indexOf(imageElement);
+  if (imageDomIndex < 0) return null;
+
+  let currentImageIndex = -1;
+  let match: { pos: number; node: NonNullable<ReturnType<typeof editor.state.doc.nodeAt>> } | null = null;
+  editor.state.doc.descendants((node, pos) => {
+    if (node.type.name !== "image") return true;
+    currentImageIndex += 1;
+    if (currentImageIndex !== imageDomIndex) return true;
+    match = { pos, node };
+    return false;
+  });
+
+  return match;
+}
+
 function findImageGridElement(editor: Editor, selection: SelectedGridImage) {
+  if (selection.type !== "grid" || typeof selection.gridPos !== "number") return null;
   const node = editor.state.doc.nodeAt(selection.gridPos);
   if (!node || node.type.name !== "imageGrid") return null;
 
@@ -1287,6 +1445,14 @@ function findImageGridElement(editor: Editor, selection: SelectedGridImage) {
       return isSameStringList(images.map((image) => image.src), domSources);
     }) ?? null
   );
+}
+
+function findSingleImageElement(editor: Editor, selection: SelectedGridImage) {
+  if (selection.type !== "single" || typeof selection.imagePos !== "number") return null;
+  const dom = editor.view.nodeDOM(selection.imagePos);
+  if (dom instanceof HTMLImageElement) return dom;
+  if (dom instanceof HTMLElement) return dom.querySelector<HTMLImageElement>("img");
+  return null;
 }
 
 function isSameStringList(first: string[], second: string[]) {
