@@ -739,7 +739,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             </div>
             <div>
               <label className={labelClass}>URL amigavel</label>
-              <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} className={fieldClass} placeholder="url-amigavel" />
+              <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} onBlur={() => setSlug((current) => (current ? slugify(current) : ""))} className={fieldClass} placeholder="url-amigavel" />
               {slugWarnings.length > 0 && <p className="mt-2 text-xs text-amber-200">{slugWarnings.join(" | ")}</p>}
             </div>
           </div>

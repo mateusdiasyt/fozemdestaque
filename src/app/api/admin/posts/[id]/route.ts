@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { hasPermission } from "@/lib/auth";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
+import { auth, hasPermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { posts } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
-import { z } from "zod";
-import { slugify } from "@/lib/utils";
+import { getUniquePostSlug } from "@/lib/post-slugs";
 
 const updatePostSchema = z.object({
   title: z.string().min(2).optional(),
@@ -27,17 +26,23 @@ const updatePostSchema = z.object({
   publishedAt: z.string().optional().nullable(),
 });
 
+function isAllowed(role: string | null | undefined) {
+  return hasPermission((role as "administrador" | "editor" | "colaborador") ?? "colaborador", "posts");
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || !hasPermission((session.user.role as "administrador" | "editor" | "colaborador") ?? "colaborador", "posts")) {
+  if (!session?.user || !isAllowed(session.user.role)) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+
   const { id } = await params;
   const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
   if (!post) return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
+
   return NextResponse.json(post);
 }
 
@@ -46,33 +51,47 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || !hasPermission((session.user.role as "administrador" | "editor" | "colaborador") ?? "colaborador", "posts")) {
+  if (!session?.user || !isAllowed(session.user.role)) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+
   const { id } = await params;
   const body = await req.json();
   const parsed = updatePostSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
+
+  const [current] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
+  if (!current) return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
+
   const updates: Record<string, unknown> = {
     ...parsed.data,
     updatedAt: new Date(),
   };
+
   if (parsed.data.scheduledAt !== undefined) {
     updates.scheduledAt = parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null;
   }
-  if (parsed.data.title && !parsed.data.slug) {
-    updates.slug = slugify(parsed.data.title);
+
+  if (parsed.data.slug !== undefined || parsed.data.title !== undefined) {
+    updates.slug = await getUniquePostSlug(
+      parsed.data.slug ?? current.slug,
+      parsed.data.title ?? current.title,
+      id
+    );
   }
+
   if (parsed.data.status === "publicado") {
-    const [current] = await db.select({ publishedAt: posts.publishedAt }).from(posts).where(eq(posts.id, id)).limit(1);
-    if (!current?.publishedAt) {
+    if (parsed.data.publishedAt !== undefined) {
       updates.publishedAt = parsed.data.publishedAt ? new Date(parsed.data.publishedAt) : new Date();
+    } else if (!current.publishedAt) {
+      updates.publishedAt = new Date();
     }
   }
-  await db.update(posts).set(updates as Record<string, unknown>).where(eq(posts.id, id));
-  return NextResponse.json({ ok: true });
+
+  await db.update(posts).set(updates).where(eq(posts.id, id));
+  return NextResponse.json({ ok: true, slug: updates.slug ?? current.slug });
 }
 
 export async function DELETE(
@@ -80,9 +99,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || !hasPermission((session.user.role as "administrador" | "editor" | "colaborador") ?? "colaborador", "posts")) {
+  if (!session?.user || !isAllowed(session.user.role)) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
+
   const { id } = await params;
   await db.delete(posts).where(eq(posts.id, id));
   return NextResponse.json({ ok: true });
