@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 import {
   BadgeCheck,
+  Check,
   CheckCheck,
   Copy,
   Inbox,
@@ -141,6 +142,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
   const [editingMailboxId, setEditingMailboxId] = useState<string | null>(null);
   const [mailboxDraft, setMailboxDraft] = useState<MailboxDraft>(() => createMailboxDraft(null));
   const [savingMailbox, setSavingMailbox] = useState(false);
+  const [readOverrides, setReadOverrides] = useState<Record<string, boolean>>({});
   const [mailboxFeedback, setMailboxFeedback] = useState<{
     type: "success" | "error";
     text: string;
@@ -155,15 +157,25 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     }
   }, [activeMailboxes, composeMailbox, defaultMailbox]);
 
+  const messagesWithReadState = useMemo(
+    () =>
+      messages.map((message) => ({
+        ...message,
+        read: readOverrides[message.id] ?? message.read,
+      })),
+    [messages, readOverrides]
+  );
+
   const counts = useMemo(() => {
     return {
-      inbox: messages.filter((message) => message.direction === "inbound").length,
-      sent: messages.filter((message) => message.direction === "outbound").length,
-      all: messages.length,
-      unread: messages.filter((message) => message.direction === "inbound" && !message.read)
-        .length,
+      inbox: messagesWithReadState.filter((message) => message.direction === "inbound").length,
+      sent: messagesWithReadState.filter((message) => message.direction === "outbound").length,
+      all: messagesWithReadState.length,
+      unread: messagesWithReadState.filter(
+        (message) => message.direction === "inbound" && !message.read
+      ).length,
     };
-  }, [messages]);
+  }, [messagesWithReadState]);
 
   const mailboxCounts = useMemo(() => {
     return mailboxes.reduce<Record<string, number>>((acc, mailbox) => {
@@ -177,10 +189,10 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
   const filteredMessages = useMemo(() => {
     const byTab =
       activeTab === "inbox"
-        ? messages.filter((message) => message.direction === "inbound")
+        ? messagesWithReadState.filter((message) => message.direction === "inbound")
         : activeTab === "sent"
-          ? messages.filter((message) => message.direction === "outbound")
-          : messages;
+          ? messagesWithReadState.filter((message) => message.direction === "outbound")
+          : messagesWithReadState;
 
     const byMailbox =
       mailboxFilter === "all"
@@ -205,7 +217,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
 
       return haystack.includes(term);
     });
-  }, [activeTab, mailboxFilter, messages, searchQuery]);
+  }, [activeTab, mailboxFilter, messagesWithReadState, searchQuery]);
 
   useEffect(() => {
     if (!filteredMessages.length) {
@@ -278,12 +290,33 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
   }
 
   async function markRead(id: string, read: boolean) {
-    await fetch(`/api/admin/emails/${id}`, {
+    const previousRead =
+      filteredMessages.find((message) => message.id === id)?.read ??
+      messagesWithReadState.find((message) => message.id === id)?.read ??
+      false;
+
+    setReadOverrides((current) => ({ ...current, [id]: read }));
+
+    const response = await fetch(`/api/admin/emails/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ read }),
     });
+
+    if (!response.ok) {
+      setReadOverrides((current) => ({ ...current, [id]: previousRead }));
+      return;
+    }
+
     router.refresh();
+  }
+
+  function handleSelectMessage(message: AdminEmailMessage) {
+    setSelectedId(message.id);
+
+    if (message.direction === "inbound" && !message.read) {
+      void markRead(message.id, true);
+    }
   }
 
   async function deleteMessage(id: string) {
@@ -569,7 +602,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                     message={message}
                     active={selectedMessage?.id === message.id}
                     showMailbox={mailboxFilter === "all"}
-                    onClick={() => setSelectedId(message.id)}
+                    onClick={() => handleSelectMessage(message)}
                   />
                 ))}
               </div>
@@ -1240,14 +1273,16 @@ function MessageRow({
         "w-full px-4 py-4 text-left transition md:px-5",
         active
           ? "bg-cyan-300/8 shadow-[inset_3px_0_0_rgba(103,232,249,0.8)]"
-          : "bg-transparent hover:bg-white/[0.03]"
+          : unread
+            ? "bg-cyan-300/[0.05] hover:bg-cyan-300/[0.08]"
+            : "bg-transparent hover:bg-white/[0.03]"
       )}
     >
       <div className="flex items-start gap-3">
         <div
           className={cn(
             "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold uppercase",
-            unread ? "bg-cyan-300/15 text-cyan-100" : "bg-white/[0.05] text-slate-300"
+            unread ? "bg-cyan-300/15 text-cyan-100" : "bg-white/[0.05] text-slate-400"
           )}
         >
           {identity.initial}
@@ -1257,20 +1292,29 @@ function MessageRow({
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                {unread && <span className="h-2 w-2 rounded-full bg-cyan-300" />}
-                <p className="truncate text-sm font-semibold text-white">{identity.name}</p>
+                <p
+                  className={cn(
+                    "truncate text-sm text-white",
+                    unread ? "font-semibold" : "font-medium"
+                  )}
+                >
+                  {identity.name}
+                </p>
                 {message.status === "failed" && <StatusBadge status={message.status} compact />}
               </div>
               <p className="mt-1 truncate text-xs text-slate-500">{identity.secondary}</p>
             </div>
 
-            <p className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {formatListDate(message.createdAt)}
-            </p>
+            <div className="flex shrink-0 items-center gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                {formatListDate(message.createdAt)}
+              </p>
+              <ReadStateIcon message={message} compact />
+            </div>
           </div>
 
           <div className="mt-3">
-            <p className="line-clamp-1 text-sm font-semibold text-white">
+            <p className={cn("line-clamp-1 text-sm text-white", unread ? "font-semibold" : "font-medium")}>
               {message.subject || "(Sem assunto)"}
             </p>
             <p className="mt-1 line-clamp-1 text-sm leading-6 text-slate-500">
@@ -1309,6 +1353,26 @@ function SidebarMetricRow({
       <p className="text-2xl font-semibold text-white">{value}</p>
     </div>
   );
+}
+
+function ReadStateIcon({
+  message,
+  compact = false,
+}: {
+  message: AdminEmailMessage;
+  compact?: boolean;
+}) {
+  const sizeClass = compact ? "h-3.5 w-3.5" : "h-4 w-4";
+
+  if (message.direction !== "inbound") {
+    return null;
+  }
+
+  if (message.read) {
+    return <CheckCheck className={cn(sizeClass, "text-cyan-500")} aria-label="Visualizado" />;
+  }
+
+  return <Check className={cn(sizeClass, "text-slate-400")} aria-label="Nao visualizado" />;
 }
 
 function TabRailButton({
