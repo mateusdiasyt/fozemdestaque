@@ -23,8 +23,8 @@ export default async function AdminEmailsPage() {
   const defaultMailbox = getDefaultMailbox(mailboxes);
 
   return (
-    <div className="space-y-6 pb-10 text-slate-100">
-      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(103,232,249,0.18),_transparent_30%),linear-gradient(180deg,#0b1020_0%,#060b16_100%)] px-6 py-6 shadow-[0_26px_90px_rgba(2,6,23,0.38)] md:px-8 md:py-8">
+    <div className="admin-emails-page space-y-6 pb-10">
+      <section className="admin-email-hero overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(103,232,249,0.18),_transparent_30%),linear-gradient(180deg,#0b1020_0%,#060b16_100%)] px-6 py-6 shadow-[0_26px_90px_rgba(2,6,23,0.38)] md:px-8 md:py-8">
         <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Admin / Comunicacao</p>
         <div className="mt-4 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
@@ -35,7 +35,7 @@ export default async function AdminEmailsPage() {
               Envie mensagens pelo painel, acompanhe o historico e receba emails do provedor via webhook em uma caixa interna.
             </p>
           </div>
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-5 py-4">
+          <div className="admin-email-default-box rounded-[24px] border border-white/10 bg-white/[0.04] px-5 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Caixa padrao</p>
             <p className="mt-2 max-w-[340px] truncate text-sm font-semibold text-white">{defaultMailbox?.email || getConfiguredFromAddress()}</p>
           </div>

@@ -60,6 +60,118 @@ body {
   background: linear-gradient(180deg, rgba(149, 172, 203, 0.82) 0%, rgba(95, 122, 160, 0.92) 100%);
 }
 
+.admin-emails-page {
+  color: #1b2b42;
+}
+
+.admin-emails-page .admin-email-hero {
+  border-color: rgba(208, 218, 230, 0.92);
+  background:
+    radial-gradient(circle at top left, rgba(125, 211, 252, 0.24), transparent 28%),
+    linear-gradient(180deg, #fcf7ee 0%, #f6f8fb 100%);
+  box-shadow: 0 30px 90px rgba(148, 163, 184, 0.22);
+}
+
+.admin-emails-page .admin-email-default-box,
+.admin-emails-page .admin-email-panel,
+.admin-emails-page .admin-email-drawer {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 252, 0.98) 100%);
+  border-color: rgba(211, 220, 231, 0.92);
+  box-shadow: 0 18px 50px rgba(148, 163, 184, 0.18);
+}
+
+.admin-emails-page .admin-email-input {
+  background: #fff;
+  border-color: rgba(208, 218, 230, 0.98);
+  color: #1b2b42;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.admin-emails-page .admin-email-input::placeholder {
+  color: #8a99ac;
+}
+
+.admin-emails-page .admin-email-input:focus {
+  border-color: rgba(56, 189, 248, 0.62);
+}
+
+.admin-emails-page .admin-email-overlay {
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.admin-emails-page .admin-email-reading-surface {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+  border-color: rgba(211, 220, 231, 0.92);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 16px 42px rgba(148, 163, 184, 0.16);
+}
+
+.admin-emails-page .portal-scrollbar {
+  scrollbar-color: rgba(120, 144, 176, 0.56) rgba(226, 232, 240, 0.72);
+}
+
+.admin-emails-page .portal-scrollbar::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.72);
+}
+
+.admin-emails-page .portal-scrollbar::-webkit-scrollbar-thumb {
+  border-color: rgba(255, 255, 255, 0.95);
+}
+
+.admin-emails-page .text-white,
+.admin-emails-page .text-slate-100,
+.admin-emails-page .text-slate-200,
+.admin-emails-page .text-slate-300 {
+  color: #1b2b42;
+}
+
+.admin-emails-page .text-slate-400 {
+  color: #5f738d;
+}
+
+.admin-emails-page .text-slate-500,
+.admin-emails-page .text-slate-600 {
+  color: #7d8ea4;
+}
+
+.admin-emails-page .text-cyan-200\/80 {
+  color: rgba(14, 116, 144, 0.78);
+}
+
+.admin-emails-page .border-white\/10 {
+  border-color: rgba(211, 220, 231, 0.92);
+}
+
+.admin-emails-page .bg-white\/\[0\.03\],
+.admin-emails-page .bg-white\/\[0\.04\] {
+  background-color: rgba(255, 255, 255, 0.84);
+}
+
+.admin-emails-page .bg-white\/\[0\.05\] {
+  background-color: rgba(236, 242, 248, 0.98);
+}
+
+.admin-emails-page .bg-white\/\[0\.06\] {
+  background-color: rgba(241, 245, 249, 0.94);
+}
+
+.admin-emails-page .hover\:bg-white\/\[0\.06\]:hover,
+.admin-emails-page .hover\:bg-white\/\[0\.08\]:hover {
+  background-color: rgba(241, 245, 249, 0.94);
+}
+
+.admin-emails-page .bg-\[\#09111d\],
+.admin-emails-page .bg-\[\#09111f\],
+.admin-emails-page .bg-\[\#08101c\],
+.admin-emails-page .bg-\[\#0a1220\] {
+  background-color: #ffffff;
+}
+
+.admin-emails-page .bg-slate-950\/70 {
+  background-color: rgba(148, 163, 184, 0.28);
+}
+
 .font-headline {
   font-family: var(--font-sora), sans-serif;
 }

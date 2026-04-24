@@ -108,10 +108,10 @@ const tabs: Array<{
 ];
 
 const inputClass =
-  "w-full rounded-2xl border border-white/10 bg-[#09111f] px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/10";
+  "admin-email-input w-full rounded-2xl border border-white/10 bg-[#09111f] px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/10";
 const labelClass = "mb-2 block text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500";
 const panelClass =
-  "rounded-[30px] border border-white/10 bg-[#09111d] shadow-[0_24px_70px_rgba(0,0,0,0.28)]";
+  "admin-email-panel rounded-[30px] border border-white/10 bg-[#09111d] shadow-[0_24px_70px_rgba(0,0,0,0.28)]";
 
 export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProps) {
   const router = useRouter();
@@ -401,7 +401,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
   }
 
   return (
-    <div className="space-y-5 text-slate-100">
+    <div className="admin-email-shell space-y-5 text-slate-100">
       <section className={cn(panelClass, "overflow-hidden p-4 md:p-5")}>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -589,9 +589,9 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
       </section>
 
       {composeOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm">
+        <div className="admin-email-overlay fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm">
           <div className="flex h-full justify-end p-4 md:p-6">
-            <div className="flex h-full w-full max-w-[680px] flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[#08101c] shadow-[0_34px_120px_rgba(0,0,0,0.5)]">
+            <div className="admin-email-drawer flex h-full w-full max-w-[680px] flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[#08101c] shadow-[0_34px_120px_rgba(0,0,0,0.5)]">
               <div className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-5 md:px-6">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-cyan-200/80">
@@ -725,9 +725,9 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
       )}
 
       {configOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm">
+        <div className="admin-email-overlay fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm">
           <div className="flex h-full justify-end p-4 md:p-6">
-            <div className="flex h-full w-full max-w-[560px] flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[#08101c] shadow-[0_34px_120px_rgba(0,0,0,0.5)]">
+            <div className="admin-email-drawer flex h-full w-full max-w-[560px] flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[#08101c] shadow-[0_34px_120px_rgba(0,0,0,0.5)]">
               <div className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-5 md:px-6">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-cyan-200/80">
@@ -1194,7 +1194,7 @@ function EmailReadingPane({
       )}
 
       <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6 portal-scrollbar">
-        <div className="mx-auto max-w-3xl rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(7,13,24,0.92)_100%)] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] md:p-8">
+        <div className="admin-email-reading-surface mx-auto max-w-3xl rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(7,13,24,0.92)_100%)] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] md:p-8">
           <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
