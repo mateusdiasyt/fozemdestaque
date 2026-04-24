@@ -771,37 +771,79 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
               </div>
 
               <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ConfigStatusItem
-                    icon={<ShieldCheck className="h-4 w-4" />}
-                    label="Envio Resend"
-                    value={config.canSend ? "RESEND_API_KEY configurada" : "RESEND_API_KEY pendente"}
-                    ok={config.canSend}
-                  />
-                  <ConfigStatusItem
-                    icon={<Webhook className="h-4 w-4" />}
-                    label="Webhook de entrada"
-                    value={config.inboundWebhookUrl}
-                    ok={true}
-                    actionLabel={copied ? "Copiado" : "Copiar"}
-                    onAction={copyWebhook}
-                  />
-                  <ConfigStatusItem
-                    icon={<BadgeCheck className="h-4 w-4" />}
-                    label="Segredo inbound"
-                    value={
-                      config.webhookSecretConfigured
-                        ? "EMAIL_WEBHOOK_SECRET configurado"
-                        : "EMAIL_WEBHOOK_SECRET pendente"
-                    }
-                    ok={config.webhookSecretConfigured}
-                  />
-                  <ConfigStatusItem
-                    icon={<Mail className="h-4 w-4" />}
-                    label="Remetente padrao"
-                    value={defaultMailbox?.email || config.fromAddress}
-                    ok={Boolean(defaultMailbox?.email || config.fromAddress)}
-                  />
+                <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="max-w-md">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        Infraestrutura
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-white">
+                        Conexao da central pronta para operar
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-slate-400">
+                        Os detalhes tecnicos ficam recolhidos para a interface nao parecer um painel
+                        de servidor.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <InlineStatusTag
+                        label={config.canSend ? "Envio ativo" : "Envio pendente"}
+                        ok={config.canSend}
+                      />
+                      <InlineStatusTag
+                        label={
+                          config.webhookSecretConfigured
+                            ? "Inbound protegido"
+                            : "Secret pendente"
+                        }
+                        ok={config.webhookSecretConfigured}
+                      />
+                    </div>
+                  </div>
+
+                  <details className="mt-4 group">
+                    <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 transition hover:text-white">
+                      Ver detalhes tecnicos
+                    </summary>
+
+                    <div className="mt-4 grid gap-3">
+                      <TechnicalLine
+                        icon={<ShieldCheck className="h-4 w-4" />}
+                        label="Envio Resend"
+                        value={
+                          config.canSend
+                            ? "RESEND_API_KEY configurada"
+                            : "RESEND_API_KEY pendente"
+                        }
+                        ok={config.canSend}
+                      />
+                      <TechnicalLine
+                        icon={<BadgeCheck className="h-4 w-4" />}
+                        label="Segredo inbound"
+                        value={
+                          config.webhookSecretConfigured
+                            ? "EMAIL_WEBHOOK_SECRET configurado"
+                            : "EMAIL_WEBHOOK_SECRET pendente"
+                        }
+                        ok={config.webhookSecretConfigured}
+                      />
+                      <TechnicalLine
+                        icon={<Mail className="h-4 w-4" />}
+                        label="Remetente padrao"
+                        value={defaultMailbox?.email || config.fromAddress}
+                        ok={Boolean(defaultMailbox?.email || config.fromAddress)}
+                      />
+                      <TechnicalLine
+                        icon={<Webhook className="h-4 w-4" />}
+                        label="Webhook de entrada"
+                        value={config.inboundWebhookUrl}
+                        ok={true}
+                        actionLabel={copied ? "Copiado" : "Copiar"}
+                        onAction={copyWebhook}
+                      />
+                    </div>
+                  </details>
                 </div>
 
                 <div className="mt-5 rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
@@ -1361,7 +1403,22 @@ function CompactMailboxRow({
   );
 }
 
-function ConfigStatusItem({
+function InlineStatusTag({ label, ok }: { label: string; ok: boolean }) {
+  return (
+    <span
+      className={cn(
+        "rounded-full border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em]",
+        ok
+          ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+          : "border-amber-300/20 bg-amber-300/10 text-amber-100"
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
+function TechnicalLine({
   icon,
   label,
   value,
@@ -1377,8 +1434,8 @@ function ConfigStatusItem({
   onAction?: () => void;
 }) {
   return (
-    <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex items-start justify-between gap-3">
+    <div className="flex flex-col gap-3 rounded-[22px] border border-white/10 bg-[#0a1220] p-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex min-w-0 items-start gap-3">
         <span
           className={cn(
             "rounded-2xl border p-2",
@@ -1389,6 +1446,16 @@ function ConfigStatusItem({
         >
           {icon}
         </span>
+
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {label}
+          </p>
+          <p className="mt-2 break-words text-sm leading-6 text-slate-200">{value}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 sm:flex-col sm:items-end">
         <span
           className={cn(
             "rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em]",
@@ -1399,23 +1466,18 @@ function ConfigStatusItem({
         >
           {ok ? "Ok" : "Pendente"}
         </span>
+
+        {actionLabel && onAction && (
+          <button
+            type="button"
+            onClick={onAction}
+            className="inline-flex items-center gap-2 text-xs font-semibold text-cyan-100 transition hover:text-white"
+          >
+            <Copy className="h-4 w-4" />
+            {actionLabel}
+          </button>
+        )}
       </div>
-
-      <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-2 break-words text-sm leading-6 text-slate-200">{value}</p>
-
-      {actionLabel && onAction && (
-        <button
-          type="button"
-          onClick={onAction}
-          className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-cyan-100 transition hover:text-white"
-        >
-          <Copy className="h-4 w-4" />
-          {actionLabel}
-        </button>
-      )}
     </div>
   );
 }
