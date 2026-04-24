@@ -24,6 +24,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { MAX_EMAIL_MAILBOXES } from "@/lib/email-mailbox-config";
 import { cn } from "@/lib/utils";
 
 export interface AdminEmailMessage {
@@ -236,6 +237,8 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     mailboxFilter === "all"
       ? null
       : activeMailboxes.find((mailbox) => mailbox.email === mailboxFilter) ?? null;
+  const mailboxLimitReached =
+    !editingMailboxId && mailboxes.length >= MAX_EMAIL_MAILBOXES;
 
   async function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -866,12 +869,16 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                       <p className="mt-2 text-lg font-semibold text-white">
                         {mailboxes.length} caixa(s) internas
                       </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Limite de {MAX_EMAIL_MAILBOXES} caixas.
+                      </p>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => openMailboxEditor(null)}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100 transition hover:bg-cyan-300/20"
+                      disabled={mailboxes.length >= MAX_EMAIL_MAILBOXES}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100 transition hover:bg-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-45"
                     >
                       <Plus className="h-4 w-4" />
                       Nova
@@ -964,6 +971,11 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                       <h4 className="mt-2 text-lg font-semibold text-white">
                         {editingMailboxId ? "Editar caixa" : "Nova caixa"}
                       </h4>
+                      {!editingMailboxId && (
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          {mailboxes.length}/{MAX_EMAIL_MAILBOXES} caixas em uso.
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -1051,7 +1063,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                   <div className="mt-5 flex flex-wrap gap-3">
                     <button
                       type="submit"
-                      disabled={savingMailbox}
+                      disabled={savingMailbox || mailboxLimitReached}
                       className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {savingMailbox ? (
@@ -1070,6 +1082,12 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                       Limpar
                     </button>
                   </div>
+
+                  {mailboxLimitReached && (
+                    <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+                      Limite atingido: remova uma caixa antes de criar a proxima.
+                    </div>
+                  )}
 
                   {mailboxFeedback && (
                     <div

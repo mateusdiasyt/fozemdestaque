@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth, hasPermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { emailMailboxes } from "@/lib/db/schema";
+import { MAX_EMAIL_MAILBOXES } from "@/lib/email-mailbox-config";
 import { ensureEmailMailboxes, normalizeMailboxEmail } from "@/lib/email-mailboxes";
 import { generateId } from "@/lib/utils";
 
@@ -38,7 +39,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
   }
 
-  await ensureEmailMailboxes();
+  const currentMailboxes = await ensureEmailMailboxes();
+
+  if (currentMailboxes.length >= MAX_EMAIL_MAILBOXES) {
+    return NextResponse.json(
+      { error: `Voce pode ter no maximo ${MAX_EMAIL_MAILBOXES} caixas internas.` },
+      { status: 409 }
+    );
+  }
 
   const parsed = mailboxSchema.safeParse(await req.json());
   if (!parsed.success) {
