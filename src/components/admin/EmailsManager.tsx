@@ -1209,19 +1209,19 @@ function EmailReadingPane({
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <MetaCard
-            label="De"
-            value={
-              message.fromName
-                ? `${message.fromName} <${message.fromEmail}>`
-                : message.fromEmail
-            }
-          />
-          <MetaCard label="Para" value={message.toEmail} />
-          {message.mailboxEmail && <MetaCard label="Caixa" value={message.mailboxEmail} />}
-          {message.provider && <MetaCard label="Origem" value={message.provider} />}
-          {message.providerId && <MetaCard label="ID provedor" value={message.providerId} />}
+        <div className="mt-5 rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <MessageMetaItem
+              label="De"
+              value={
+                message.fromName
+                  ? `${message.fromName} <${message.fromEmail}>`
+                  : message.fromEmail
+              }
+            />
+            <MessageMetaItem label="Para" value={message.toEmail} />
+            {message.mailboxEmail && <MessageMetaItem label="Caixa" value={message.mailboxEmail} />}
+          </div>
         </div>
       </div>
 
@@ -1506,13 +1506,13 @@ function TechnicalLine({
   );
 }
 
-function MetaCard({ label, value }: { label: string; value: string }) {
+function MessageMetaItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+    <div className="min-w-0 rounded-[18px] border border-white/60 bg-white/70 px-4 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
         {label}
       </p>
-      <p className="mt-2 break-words text-sm font-medium leading-6 text-slate-200">{value}</p>
+      <p className="mt-1.5 break-words text-sm font-medium leading-6 text-slate-900">{value}</p>
     </div>
   );
 }
