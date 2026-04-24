@@ -10,6 +10,17 @@ export interface SentEmailResult {
   id: string | null;
 }
 
+export interface ResendReceivedEmail {
+  id: string;
+  from: string | null;
+  to: string[];
+  cc: string[];
+  subject: string | null;
+  text: string | null;
+  html: string | null;
+  messageId: string | null;
+}
+
 export function getConfiguredFromAddress() {
   return process.env.EMAIL_FROM || "Foz em Destaque <admin@fozemdestaque.com>";
 }
@@ -77,6 +88,34 @@ export async function sendEmailWithResend(input: SendEmailInput): Promise<SentEm
   }
 
   return { id: data?.id ?? data?.data?.id ?? null };
+}
+
+export async function fetchReceivedEmailFromResend(emailId: string): Promise<ResendReceivedEmail | null> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey || !emailId) return null;
+
+  const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return null;
+
+  return {
+    id: String(data?.id || emailId),
+    from: data?.from ? String(data.from) : null,
+    to: Array.isArray(data?.to) ? data.to.map((item: unknown) => String(item)) : [],
+    cc: Array.isArray(data?.cc) ? data.cc.map((item: unknown) => String(item)) : [],
+    subject: data?.subject ? String(data.subject) : null,
+    text: data?.text ? String(data.text) : null,
+    html: data?.html ? String(data.html) : null,
+    messageId: data?.message_id ? String(data.message_id) : null,
+  };
 }
 
 function escapeHtml(value: string) {
