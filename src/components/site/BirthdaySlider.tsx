@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SiteImage } from "@/components/site/SiteImage";
 
 export type BirthdaySlideItem = {
   id: string;
@@ -41,7 +42,7 @@ export function BirthdaySlider({ items, className }: BirthdaySliderProps) {
   if (items.length === 0) {
     return (
       <div className="rounded-[26px] border border-[#dbe5ef] bg-white px-6 py-10 text-center text-sm text-[#6a7b87] shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-        Nenhum conteúdo em aniversários no momento.
+        Nenhum conteudo em aniversarios no momento.
       </div>
     );
   }
@@ -128,11 +129,12 @@ function SlideContent({ item }: { item: BirthdaySlideItem }) {
     <div className="relative h-full min-h-[400px] md:min-h-[520px] xl:min-h-[660px]">
       <div className="absolute inset-0">
         {item.image ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
+          <SiteImage
             src={item.image}
             alt={item.title}
             className="h-full w-full object-cover transition-transform duration-700 group-hover/slide:scale-[1.03]"
+            loading="eager"
+            fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#111827_0%,#1e293b_55%,#334155_100%)]" />}
           />
         ) : (
           <div className="h-full w-full bg-[linear-gradient(135deg,#111827_0%,#1e293b_55%,#334155_100%)]" />
@@ -176,7 +178,7 @@ function SlideContent({ item }: { item: BirthdaySlideItem }) {
             </span>
 
             <span className="inline-flex items-center gap-2 text-sm font-semibold text-[#102033] transition-colors group-hover/slide:text-[#ff751f]">
-              Ver conteúdo
+              Ver conteudo
               <ArrowUpRight className="h-4 w-4" />
             </span>
           </div>

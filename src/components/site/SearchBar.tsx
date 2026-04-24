@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
+import { SiteImage } from "@/components/site/SiteImage";
 
 interface PreviewPost {
   id: string;
@@ -84,7 +85,7 @@ export function SearchBar() {
           onFocus={() => q.trim().length >= 2 && preview.length > 0 && setShowPreview(true)}
           onKeyDown={(e) => e.key === "Escape" && setShowPreview(false)}
           className="w-full pl-8 pr-3 py-1.5 bg-transparent border border-white/10 rounded text-white/90 placeholder:text-slate-500 focus:outline-none focus:border-white/30 text-sm"
-          aria-label="Procurar conteúdo"
+          aria-label="Procurar conteudo"
           aria-autocomplete="list"
           aria-expanded={showPreview && (loading || preview.length > 0)}
         />
@@ -109,11 +110,11 @@ export function SearchBar() {
                   >
                     <div className="w-16 h-16 shrink-0 rounded overflow-hidden bg-[#e8ebed]">
                       {post.featuredImage ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
+                        <SiteImage
                           src={post.featuredImage}
                           alt=""
                           className="w-full h-full object-cover"
+                          fallback={<div className="w-full h-full flex items-center justify-center"><span className="text-[#859eac] text-xs font-headline">Foz</span></div>}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">

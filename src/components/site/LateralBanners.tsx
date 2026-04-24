@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { SiteImage } from "@/components/site/SiteImage";
 
 interface Banner {
   id: string;
@@ -17,23 +18,33 @@ export function LateralBanners() {
     Promise.all([
       fetch("/api/banners?position=lateral_1").then((r) => r.json()),
       fetch("/api/banners?position=lateral_2").then((r) => r.json()),
-    ]).then(([b1, b2]) => setBanners([...b1, ...b2])).catch(() => {});
+    ])
+      .then(([b1, b2]) => setBanners([...b1, ...b2]))
+      .catch(() => {});
   }, []);
 
   if (banners.length === 0) return null;
 
   return (
-    <div className="space-y-4 sticky top-4">
-      {banners.map((b) => (
-        <div key={b.id} className="rounded-lg overflow-hidden bg-[#e8ebed] border border-[#e8ebed]">
-          {b.linkUrl ? (
-            <Link href={b.linkUrl} target="_blank" rel="noopener noreferrer">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={b.imageUrl} alt="" className="w-full h-auto block" />
+    <div className="sticky top-4 space-y-4">
+      {banners.map((banner) => (
+        <div key={banner.id} className="overflow-hidden rounded-lg border border-[#e8ebed] bg-[#e8ebed]">
+          {banner.linkUrl ? (
+            <Link href={banner.linkUrl} target="_blank" rel="noopener noreferrer">
+              <SiteImage
+                src={banner.imageUrl}
+                alt=""
+                className="block h-auto w-full"
+                fallback={<div className="aspect-[300/600] w-full bg-[#e8ebed]" />}
+              />
             </Link>
           ) : (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={b.imageUrl} alt="" className="w-full h-auto block" />
+            <SiteImage
+              src={banner.imageUrl}
+              alt=""
+              className="block h-auto w-full"
+              fallback={<div className="aspect-[300/600] w-full bg-[#e8ebed]" />}
+            />
           )}
         </div>
       ))}

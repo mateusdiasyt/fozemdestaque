@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { SiteImage } from "@/components/site/SiteImage";
 
 interface Block {
   id: string;
@@ -31,19 +32,24 @@ export function BlockThumbnails({ type, limit = 1 }: { type: string; limit?: num
 
   if (blocks.length === 0) return null;
 
-  const b = blocks[0];
-  const href = b.link || (b.slug ? `/${b.slug}` : "#");
+  const block = blocks[0];
+  const href = block.link || (block.slug ? `/${block.slug}` : "#");
+
   return (
-    <Link href={href} className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors group">
-      {b.thumbnail && (
-        <div className="w-10 h-10 rounded overflow-hidden shrink-0 bg-[#4e5b60] ring-1 ring-white/20">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={b.thumbnail} alt="" className="w-full h-full object-cover" />
+    <Link href={href} className="group flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-white/10">
+      {block.thumbnail && (
+        <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-[#4e5b60] ring-1 ring-white/20">
+          <SiteImage
+            src={block.thumbnail}
+            alt=""
+            className="h-full w-full object-cover"
+            fallback={<div className="h-full w-full bg-[#4e5b60]" />}
+          />
         </div>
       )}
       <div>
-        <span className="text-xs text-[#859eac] block">{typeLabels[type] ?? type}</span>
-        <span className="font-medium text-white group-hover:text-[#81d303]">{b.title}</span>
+        <span className="block text-xs text-[#859eac]">{typeLabels[type] ?? type}</span>
+        <span className="font-medium text-white group-hover:text-[#81d303]">{block.title}</span>
       </div>
     </Link>
   );

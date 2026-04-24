@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { count, desc, eq } from "drizzle-orm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
+import { SiteImage } from "@/components/site/SiteImage";
 import { db } from "@/lib/db";
 import { categories, posts } from "@/lib/db/schema";
 
@@ -38,7 +39,7 @@ type ReflectionDateParts = {
   year: number | null;
 };
 
-function getPaginationItems(currentPage: number, totalPages: number) {
+function getPáginationItems(currentPage: number, totalPages: number) {
   if (totalPages <= 7) {
     return Array.from({ length: totalPages }, (_, index) => index + 1);
   }
@@ -228,7 +229,7 @@ export default async function CategoryPage({
   const { slug } = await params;
   const resolvedSearch = await searchParams;
   const requestedPage = Number.parseInt(resolvedSearch.page ?? "1", 10);
-  const supportsDateFilter = slug === "reflexao-do-dia";
+  const supportsDateFilter = slug === "reflexão-do-dia";
   const activeDateFilter = supportsDateFilter ? parseDateFilter(resolvedSearch.date) : null;
   const activeDateLabel = formatFilterLabel(activeDateFilter?.raw ?? null);
   const todayFilter = format(new Date(), "yyyy-MM-dd");
@@ -363,7 +364,7 @@ function renderCategoryPage({
   const [lead, ...rest] = items;
   const sidebarStories = rest.slice(0, 4);
   const gridStories = rest.slice(4);
-  const paginationItems = getPaginationItems(currentPage, totalPages);
+  const paginationItems = getPáginationItems(currentPage, totalPages);
 
   function pageHref(page: number) {
     const query = new URLSearchParams();
@@ -405,7 +406,7 @@ function renderCategoryPage({
                 <div className="max-w-xl">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8a9aa5]">Buscar por data</p>
                   <p className="mt-2 text-sm leading-6 text-[#5f707d]">
-                    Escolha uma data para localizar a reflexao correspondente pelo titulo ou pela data salva no post.
+                    Escolha uma data para localizar a reflexão correspondente pelo titulo ou pela data salva no post.
                   </p>
                 </div>
                 {activeDateLabel && (
@@ -426,7 +427,7 @@ function renderCategoryPage({
                   type="submit"
                   className="inline-flex items-center justify-center rounded-full bg-[#102033] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#ff751f]"
                 >
-                  Buscar reflexao
+                  Buscar reflexão
                 </button>
               </form>
 
@@ -459,11 +460,11 @@ function renderCategoryPage({
                 <div className="relative aspect-[16/10] overflow-hidden bg-[#e8ebed]">
                   {lead.featuredImage ? (
                     <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <SiteImage
                         src={lead.featuredImage}
                         alt={lead.title}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                        fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#fff1e5_0%,#f4f6f7_100%)]" />}
                       />
                       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0)_0%,rgba(15,23,42,0.7)_100%)]" />
                     </>
@@ -493,7 +494,7 @@ function renderCategoryPage({
                     )}
                   </div>
                   <span className="inline-flex items-center text-sm font-semibold text-[#102033] transition-colors group-hover:text-[#ff751f]">
-                    Ler materia â†’
+                    Ler matéria →
                   </span>
                 </div>
               </article>
@@ -506,8 +507,12 @@ function renderCategoryPage({
                     <div className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-[#eef2f4]">
                       {post.featuredImage ? (
                         <>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={post.featuredImage} alt={post.title} className="h-full w-full object-cover" />
+                          <SiteImage
+                            src={post.featuredImage}
+                            alt={post.title}
+                            className="h-full w-full object-cover"
+                            fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#fff1e5_0%,#f4f6f7_100%)]" />}
+                          />
                         </>
                       ) : (
                         <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,#fff1e5_0%,#f4f6f7_100%)] text-sm font-medium text-[#8fa0ad]">
@@ -544,11 +549,11 @@ function renderCategoryPage({
                     <div className="aspect-[16/10] overflow-hidden bg-[#eef2f4]">
                       {post.featuredImage ? (
                         <>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
+                          <SiteImage
                             src={post.featuredImage}
                             alt={post.title}
                             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                            fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#fff1e5_0%,#f4f6f7_100%)]" />}
                           />
                         </>
                       ) : (
@@ -579,8 +584,8 @@ function renderCategoryPage({
         <div className="rounded-[24px] border border-dashed border-[#d8e0e7] bg-white px-6 py-16 text-center text-[#5f707d]">
           <p>
             {activeDateLabel
-              ? `Nenhuma reflexao encontrada em ${activeDateLabel}.`
-              : "Nenhum conteudo publicado nesta editoria ainda."}
+              ? `Nenhuma reflexão encontrada em ${activeDateLabel}.`
+              : "Nenhum conteúdo publicado nesta editoria ainda."}
           </p>
           {activeDateFilterRaw && (
             <Link
@@ -603,7 +608,7 @@ function renderCategoryPage({
                 : "bg-[#fff4ea] text-[#ff751f] hover:bg-[#ffe9d6]"
             }`}
           >
-            Pagina anterior
+            Página anterior
           </Link>
 
           {paginationItems.map((item, index) =>
@@ -612,7 +617,7 @@ function renderCategoryPage({
                 key={`ellipsis-${index}`}
                 className="inline-flex h-10 min-w-10 items-center justify-center rounded-full px-2 text-sm font-semibold text-[#9aabb7]"
               >
-                â€¦
+                …
               </span>
             ) : (
               <Link

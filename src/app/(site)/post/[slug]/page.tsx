@@ -4,9 +4,11 @@ import { notFound } from "next/navigation";
 import { and, eq, like, or } from "drizzle-orm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
+import { SiteImage } from "@/components/site/SiteImage";
 import { PostComments } from "@/components/site/PostComments";
 import { db } from "@/lib/db";
 import { categories, contentBlocks, posts } from "@/lib/db/schema";
+import { enhanceContentHtml } from "@/lib/media";
 
 const BLOCK_CATEGORY_MAP: Record<string, { slug: string; label: string }> = {
   aniversario: { slug: "aniversariantes", label: "Aniversários" },
@@ -119,13 +121,14 @@ export default async function PostPage({
   const displayDate = isPost
     ? formatDisplayDate(entry.post.publishedAt ?? entry.post.createdAt)
     : formatDisplayDate(entry.block.updatedAt ?? entry.block.createdAt);
-  const contentHtml = isPost
+  const contentHtmlRaw = isPost
     ? entry.post.content
     : entry.block.content?.trim()
       ? entry.block.content
       : entry.block.excerpt
         ? `<p>${entry.block.excerpt}</p>`
         : "<p>Conteúdo disponível em breve.</p>";
+  const contentHtml = enhanceContentHtml(contentHtmlRaw);
 
   return (
     <article className="overflow-hidden rounded-[38px] border border-[#e5dccd] bg-[linear-gradient(180deg,#fffdf9_0%,#f7f2ea_100%)] shadow-[0_32px_90px_rgba(15,23,42,0.10)]">
@@ -159,8 +162,7 @@ export default async function PostPage({
         <div className="px-6 pt-6 md:px-12 md:pt-10">
           <div className="mx-auto max-w-5xl overflow-hidden rounded-[34px] border border-[#e5dccd] bg-[#f1eadf] shadow-[0_22px_60px_rgba(15,23,42,0.08)]">
             <div className="aspect-[16/9] md:aspect-[21/9]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image} alt={title} className="h-full w-full object-cover" />
+              <SiteImage src={image} alt={title} className="h-full w-full object-cover" loading="eager" fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#fff1e5_0%,#f4f6f7_100%)]" />} />
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ import { Search, X } from "lucide-react";
 import { VisitCounter } from "@/components/site/VisitCounter";
 import { LanguageSwitcher } from "@/components/site/LanguageSwitcher";
 import { HEADER_PRIMARY_CATEGORIES } from "@/lib/menu-items";
+import { SiteImage } from "@/components/site/SiteImage";
 
 interface PreviewPost {
   id: string;
@@ -118,8 +119,7 @@ export function HeaderNav() {
                                 >
                                   <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-[#e8ebed]">
                                     {post.featuredImage ? (
-                                      /* eslint-disable-next-line @next/next/no-img-element */
-                                      <img src={post.featuredImage} alt="" className="h-full w-full object-cover" />
+                                      <SiteImage src={post.featuredImage} alt="" className="h-full w-full object-cover" fallback={<div className="flex h-full w-full items-center justify-center text-xs text-[#859eac]">Foz</div>} />
                                     ) : (
                                       <div className="flex h-full w-full items-center justify-center text-xs text-[#859eac]">Foz</div>
                                     )}
@@ -170,7 +170,7 @@ export function HeaderNav() {
             <Link
               href="/"
               className="absolute left-1/2 flex -translate-x-1/2 items-center transition-opacity hover:opacity-90"
-              aria-label="Foz em Destaque - Página inicial"
+              aria-label="Foz em Destaque - Pagina inicial"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/images/logo-foz-em-destaque.png" alt="Foz em Destaque" className="h-10 w-auto" />

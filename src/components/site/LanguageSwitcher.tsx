@@ -15,18 +15,19 @@ function setGoogleTranslate(lang: string) {
   } else {
     document.cookie = `googtrans=/${SOURCE_LANG}/${lang}; path=/`;
   }
+
   window.location.reload();
 }
 
 export function LanguageSwitcher() {
   return (
     <div className="flex items-center gap-0.5">
-      {LANGUAGES.map((lang, i) => (
+      {LANGUAGES.map((lang, index) => (
         <button
-          key={`${lang.code}-${lang.flag}-${i}`}
+          key={`${lang.code}-${lang.flag}-${index}`}
           type="button"
           onClick={() => setGoogleTranslate(lang.code)}
-          className="p-0.5 hover:opacity-80 transition-opacity"
+          className="p-0.5 transition-opacity hover:opacity-80"
           title={lang.label}
           aria-label={lang.label}
         >
@@ -34,7 +35,7 @@ export function LanguageSwitcher() {
           <img
             src={`https://flagcdn.com/24x18/${lang.flag}.png`}
             alt=""
-            className="h-4 w-auto block"
+            className="block h-4 w-auto"
             loading="lazy"
           />
         </button>

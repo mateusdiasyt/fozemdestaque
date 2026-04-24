@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { SiteImage } from "@/components/site/SiteImage";
 import { cn } from "@/lib/utils";
 
 interface Banner {
@@ -114,11 +115,11 @@ export function BannerCarousel({
                 )}
               >
                 <div className={cn("relative w-full overflow-hidden bg-[#e8ebed]", aspectClassName)}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <SiteImage
                     src={banner.imageUrl}
                     alt={banner.title ?? "Publicidade"}
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                    fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#e8edf1_0%,#f5f7f8_100%)]" />}
                   />
                 </div>
               </article>

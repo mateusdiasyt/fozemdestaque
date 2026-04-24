@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { posts, categories, contentBlocks, banners } from "@/lib/db/schema";
@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 import { BirthdaySlider, type BirthdaySlideItem } from "@/components/site/BirthdaySlider";
 import { HomeAdsMobile, HomeAdsRail, type HomeBannerAd } from "@/components/site/HomeAdsRail";
+import { SiteImage } from "@/components/site/SiteImage";
 
 type PostItem = {
   id: string;
@@ -139,10 +140,10 @@ export default async function HomePage() {
             <div className="relative grid gap-8 xl:grid-cols-[1.12fr_0.88fr]">
               <div className="flex h-full flex-col gap-5">
                 <SectionHeading
-                  title="AniversÃƒÂ¡rios"
+                  title="Aniversários"
                   slug="aniversariantes"
                   eyebrow="Capa do dia"
-                  description="Uma vitrine principal para celebrar os destaques e manter a sensaÃƒÂ§ÃƒÂ£o de capa logo na abertura do portal."
+                  description="Uma vitrine principal para celebrar os destaques e manter a sensação de capa logo na abertura do portal."
                 />
                 <BirthdaySlider items={birthdaySlides} className="flex-1" />
               </div>
@@ -151,7 +152,7 @@ export default async function HomePage() {
                 title="Click Society"
                 slug="click-society"
                 eyebrow="Vida social"
-                description="Eventos, bastidores e personagens da cena social em um bloco editorial mais forte e mais prÃƒÂ³ximo de portal."
+                description="Eventos, bastidores e personagens da cena social em um bloco editorial mais forte e mais próximo de portal."
                 posts={clickSociety}
               />
             </div>
@@ -164,16 +165,16 @@ export default async function HomePage() {
               <EditorialSection
                 title="Datas"
                 slug="datas"
-                eyebrow="CalendÃƒÂ¡rio editorial"
-                description="EfemÃƒÂ©rides, datas especiais e contexto rÃƒÂ¡pido para sustentar a coluna da esquerda com ritmo jornalÃƒÂ­stico."
+                eyebrow="Calendário editorial"
+                description="Efemérides, datas especiais e contexto rápido para sustentar a coluna da esquerda com ritmo jornalístico."
                 posts={datas}
               />
 
               <ReflectionSection
-                title="ReflexÃƒÂµes"
+                title="Reflexões"
                 slug="reflexao-do-dia"
                 eyebrow="Leitura breve"
-                description="Uma pausa de leitura com visual mais autoral, sem perder a lÃƒÂ³gica de portal e de hierarquia de navegaÃƒÂ§ÃƒÂ£o."
+                description="Uma pausa de leitura com visual mais autoral, sem perder a lógica de portal e de hierarquia de navegação."
                 posts={reflexao}
               />
             </div>
@@ -182,8 +183,8 @@ export default async function HomePage() {
               <FeatureSection
                 title="Agenda"
                 slug="agenda"
-                eyebrow="ProgramaÃƒÂ§ÃƒÂ£o"
-                description="Eventos, estreias e movimentos da cidade em um mÃƒÂ³dulo com mais respiro e mais cara de home editorial."
+                eyebrow="Programação"
+                description="Eventos, estreias e movimentos da cidade em um módulo com mais respiro e mais cara de home editorial."
                 posts={agenda}
                 leadHeight="md:min-h-[320px]"
               />
@@ -193,7 +194,7 @@ export default async function HomePage() {
                   title="Ti-ti-ti"
                   slug="ti-ti-ti"
                   eyebrow="Bastidores"
-                  description="Notas rÃƒÂ¡pidas, bastidores e assunto quente em formato de coluna enxuta."
+                  description="Notas rápidas, bastidores e assunto quente em formato de coluna enxuta."
                   posts={tiTiTi}
                 />
 
@@ -201,7 +202,7 @@ export default async function HomePage() {
                   title="Merchandising"
                   slug="merchandising"
                   eyebrow="Mercado"
-                  description="Ofertas, lanÃƒÂ§amentos e presenÃƒÂ§a comercial com leitura mais objetiva e visualmente organizada."
+                  description="Ofertas, lançamentos e presença comercial com leitura mais objetiva e visualmente organizada."
                   posts={merchandising}
                 />
               </div>
@@ -289,11 +290,11 @@ function FeatureSection({
           >
             <div className="absolute inset-0">
               {lead.featuredImage ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
+                <SiteImage
                   src={lead.featuredImage}
                   alt=""
                   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#111827_0%,#334155_50%,#0f172a_100%)]" />}
                 />
               ) : (
                 <div className="h-full w-full bg-[linear-gradient(135deg,#111827_0%,#334155_50%,#0f172a_100%)]" />
@@ -611,8 +612,18 @@ function ThumbImage({
   return (
     <div className={`overflow-hidden rounded-[18px] bg-[#e7ecef] ${className}`}>
       {src ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={src} alt={alt} className="h-full w-full object-cover" />
+        <SiteImage
+          src={src}
+          alt={alt}
+          className="h-full w-full object-cover"
+          fallback={
+            <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#dfe6ea_0%,#f6f7f8_100%)]">
+              <span className="px-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[#718391]">
+                {placeholderLabel}
+              </span>
+            </div>
+          }
+        />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#dfe6ea_0%,#f6f7f8_100%)]">
           <span className="px-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[#718391]">
@@ -633,7 +644,7 @@ function EmptySection({ title, dark = false }: { title: string; dark?: boolean }
           : "border-[#e8edf1] bg-[#fbfcfd] text-[#6a7b87]"
       }`}
     >
-      Nenhum conteÃƒÆ’Ã‚Âºdo em {title.toLowerCase()} no momento.
+      Nenhum conteúdo em {title.toLowerCase()} no momento.
     </div>
   );
 }
