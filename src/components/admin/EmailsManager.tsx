@@ -174,18 +174,6 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     }, {});
   }, [mailboxes, messages]);
 
-  const mailboxUnreadCounts = useMemo(() => {
-    return mailboxes.reduce<Record<string, number>>((acc, mailbox) => {
-      acc[mailbox.email] = messages.filter(
-        (message) =>
-          message.mailboxEmail === mailbox.email &&
-          message.direction === "inbound" &&
-          !message.read
-      ).length;
-      return acc;
-    }, {});
-  }, [mailboxes, messages]);
-
   const filteredMessages = useMemo(() => {
     const byTab =
       activeTab === "inbox"
@@ -471,6 +459,37 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
         )}
       >
         <aside className={cn(panelClass, "overflow-hidden")}>
+          <div className="border-b border-white/10 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                Caixa
+              </p>
+              <button
+                type="button"
+                onClick={() => setConfigOpen(true)}
+                className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
+                aria-label="Abrir configuracao de caixas"
+              >
+                <Settings2 className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-3">
+              <select
+                value={mailboxFilter}
+                onChange={(event) => setMailboxFilter(event.target.value)}
+                className={inputClass}
+              >
+                <option value="all">Todas as caixas</option>
+                {activeMailboxes.map((mailbox) => (
+                  <option key={mailbox.id} value={mailbox.email}>
+                    {mailbox.label} - {mailbox.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="border-b border-white/10 p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
               Resumo rapido
@@ -509,57 +528,6 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                  Caixa
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setConfigOpen(true)}
-                  className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
-                  aria-label="Abrir configuracao de caixas"
-                >
-                  <Settings2 className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="mt-3">
-                <select
-                  value={mailboxFilter}
-                  onChange={(event) => setMailboxFilter(event.target.value)}
-                  className={inputClass}
-                >
-                  <option value="all">Todas as caixas</option>
-                  {activeMailboxes.map((mailbox) => (
-                    <option key={mailbox.id} value={mailbox.email}>
-                      {mailbox.label} - {mailbox.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="mt-3 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
-                <p className="text-sm font-semibold text-white">
-                  {selectedMailbox?.label ?? "Visao unificada"}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">
-                  {selectedMailbox?.email ?? "Todas as caixas internas do portal"}
-                </p>
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-white">
-                    {selectedMailbox
-                      ? mailboxCounts[selectedMailbox.email] ?? 0
-                      : filteredMessages.length}
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                    {selectedMailbox
-                      ? `${mailboxUnreadCounts[selectedMailbox.email] ?? 0} novo(s)`
-                      : `${counts.unread} novo(s)`}
-                  </span>
-                </div>
-              </div>
-            </div>
           </div>
         </aside>
 
