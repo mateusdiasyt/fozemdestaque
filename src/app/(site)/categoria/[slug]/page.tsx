@@ -1,7 +1,7 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 import { SiteImage } from "@/components/site/SiteImage";
@@ -229,10 +229,11 @@ export default async function CategoryPage({
   const { slug } = await params;
   const resolvedSearch = await searchParams;
   const requestedPage = Number.parseInt(resolvedSearch.page ?? "1", 10);
-  const supportsDateFilter = slug === "reflexão-do-dia";
+  const supportsDateFilter = slug === "reflexao-do-dia";
   const activeDateFilter = supportsDateFilter ? parseDateFilter(resolvedSearch.date) : null;
   const activeDateLabel = formatFilterLabel(activeDateFilter?.raw ?? null);
   const todayFilter = format(new Date(), "yyyy-MM-dd");
+  const now = new Date();
 
   const [category] = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
   if (!category || !category.active) notFound();
@@ -251,7 +252,13 @@ export default async function CategoryPage({
         publishedAt: posts.publishedAt,
       })
       .from(posts)
-      .where(eq(posts.categoryId, category.id));
+      .where(
+        and(
+          eq(posts.categoryId, category.id),
+          eq(posts.status, "publicado"),
+          or(isNull(posts.publishedAt), lte(posts.publishedAt, now))
+        )
+      );
 
     const reflectionMatches = allReflectionPosts
       .map((post) => ({
@@ -295,7 +302,13 @@ export default async function CategoryPage({
   const [{ totalItems: countedItems }] = await db
     .select({ totalItems: count() })
     .from(posts)
-    .where(eq(posts.categoryId, category.id));
+    .where(
+      and(
+        eq(posts.categoryId, category.id),
+        eq(posts.status, "publicado"),
+        or(isNull(posts.publishedAt), lte(posts.publishedAt, now))
+      )
+    );
 
   totalItems = countedItems;
 
@@ -314,8 +327,14 @@ export default async function CategoryPage({
       publishedAt: posts.publishedAt,
     })
     .from(posts)
-    .where(eq(posts.categoryId, category.id))
-    .orderBy(desc(posts.publishedAt))
+    .where(
+      and(
+        eq(posts.categoryId, category.id),
+        eq(posts.status, "publicado"),
+        or(isNull(posts.publishedAt), lte(posts.publishedAt, now))
+      )
+    )
+    .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`)
     .limit(PAGE_SIZE)
     .offset(offset);
 

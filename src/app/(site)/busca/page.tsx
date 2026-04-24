@@ -2,7 +2,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 import type { Metadata } from "next";
-import { eq, desc, ilike, or, and } from "drizzle-orm";
+import { eq, ilike, or, and, isNull, lte, sql } from "drizzle-orm";
 import { SiteImage } from "@/components/site/SiteImage";
 import { db } from "@/lib/db";
 import { posts } from "@/lib/db/schema";
@@ -16,6 +16,7 @@ async function getSearchResults(q: string) {
   if (!q.trim()) return [];
 
   const pattern = `%${q.trim()}%`;
+  const now = new Date();
 
   return db
     .select({
@@ -30,10 +31,11 @@ async function getSearchResults(q: string) {
     .where(
       and(
         eq(posts.status, "publicado"),
+        or(isNull(posts.publishedAt), lte(posts.publishedAt, now)),
         or(ilike(posts.title, pattern), ilike(posts.excerpt, pattern), ilike(posts.content, pattern))
       )
     )
-    .orderBy(desc(posts.publishedAt))
+    .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`)
     .limit(50);
 }
 

@@ -2,7 +2,7 @@
 import { ArrowUpRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { posts, categories, contentBlocks, banners } from "@/lib/db/schema";
-import { eq, desc, and, asc } from "drizzle-orm";
+import { eq, and, asc, isNull, lte, or, sql } from "drizzle-orm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 import { BirthdaySlider, type BirthdaySlideItem } from "@/components/site/BirthdaySlider";
@@ -35,6 +35,7 @@ async function getBannersByPosition(position: "lateral_1" | "lateral_2", limit =
 async function getPostsByCategory(slug: string, limit: number): Promise<PostItem[]> {
   const [cat] = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
   if (!cat) return [];
+  const now = new Date();
 
   return db
     .select({
@@ -46,8 +47,14 @@ async function getPostsByCategory(slug: string, limit: number): Promise<PostItem
       publishedAt: posts.publishedAt,
     })
     .from(posts)
-    .where(eq(posts.categoryId, cat.id))
-    .orderBy(desc(posts.publishedAt))
+    .where(
+      and(
+        eq(posts.categoryId, cat.id),
+        eq(posts.status, "publicado"),
+        or(isNull(posts.publishedAt), lte(posts.publishedAt, now))
+      )
+    )
+    .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`)
     .limit(limit);
 }
 

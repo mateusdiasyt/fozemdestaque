@@ -1,7 +1,7 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, eq, like, or } from "drizzle-orm";
+import { and, eq, isNull, like, lte, or } from "drizzle-orm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 import { SiteImage } from "@/components/site/SiteImage";
@@ -22,8 +22,15 @@ const BLOCK_CATEGORY_MAP: Record<string, { slug: string; label: string }> = {
 };
 
 async function getPostBySlug(slug: string) {
-  const [post] = await db.select().from(posts).where(eq(posts.slug, slug)).limit(1);
-  if (!post || post.status !== "publicado") return null;
+  const now = new Date();
+  const [post] = await db
+    .select()
+    .from(posts)
+    .where(
+      and(eq(posts.slug, slug), eq(posts.status, "publicado"), or(isNull(posts.publishedAt), lte(posts.publishedAt, now)))
+    )
+    .limit(1);
+  if (!post) return null;
 
   const [category] = post.categoryId
     ? await db.select().from(categories).where(eq(categories.id, post.categoryId)).limit(1)
