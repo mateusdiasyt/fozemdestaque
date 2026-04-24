@@ -124,7 +124,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
   const [activeTab, setActiveTab] = useState<TabKey>("inbox");
   const [mailboxFilter, setMailboxFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(messages[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState("");
   const [composeMailbox, setComposeMailbox] = useState(defaultMailbox?.email ?? "");
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
@@ -225,14 +225,12 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     }
 
     if (!filteredMessages.some((message) => message.id === selectedId)) {
-      setSelectedId(filteredMessages[0]?.id ?? "");
+      setSelectedId("");
     }
   }, [filteredMessages, selectedId]);
 
   const selectedMessage =
-    filteredMessages.find((message) => message.id === selectedId) ||
-    filteredMessages[0] ||
-    null;
+    filteredMessages.find((message) => message.id === selectedId) || null;
   const activeTabMeta = tabs.find((tab) => tab.key === activeTab) ?? tabs[0];
   const selectedMailbox =
     mailboxFilter === "all"
@@ -461,100 +459,110 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
         </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[260px_390px_minmax(0,1fr)]">
+      <section
+        className={cn(
+          "grid gap-5",
+          selectedMessage
+            ? "xl:grid-cols-[240px_minmax(0,420px)_minmax(0,1fr)]"
+            : "xl:grid-cols-[240px_minmax(0,1fr)]"
+        )}
+      >
         <aside className={cn(panelClass, "overflow-hidden")}>
           <div className="border-b border-white/10 p-5">
-            <div className="grid grid-cols-3 gap-3">
-              <MiniMetric label="Entrada" value={counts.inbox} detail={`${counts.unread} nao lidos`} />
-              <MiniMetric label="Enviados" value={counts.sent} detail="Historico" />
-              <MiniMetric label="Caixas" value={activeMailboxes.length} detail="Ativas" />
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              Resumo rapido
+            </p>
+            <div className="mt-4 space-y-2">
+              <SidebarMetricRow
+                label="Entrada"
+                value={counts.inbox}
+                detail={`${counts.unread} nao lidos`}
+              />
+              <SidebarMetricRow label="Enviados" value={counts.sent} detail="Historico" />
+              <SidebarMetricRow
+                label="Caixas internas"
+                value={activeMailboxes.length}
+                detail="Ativas"
+              />
             </div>
           </div>
 
-          <div className="p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-              Pastas
-            </p>
-            <div className="mt-3 space-y-2">
-              {tabs.map((tab) => (
-                <TabRailButton
-                  key={tab.key}
-                  active={activeTab === tab.key}
-                  icon={tab.icon}
-                  label={tab.label}
-                  count={counts[tab.key]}
-                  description={tab.description}
-                  onClick={() => setActiveTab(tab.key)}
-                />
-              ))}
-            </div>
-
-            <div className="mt-6 flex items-center justify-between gap-3">
+          <div className="space-y-6 p-4">
+            <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                Caixas internas
+                Pastas
               </p>
-              <button
-                type="button"
-                onClick={() => setConfigOpen(true)}
-                className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
-                aria-label="Abrir configuracao de caixas"
-              >
-                <Settings2 className="h-4 w-4" />
-              </button>
+              <div className="mt-3 space-y-2">
+                {tabs.map((tab) => (
+                  <TabRailButton
+                    key={tab.key}
+                    active={activeTab === tab.key}
+                    icon={tab.icon}
+                    label={tab.label}
+                    count={counts[tab.key]}
+                    onClick={() => setActiveTab(tab.key)}
+                  />
+                ))}
+              </div>
             </div>
 
-            <div className="mt-3 space-y-2">
-              <CompactMailboxRow
-                active={mailboxFilter === "all"}
-                label="Todas as caixas"
-                email="Visao unificada do portal"
-                count={messages.length}
-                unread={counts.unread}
-                onClick={() => setMailboxFilter("all")}
-              />
-
-              {activeMailboxes.map((mailbox) => (
-                <CompactMailboxRow
-                  key={mailbox.id}
-                  active={mailboxFilter === mailbox.email}
-                  label={mailbox.label}
-                  email={mailbox.email}
-                  count={mailboxCounts[mailbox.email] ?? 0}
-                  unread={mailboxUnreadCounts[mailbox.email] ?? 0}
-                  isDefault={mailbox.isDefault}
-                  onClick={() => setMailboxFilter(mailbox.email)}
-                />
-              ))}
-            </div>
-
-            <div className="mt-6 rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(14,24,40,0.95)_0%,rgba(8,13,23,0.96)_100%)] p-4">
-              <div className="flex items-start gap-3">
-                <span className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-2 text-cyan-100">
-                  <Webhook className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white">Webhook de entrada</p>
-                  <p className="mt-1 break-words text-xs leading-5 text-slate-400">
-                    {config.inboundWebhookUrl}
-                  </p>
-                </div>
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  Caixa
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setConfigOpen(true)}
+                  className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
+                  aria-label="Abrir configuracao de caixas"
+                >
+                  <Settings2 className="h-4 w-4" />
+                </button>
               </div>
 
-              <button
-                type="button"
-                onClick={copyWebhook}
-                className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-cyan-100 transition hover:text-white"
-              >
-                <Copy className="h-4 w-4" />
-                {copied ? "Copiado" : "Copiar webhook"}
-              </button>
+              <div className="mt-3">
+                <select
+                  value={mailboxFilter}
+                  onChange={(event) => setMailboxFilter(event.target.value)}
+                  className={inputClass}
+                >
+                  <option value="all">Todas as caixas</option>
+                  {activeMailboxes.map((mailbox) => (
+                    <option key={mailbox.id} value={mailbox.email}>
+                      {mailbox.label} - {mailbox.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mt-3 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-sm font-semibold text-white">
+                  {selectedMailbox?.label ?? "Visao unificada"}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">
+                  {selectedMailbox?.email ?? "Todas as caixas internas do portal"}
+                </p>
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-white">
+                    {selectedMailbox
+                      ? mailboxCounts[selectedMailbox.email] ?? 0
+                      : filteredMessages.length}
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                    {selectedMailbox
+                      ? `${mailboxUnreadCounts[selectedMailbox.email] ?? 0} novo(s)`
+                      : `${counts.unread} novo(s)`}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </aside>
 
         <section className={cn(panelClass, "overflow-hidden")}>
           <div className="border-b border-white/10 px-4 py-4 md:px-5">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
                   {activeTabMeta.label}
@@ -563,20 +571,19 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                   {selectedMailbox?.label ?? activeTabMeta.label}
                 </h3>
                 <p className="mt-1 text-sm text-slate-400">
-                  {filteredMessages.length} mensagem(ns)
-                  {searchQuery ? " encontradas na busca atual" : " nesta visualizacao"}.
+                  Clique em uma mensagem para abrir a leitura.
                 </p>
               </div>
 
               <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
-                {counts.unread} nao lidos
+                {filteredMessages.length} resultado(s)
               </div>
             </div>
           </div>
 
-          <div className="max-h-[820px] overflow-y-auto p-3">
+          <div className="max-h-[820px] overflow-y-auto portal-scrollbar">
             {filteredMessages.length === 0 ? (
-              <div className="flex min-h-[340px] flex-col items-center justify-center rounded-[26px] border border-dashed border-white/10 bg-white/[0.02] px-6 text-center">
+              <div className="flex min-h-[340px] flex-col items-center justify-center px-6 text-center">
                 <Inbox className="h-10 w-10 text-slate-600" />
                 <p className="mt-4 text-lg font-semibold text-white">Nada por aqui ainda</p>
                 <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
@@ -584,12 +591,13 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="divide-y divide-white/8">
                 {filteredMessages.map((message) => (
                   <MessageRow
                     key={message.id}
                     message={message}
                     active={selectedMessage?.id === message.id}
+                    showMailbox={mailboxFilter === "all"}
                     onClick={() => setSelectedId(message.id)}
                   />
                 ))}
@@ -598,12 +606,15 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
           </div>
         </section>
 
-        <EmailReadingPane
-          message={selectedMessage}
-          onDelete={deleteMessage}
-          onMarkRead={markRead}
-          onReply={replyToMessage}
-        />
+        {selectedMessage && (
+          <EmailReadingPane
+            message={selectedMessage}
+            onDelete={deleteMessage}
+            onMarkRead={markRead}
+            onReply={replyToMessage}
+            onClose={() => setSelectedId("")}
+          />
+        )}
       </section>
 
       {composeOpen && (
@@ -632,7 +643,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
               </div>
 
               <form onSubmit={handleSend} className="flex flex-1 flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6">
+                <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6 portal-scrollbar">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <label className={labelClass}>Enviar como</label>
@@ -770,7 +781,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6">
+              <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6 portal-scrollbar">
                 <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="max-w-md">
@@ -1087,11 +1098,13 @@ function EmailReadingPane({
   onDelete,
   onMarkRead,
   onReply,
+  onClose,
 }: {
   message: AdminEmailMessage | null;
   onDelete: (id: string) => void;
   onMarkRead: (id: string, read: boolean) => void;
   onReply: (message: AdminEmailMessage) => void;
+  onClose: () => void;
 }) {
   if (!message) {
     return (
@@ -1127,6 +1140,15 @@ function EmailReadingPane({
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.06]"
+            >
+              <X className="h-4 w-4" />
+              Fechar
+            </button>
+
             {message.direction === "inbound" && (
               <button
                 type="button"
@@ -1185,7 +1207,7 @@ function EmailReadingPane({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6">
+      <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6 portal-scrollbar">
         <div className="mx-auto max-w-3xl rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(7,13,24,0.92)_100%)] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] md:p-8">
           <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
             <div>
@@ -1213,10 +1235,12 @@ function EmailReadingPane({
 function MessageRow({
   message,
   active,
+  showMailbox,
   onClick,
 }: {
   message: AdminEmailMessage;
   active: boolean;
+  showMailbox: boolean;
   onClick: () => void;
 }) {
   const identity = getMessageIdentity(message);
@@ -1227,62 +1251,59 @@ function MessageRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full rounded-[24px] border p-4 text-left transition",
+        "w-full px-4 py-4 text-left transition md:px-5",
         active
-          ? "border-cyan-300/35 bg-cyan-300/10 shadow-[0_18px_40px_rgba(103,232,249,0.08)]"
-          : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]"
+          ? "bg-cyan-300/8 shadow-[inset_3px_0_0_rgba(103,232,249,0.8)]"
+          : "bg-transparent hover:bg-white/[0.03]"
       )}
     >
       <div className="flex items-start gap-3">
         <div
           className={cn(
-            "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-sm font-bold uppercase",
-            unread
-              ? "bg-cyan-300/15 text-cyan-100"
-              : "bg-white/[0.05] text-slate-300"
+            "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold uppercase",
+            unread ? "bg-cyan-300/15 text-cyan-100" : "bg-white/[0.05] text-slate-300"
           )}
         >
           {identity.initial}
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 {unread && <span className="h-2 w-2 rounded-full bg-cyan-300" />}
                 <p className="truncate text-sm font-semibold text-white">{identity.name}</p>
+                {message.status === "failed" && <StatusBadge status={message.status} compact />}
               </div>
-              <p className="mt-1 truncate text-xs text-slate-400">{identity.secondary}</p>
+              <p className="mt-1 truncate text-xs text-slate-500">{identity.secondary}</p>
             </div>
 
-            <div className="shrink-0 text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                {formatListDate(message.createdAt)}
-              </p>
-              <div className="mt-2 flex justify-end">
-                <StatusBadge status={message.status} compact />
-              </div>
-            </div>
+            <p className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              {formatListDate(message.createdAt)}
+            </p>
           </div>
 
-          <p className="mt-4 line-clamp-1 text-base font-semibold text-white">{message.subject}</p>
-          <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
-            {messagePreview(message)}
-          </p>
-
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <MailboxPill email={message.mailboxEmail} compact />
-            <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-              {message.direction === "inbound" ? "Recebido" : "Enviado"}
-            </span>
+          <div className="mt-3">
+            <p className="line-clamp-1 text-sm font-semibold text-white">
+              {message.subject || "(Sem assunto)"}
+            </p>
+            <p className="mt-1 line-clamp-1 text-sm leading-6 text-slate-500">
+              {messagePreview(message)}
+            </p>
           </div>
+
+          {showMailbox && message.mailboxEmail && (
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100/80">
+              {message.mailboxEmail}
+            </p>
+          )}
         </div>
       </div>
     </button>
   );
 }
 
-function MiniMetric({
+function SidebarMetricRow({
   label,
   value,
   detail,
@@ -1292,12 +1313,14 @@ function MiniMetric({
   detail: string;
 }) {
   return (
-    <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-3 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{detail}</p>
+    <div className="flex items-center justify-between gap-3 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3">
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+          {label}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">{detail}</p>
+      </div>
+      <p className="text-2xl font-semibold text-white">{value}</p>
     </div>
   );
 }
@@ -1307,14 +1330,12 @@ function TabRailButton({
   icon,
   label,
   count,
-  description,
   onClick,
 }: {
   active: boolean;
   icon: ReactNode;
   label: string;
   count: number;
-  description: string;
   onClick: () => void;
 }) {
   return (
@@ -1322,7 +1343,7 @@ function TabRailButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-start gap-3 rounded-[22px] border px-4 py-3 text-left transition",
+        "flex w-full items-center gap-3 rounded-[20px] border px-4 py-3 text-left transition",
         active
           ? "border-cyan-300/30 bg-cyan-300/10 text-white"
           : "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
@@ -1338,66 +1359,9 @@ function TabRailButton({
       >
         {icon}
       </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold">{label}</p>
-          <span className="text-sm font-semibold">{count}</span>
-        </div>
-        <p className={cn("mt-1 text-xs", active ? "text-cyan-50/80" : "text-slate-500")}>
-          {description}
-        </p>
-      </div>
-    </button>
-  );
-}
-
-function CompactMailboxRow({
-  active,
-  label,
-  email,
-  count,
-  unread,
-  isDefault,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  email: string;
-  count: number;
-  unread: number;
-  isDefault?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "w-full rounded-[22px] border px-4 py-3 text-left transition",
-        active
-          ? "border-cyan-300/30 bg-cyan-300/10"
-          : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold text-white">{label}</p>
-            {isDefault && (
-              <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-100">
-                Padrao
-              </span>
-            )}
-          </div>
-          <p className="mt-1 truncate text-xs text-slate-400">{email}</p>
-        </div>
-
-        <div className="shrink-0 text-right">
-          <p className="text-sm font-semibold text-white">{count}</p>
-          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
-            {unread} novo(s)
-          </p>
-        </div>
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+        <p className="text-sm font-semibold">{label}</p>
+        <span className="text-sm font-semibold">{count}</span>
       </div>
     </button>
   );

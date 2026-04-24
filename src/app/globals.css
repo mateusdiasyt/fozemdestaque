@@ -35,6 +35,31 @@ body {
   font-family: var(--font-manrope), sans-serif;
 }
 
+.portal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 144, 176, 0.42) rgba(255, 255, 255, 0.04);
+}
+
+.portal-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.portal-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 999px;
+}
+
+.portal-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(120, 144, 176, 0.72) 0%, rgba(80, 104, 138, 0.88) 100%);
+  border-radius: 999px;
+  border: 2px solid rgba(7, 13, 24, 0.55);
+}
+
+.portal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(149, 172, 203, 0.82) 0%, rgba(95, 122, 160, 0.92) 100%);
+}
+
 .font-headline {
   font-family: var(--font-sora), sans-serif;
 }
