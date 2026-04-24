@@ -11,13 +11,17 @@ import {
   Inbox,
   Mail,
   MailCheck,
+  PenSquare,
   Plus,
   RefreshCw,
+  Reply,
+  Search,
   Send,
   Settings2,
   ShieldCheck,
   Trash2,
   Webhook,
+  X,
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -76,16 +80,37 @@ type MailboxDraft = {
   isDefault: boolean;
 };
 
-const tabs: Array<{ key: TabKey; label: string; description: string }> = [
-  { key: "inbox", label: "Entrada", description: "Emails recebidos no sistema" },
-  { key: "sent", label: "Enviados", description: "Historico de respostas e disparos" },
-  { key: "all", label: "Todos", description: "Visao completa das caixas internas" },
+const tabs: Array<{
+  key: TabKey;
+  label: string;
+  description: string;
+  icon: ReactNode;
+}> = [
+  {
+    key: "inbox",
+    label: "Entrada",
+    description: "Mensagens recebidas",
+    icon: <Inbox className="h-4 w-4" />,
+  },
+  {
+    key: "sent",
+    label: "Enviados",
+    description: "Respostas e disparos",
+    icon: <MailCheck className="h-4 w-4" />,
+  },
+  {
+    key: "all",
+    label: "Todos",
+    description: "Visao completa",
+    icon: <Mail className="h-4 w-4" />,
+  },
 ];
 
 const inputClass =
-  "w-full rounded-2xl border border-white/10 bg-[#070d18] px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/10";
-const labelClass = "mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-500";
-const panelClass = "rounded-[30px] border border-white/10 bg-[#0b1220] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] md:p-6";
+  "w-full rounded-2xl border border-white/10 bg-[#09111f] px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/10";
+const labelClass = "mb-2 block text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500";
+const panelClass =
+  "rounded-[30px] border border-white/10 bg-[#09111d] shadow-[0_24px_70px_rgba(0,0,0,0.28)]";
 
 export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProps) {
   const router = useRouter();
@@ -93,10 +118,12 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     () => mailboxes.filter((mailbox) => mailbox.active).sort((a, b) => a.order - b.order),
     [mailboxes]
   );
-  const defaultMailbox = activeMailboxes.find((mailbox) => mailbox.isDefault) ?? activeMailboxes[0] ?? null;
+  const defaultMailbox =
+    activeMailboxes.find((mailbox) => mailbox.isDefault) ?? activeMailboxes[0] ?? null;
 
   const [activeTab, setActiveTab] = useState<TabKey>("inbox");
   const [mailboxFilter, setMailboxFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState(messages[0]?.id ?? "");
   const [composeMailbox, setComposeMailbox] = useState(defaultMailbox?.email ?? "");
   const [to, setTo] = useState("");
@@ -104,15 +131,25 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
   const [body, setBody] = useState("");
   const [replyTo, setReplyTo] = useState("");
   const [sending, setSending] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(
+    null
+  );
   const [copied, setCopied] = useState(false);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
   const [editingMailboxId, setEditingMailboxId] = useState<string | null>(null);
   const [mailboxDraft, setMailboxDraft] = useState<MailboxDraft>(() => createMailboxDraft(null));
   const [savingMailbox, setSavingMailbox] = useState(false);
-  const [mailboxFeedback, setMailboxFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [mailboxFeedback, setMailboxFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
-    if (!composeMailbox || !activeMailboxes.some((mailbox) => mailbox.email === composeMailbox)) {
+    if (
+      !composeMailbox ||
+      !activeMailboxes.some((mailbox) => mailbox.email === composeMailbox)
+    ) {
       setComposeMailbox(defaultMailbox?.email ?? "");
     }
   }, [activeMailboxes, composeMailbox, defaultMailbox]);
@@ -122,13 +159,28 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
       inbox: messages.filter((message) => message.direction === "inbound").length,
       sent: messages.filter((message) => message.direction === "outbound").length,
       all: messages.length,
-      unread: messages.filter((message) => message.direction === "inbound" && !message.read).length,
+      unread: messages.filter((message) => message.direction === "inbound" && !message.read)
+        .length,
     };
   }, [messages]);
 
   const mailboxCounts = useMemo(() => {
     return mailboxes.reduce<Record<string, number>>((acc, mailbox) => {
-      acc[mailbox.email] = messages.filter((message) => message.mailboxEmail === mailbox.email).length;
+      acc[mailbox.email] = messages.filter(
+        (message) => message.mailboxEmail === mailbox.email
+      ).length;
+      return acc;
+    }, {});
+  }, [mailboxes, messages]);
+
+  const mailboxUnreadCounts = useMemo(() => {
+    return mailboxes.reduce<Record<string, number>>((acc, mailbox) => {
+      acc[mailbox.email] = messages.filter(
+        (message) =>
+          message.mailboxEmail === mailbox.email &&
+          message.direction === "inbound" &&
+          !message.read
+      ).length;
       return acc;
     }, {});
   }, [mailboxes, messages]);
@@ -141,9 +193,30 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
           ? messages.filter((message) => message.direction === "outbound")
           : messages;
 
-    if (mailboxFilter === "all") return byTab;
-    return byTab.filter((message) => message.mailboxEmail === mailboxFilter);
-  }, [activeTab, mailboxFilter, messages]);
+    const byMailbox =
+      mailboxFilter === "all"
+        ? byTab
+        : byTab.filter((message) => message.mailboxEmail === mailboxFilter);
+
+    const term = searchQuery.trim().toLowerCase();
+    if (!term) return byMailbox;
+
+    return byMailbox.filter((message) => {
+      const haystack = [
+        message.subject,
+        message.fromName,
+        message.fromEmail,
+        message.toEmail,
+        message.mailboxEmail,
+        messagePreview(message),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(term);
+    });
+  }, [activeTab, mailboxFilter, messages, searchQuery]);
 
   useEffect(() => {
     if (!filteredMessages.length) {
@@ -156,30 +229,47 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     }
   }, [filteredMessages, selectedId]);
 
-  const selectedMessage = filteredMessages.find((message) => message.id === selectedId) || filteredMessages[0] || null;
+  const selectedMessage =
+    filteredMessages.find((message) => message.id === selectedId) ||
+    filteredMessages[0] ||
+    null;
+  const activeTabMeta = tabs.find((tab) => tab.key === activeTab) ?? tabs[0];
+  const selectedMailbox =
+    mailboxFilter === "all"
+      ? null
+      : activeMailboxes.find((mailbox) => mailbox.email === mailboxFilter) ?? null;
 
-  async function handleSend(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function handleSend(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (!config.canSend) {
-      setFeedback({ type: "error", text: "Configure RESEND_API_KEY na Vercel para habilitar o envio." });
+      setFeedback({
+        type: "error",
+        text: "Configure RESEND_API_KEY na Vercel para habilitar o envio.",
+      });
       return;
     }
 
     if (!composeMailbox) {
-      setFeedback({ type: "error", text: "Cadastre e ative ao menos uma caixa em Configurar Emails." });
+      setFeedback({
+        type: "error",
+        text: "Cadastre e ative ao menos uma caixa em Configurar Emails.",
+      });
       return;
     }
 
     setSending(true);
     setFeedback(null);
+
     try {
-      const res = await fetch("/api/admin/emails", {
+      const response = await fetch("/api/admin/emails", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to, subject, body, replyTo, mailboxEmail: composeMailbox }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Nao foi possivel enviar o email.");
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Nao foi possivel enviar o email.");
+      }
 
       setTo("");
       setSubject("");
@@ -188,7 +278,10 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
       setFeedback({ type: "success", text: "Email enviado e registrado no historico." });
       router.refresh();
     } catch (error) {
-      setFeedback({ type: "error", text: error instanceof Error ? error.message : "Erro ao enviar email." });
+      setFeedback({
+        type: "error",
+        text: error instanceof Error ? error.message : "Erro ao enviar email.",
+      });
       router.refresh();
     } finally {
       setSending(false);
@@ -223,6 +316,36 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     setMailboxFeedback(null);
   }
 
+  function openMailboxEditor(mailbox?: AdminEmailMailbox | null) {
+    resetMailboxForm(mailbox ?? null);
+    setConfigOpen(true);
+  }
+
+  function startNewMessage() {
+    setComposeMailbox(defaultMailbox?.email ?? composeMailbox ?? "");
+    setTo("");
+    setSubject("");
+    setBody("");
+    setReplyTo("");
+    setFeedback(null);
+    setComposeOpen(true);
+  }
+
+  function replyToMessage(message: AdminEmailMessage) {
+    const senderName = message.fromName ? `${message.fromName} <${message.fromEmail}>` : message.fromEmail;
+    setComposeMailbox(message.mailboxEmail ?? defaultMailbox?.email ?? composeMailbox ?? "");
+    setTo(message.fromEmail);
+    setReplyTo("");
+    setSubject(message.subject.startsWith("Re:") ? message.subject : `Re: ${message.subject}`);
+    setBody(
+      `\n\n---\nEm ${formatDate(message.createdAt)}, ${senderName} escreveu:\n${messagePreview(
+        message
+      )}`
+    );
+    setFeedback(null);
+    setComposeOpen(true);
+  }
+
   async function handleMailboxSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSavingMailbox(true);
@@ -236,16 +359,22 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
         active: mailboxDraft.active,
         isDefault: mailboxDraft.isDefault,
       };
-      const res = await fetch(
-        editingMailboxId ? `/api/admin/email-mailboxes/${editingMailboxId}` : "/api/admin/email-mailboxes",
+
+      const response = await fetch(
+        editingMailboxId
+          ? `/api/admin/email-mailboxes/${editingMailboxId}`
+          : "/api/admin/email-mailboxes",
         {
           method: editingMailboxId ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         }
       );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Nao foi possivel salvar a caixa.");
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Nao foi possivel salvar a caixa.");
+      }
 
       setMailboxFeedback({
         type: "success",
@@ -265,507 +394,1070 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
   async function handleDeleteMailbox(id: string) {
     if (!confirm("Remover esta caixa do painel?")) return;
 
-    const res = await fetch(`/api/admin/email-mailboxes/${id}`, { method: "DELETE" });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setMailboxFeedback({ type: "error", text: data?.error || "Nao foi possivel remover a caixa." });
+    const response = await fetch(`/api/admin/email-mailboxes/${id}`, { method: "DELETE" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMailboxFeedback({
+        type: "error",
+        text: data?.error || "Nao foi possivel remover a caixa.",
+      });
       return;
     }
 
     if (editingMailboxId === id) {
       resetMailboxForm(defaultMailbox);
     }
+
     router.refresh();
   }
 
   return (
-    <div className="space-y-6 text-slate-100">
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_380px]">
-        <div className={panelClass}>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-cyan-200/80">Configurar Emails</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Caixas internas do portal</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                Cadastre os enderecos que vao existir dentro do admin. O sistema envia usando a caixa escolhida e distribui as mensagens recebidas pela caixa correta.
-              </p>
+    <div className="space-y-5 text-slate-100">
+      <section className={cn(panelClass, "overflow-hidden p-4 md:p-5")}>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-200/80">
+              Workspace de emails
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white md:text-[2rem]">
+              Uma central mais limpa, com leitura e resposta em foco
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              A configuracao das caixas fica escondida em um painel lateral para a tela principal
+              respirar melhor. Aqui a prioridade passa a ser leitura, busca e resposta.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 sm:w-[320px]">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className={cn(inputClass, "pl-11")}
+                placeholder="Buscar por assunto, remetente ou conteudo"
+              />
             </div>
+
             <button
               type="button"
-              onClick={() => resetMailboxForm(null)}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20"
+              onClick={() => setConfigOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08]"
             >
-              <Plus className="h-4 w-4" />
-              Nova caixa
+              <Settings2 className="h-4 w-4" />
+              Configurar emails
+            </button>
+
+            <button
+              type="button"
+              onClick={startNewMessage}
+              disabled={!activeMailboxes.length}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-200 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <PenSquare className="h-4 w-4" />
+              Nova mensagem
             </button>
           </div>
-
-          <div className="mt-5 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {mailboxes.map((mailbox) => {
-              const isEditing = editingMailboxId === mailbox.id;
-              const isSelectedFilter = mailboxFilter === mailbox.email;
-              return (
-                <article
-                  key={mailbox.id}
-                  className={cn(
-                    "rounded-[26px] border p-4 transition",
-                    isEditing || isSelectedFilter
-                      ? "border-cyan-300/35 bg-cyan-300/10 shadow-[0_18px_38px_rgba(103,232,249,0.08)]"
-                      : "border-white/10 bg-white/[0.03]"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-white">{mailbox.label}</p>
-                      <p className="mt-1 text-xs text-slate-400">{mailbox.email}</p>
-                    </div>
-                    <span
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]",
-                        mailbox.active
-                          ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
-                          : "border-white/10 bg-white/[0.04] text-slate-400"
-                      )}
-                    >
-                      {mailbox.active ? "Ativa" : "Pausada"}
-                    </span>
-                  </div>
-                  {mailbox.description && <p className="mt-3 text-sm leading-6 text-slate-400">{mailbox.description}</p>}
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-                    {mailbox.isDefault && (
-                      <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100">
-                        Padrao
-                      </span>
-                    )}
-                    <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                      {mailboxCounts[mailbox.email] ?? 0} mensagens
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setMailboxFilter((current) => (current === mailbox.email ? "all" : mailbox.email))}
-                      className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06]"
-                    >
-                      {isSelectedFilter ? "Ver todas" : "Filtrar caixa"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => resetMailboxForm(mailbox)}
-                      className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06]"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteMailbox(mailbox.id)}
-                      className="rounded-2xl border border-rose-300/20 px-3 py-2 text-xs font-semibold text-rose-100 transition hover:bg-rose-500/10"
-                    >
-                      Remover
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
         </div>
+      </section>
 
-        <div className="space-y-6">
-          <aside className={panelClass}>
-            <div className="flex items-start gap-3">
-              <span className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-2 text-cyan-100">
-                <Settings2 className="h-5 w-5" />
-              </span>
+      <section className="grid gap-5 xl:grid-cols-[260px_390px_minmax(0,1fr)]">
+        <aside className={cn(panelClass, "overflow-hidden")}>
+          <div className="border-b border-white/10 p-5">
+            <div className="grid grid-cols-3 gap-3">
+              <MiniMetric label="Entrada" value={counts.inbox} detail={`${counts.unread} nao lidos`} />
+              <MiniMetric label="Enviados" value={counts.sent} detail="Historico" />
+              <MiniMetric label="Caixas" value={activeMailboxes.length} detail="Ativas" />
+            </div>
+          </div>
+
+          <div className="p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              Pastas
+            </p>
+            <div className="mt-3 space-y-2">
+              {tabs.map((tab) => (
+                <TabRailButton
+                  key={tab.key}
+                  active={activeTab === tab.key}
+                  icon={tab.icon}
+                  label={tab.label}
+                  count={counts[tab.key]}
+                  description={tab.description}
+                  onClick={() => setActiveTab(tab.key)}
+                />
+              ))}
+            </div>
+
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                Caixas internas
+              </p>
+              <button
+                type="button"
+                onClick={() => setConfigOpen(true)}
+                className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
+                aria-label="Abrir configuracao de caixas"
+              >
+                <Settings2 className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              <CompactMailboxRow
+                active={mailboxFilter === "all"}
+                label="Todas as caixas"
+                email="Visao unificada do portal"
+                count={messages.length}
+                unread={counts.unread}
+                onClick={() => setMailboxFilter("all")}
+              />
+
+              {activeMailboxes.map((mailbox) => (
+                <CompactMailboxRow
+                  key={mailbox.id}
+                  active={mailboxFilter === mailbox.email}
+                  label={mailbox.label}
+                  email={mailbox.email}
+                  count={mailboxCounts[mailbox.email] ?? 0}
+                  unread={mailboxUnreadCounts[mailbox.email] ?? 0}
+                  isDefault={mailbox.isDefault}
+                  onClick={() => setMailboxFilter(mailbox.email)}
+                />
+              ))}
+            </div>
+
+            <div className="mt-6 rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(14,24,40,0.95)_0%,rgba(8,13,23,0.96)_100%)] p-4">
+              <div className="flex items-start gap-3">
+                <span className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-2 text-cyan-100">
+                  <Webhook className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white">Webhook de entrada</p>
+                  <p className="mt-1 break-words text-xs leading-5 text-slate-400">
+                    {config.inboundWebhookUrl}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={copyWebhook}
+                className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-cyan-100 transition hover:text-white"
+              >
+                <Copy className="h-4 w-4" />
+                {copied ? "Copiado" : "Copiar webhook"}
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <section className={cn(panelClass, "overflow-hidden")}>
+          <div className="border-b border-white/10 px-4 py-4 md:px-5">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Conexao</p>
-                <h3 className="mt-1 text-lg font-semibold text-white">Pronto para sair da HostGator</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  O dominio pode continuar registrado na Squarespace, mas o DNS e o site devem apontar para a Vercel. As caixas abaixo vao viver dentro do sistema.
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  {activeTabMeta.label}
+                </p>
+                <h3 className="mt-2 text-xl font-semibold text-white">
+                  {selectedMailbox?.label ?? activeTabMeta.label}
+                </h3>
+                <p className="mt-1 text-sm text-slate-400">
+                  {filteredMessages.length} mensagem(ns)
+                  {searchQuery ? " encontradas na busca atual" : " nesta visualizacao"}.
                 </p>
               </div>
-            </div>
 
-            <div className="mt-5 space-y-3">
-              <ConnectionRow label="Site publicado" value={config.siteUrl || "Defina NEXT_PUBLIC_SITE_URL na Vercel"} ok={Boolean(config.siteUrl)} />
-              <ConnectionRow label="Webhook de entrada" value={config.inboundWebhookUrl} ok={true} copyValue={config.inboundWebhookUrl} onCopy={copyWebhook} copied={copied} />
-              <ConnectionRow label="Envio Resend" value={config.canSend ? "RESEND_API_KEY configurada" : "RESEND_API_KEY pendente"} ok={config.canSend} />
-              <ConnectionRow label="Segredo inbound" value={config.webhookSecretConfigured ? "EMAIL_WEBHOOK_SECRET configurado" : "EMAIL_WEBHOOK_SECRET pendente"} ok={config.webhookSecretConfigured} />
-              <ConnectionRow label="Nameservers Vercel" value="ns1.vercel-dns.com / ns2.vercel-dns.com" ok={false} />
-            </div>
-          </aside>
-
-          <form onSubmit={handleMailboxSubmit} className={panelClass}>
-            <div className="flex items-start gap-3">
-              <span className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-2 text-cyan-100">
-                <Mail className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Editor de caixa</p>
-                <h3 className="mt-1 text-lg font-semibold text-white">{editingMailboxId ? "Editar caixa" : "Nova caixa"}</h3>
+              <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+                {counts.unread} nao lidos
               </div>
-            </div>
-
-            <div className="mt-5 grid gap-4">
-              <div>
-                <label className={labelClass}>Nome da caixa</label>
-                <input value={mailboxDraft.label} onChange={(event) => setMailboxDraft((current) => ({ ...current, label: event.target.value }))} className={inputClass} placeholder="Comercial" required />
-              </div>
-              <div>
-                <label className={labelClass}>Endereco</label>
-                <input value={mailboxDraft.email} onChange={(event) => setMailboxDraft((current) => ({ ...current, email: event.target.value.toLowerCase() }))} className={inputClass} placeholder="comercial@fozemdestaque.com" required />
-              </div>
-              <div>
-                <label className={labelClass}>Descricao</label>
-                <textarea value={mailboxDraft.description} onChange={(event) => setMailboxDraft((current) => ({ ...current, description: event.target.value }))} className={cn(inputClass, "min-h-[112px] resize-y leading-6")} placeholder="Publicidade, marcas e negociacoes." />
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-200">
-                <span>Caixa ativa</span>
-                <input type="checkbox" checked={mailboxDraft.active} onChange={(event) => setMailboxDraft((current) => ({ ...current, active: event.target.checked }))} className="h-4 w-4 accent-cyan-300" />
-              </label>
-              <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-200">
-                <span>Usar como padrao</span>
-                <input type="checkbox" checked={mailboxDraft.isDefault} onChange={(event) => setMailboxDraft((current) => ({ ...current, isDefault: event.target.checked }))} className="h-4 w-4 accent-cyan-300" />
-              </label>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button type="submit" disabled={savingMailbox} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50">
-                {savingMailbox ? <RefreshCw className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
-                {editingMailboxId ? "Salvar caixa" : "Criar caixa"}
-              </button>
-              <button type="button" onClick={() => resetMailboxForm(null)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.06]">
-                Limpar
-              </button>
-            </div>
-
-            {mailboxFeedback && (
-              <div className={cn("mt-4 rounded-2xl border px-4 py-3 text-sm", mailboxFeedback.type === "success" ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100" : "border-rose-300/20 bg-rose-300/10 text-rose-100")}>
-                {mailboxFeedback.text}
-              </div>
-            )}
-          </form>
-        </div>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="grid gap-3 md:grid-cols-3">
-          <MetricCard icon={<Inbox className="h-5 w-5" />} label="Entrada" value={counts.inbox} detail={`${counts.unread} nao lidos`} />
-          <MetricCard icon={<MailCheck className="h-5 w-5" />} label="Enviados" value={counts.sent} detail="Historico do painel" />
-          <MetricCard icon={<Mail className="h-5 w-5" />} label="Total" value={counts.all} detail="Mensagens registradas" />
-        </div>
-
-        <div className="rounded-[28px] border border-white/10 bg-[#0b1220] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.25)]">
-          <div className="flex items-start gap-3">
-            <span className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-2 text-cyan-100">
-              <ShieldCheck className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Sistema</p>
-              <h3 className="mt-1 text-lg font-semibold text-white">Caixas ativas</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                {activeMailboxes.length} caixa(s) prontas para enviar e receber dentro do admin.
-              </p>
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <FilterChip active={mailboxFilter === "all"} label={`Todas (${messages.length})`} onClick={() => setMailboxFilter("all")} />
-            {activeMailboxes.map((mailbox) => (
-              <FilterChip
-                key={mailbox.id}
-                active={mailboxFilter === mailbox.email}
-                label={`${mailbox.label} (${mailboxCounts[mailbox.email] ?? 0})`}
-                onClick={() => setMailboxFilter(mailbox.email)}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
 
-      <section className="grid gap-6 2xl:grid-cols-[430px_minmax(0,1fr)]">
-        <div className={panelClass}>
-          <div className="flex flex-wrap gap-2">
-            {tabs.map((tab) => {
-              const active = activeTab === tab.key;
-              const count = counts[tab.key];
-
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  className={cn(
-                    "rounded-2xl px-4 py-3 text-left transition",
-                    active ? "bg-cyan-200 text-slate-950" : "border border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
-                  )}
-                >
-                  <span className="block text-sm font-semibold">{tab.label} ({count})</span>
-                  <span className={cn("mt-1 block text-[11px]", active ? "text-slate-700" : "text-slate-500")}>{tab.description}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-4 max-h-[720px] space-y-3 overflow-y-auto pr-1">
+          <div className="max-h-[820px] overflow-y-auto p-3">
             {filteredMessages.length === 0 ? (
-              <div className="rounded-[24px] border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">
-                Nenhum email nesta visualizacao ainda.
+              <div className="flex min-h-[340px] flex-col items-center justify-center rounded-[26px] border border-dashed border-white/10 bg-white/[0.02] px-6 text-center">
+                <Inbox className="h-10 w-10 text-slate-600" />
+                <p className="mt-4 text-lg font-semibold text-white">Nada por aqui ainda</p>
+                <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
+                  Ajuste os filtros ou aguarde novas mensagens chegarem nesta caixa.
+                </p>
               </div>
             ) : (
-              filteredMessages.map((message) => {
-                const active = selectedMessage?.id === message.id;
-                const failed = message.status === "failed";
-
-                return (
-                  <button
+              <div className="space-y-2">
+                {filteredMessages.map((message) => (
+                  <MessageRow
                     key={message.id}
-                    type="button"
+                    message={message}
+                    active={selectedMessage?.id === message.id}
                     onClick={() => setSelectedId(message.id)}
-                    className={cn(
-                      "w-full rounded-[24px] border p-4 text-left transition",
-                      active
-                        ? "border-cyan-300/40 bg-cyan-300/10 shadow-[0_18px_40px_rgba(103,232,249,0.08)]"
-                        : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]"
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={cn("h-2 w-2 rounded-full", message.read || message.direction === "outbound" ? "bg-slate-600" : "bg-cyan-300")} />
-                          <p className="truncate text-sm font-semibold text-white">{message.subject}</p>
-                        </div>
-                        <p className="mt-2 truncate text-xs text-slate-400">
-                          {message.direction === "inbound" ? message.fromEmail : message.toEmail}
-                        </p>
-                      </div>
-                      <StatusBadge status={message.status} />
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <MailboxPill email={message.mailboxEmail} />
-                    </div>
-                    <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-500">{messagePreview(message)}</p>
-                    <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-600">
-                      {formatDate(message.createdAt)} {failed ? " / falhou" : ""}
-                    </p>
-                  </button>
-                );
-              })
+                  />
+                ))}
+              </div>
             )}
           </div>
-        </div>
+        </section>
 
-        <div className="space-y-6">
-          <form onSubmit={handleSend} className={panelClass}>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.26em] text-cyan-200/80">Compositor</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Enviar email</h2>
-                <p className="mt-2 text-sm text-slate-400">Escolha a caixa de saida e envie direto pelo painel.</p>
-              </div>
-              <div className={cn("rounded-2xl border px-4 py-3 text-sm", config.canSend ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100" : "border-amber-300/20 bg-amber-300/10 text-amber-100")}>
-                {config.canSend ? "Envio ativo" : "RESEND_API_KEY pendente"}
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-4 xl:grid-cols-2">
-              <div>
-                <label className={labelClass}>Enviar como</label>
-                <select value={composeMailbox} onChange={(event) => setComposeMailbox(event.target.value)} className={inputClass}>
-                  {activeMailboxes.map((mailbox) => (
-                    <option key={mailbox.id} value={mailbox.email}>
-                      {mailbox.label} - {mailbox.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Responder para (opcional)</label>
-                <input value={replyTo} onChange={(e) => setReplyTo(e.target.value)} className={inputClass} placeholder={composeMailbox || "contato@fozemdestaque.com"} />
-              </div>
-            </div>
-            <div className="mt-4">
-              <label className={labelClass}>Destinatario(s)</label>
-              <input value={to} onChange={(e) => setTo(e.target.value)} className={inputClass} placeholder="cliente@email.com, outro@email.com" required />
-            </div>
-            <div className="mt-4">
-              <label className={labelClass}>Assunto</label>
-              <input value={subject} onChange={(e) => setSubject(e.target.value)} className={inputClass} placeholder="Assunto do email" required />
-            </div>
-            <div className="mt-4">
-              <label className={labelClass}>Mensagem</label>
-              <textarea value={body} onChange={(e) => setBody(e.target.value)} className={cn(inputClass, "min-h-[190px] resize-y leading-7")} placeholder="Escreva a mensagem aqui..." required />
-            </div>
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-slate-500">Caixa de saida: {composeMailbox || config.fromAddress}</p>
-              <button type="submit" disabled={sending || !config.canSend || !composeMailbox} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50">
-                {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                Enviar email
-              </button>
-            </div>
-            {feedback && (
-              <div className={cn("mt-4 rounded-2xl border px-4 py-3 text-sm", feedback.type === "success" ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100" : "border-rose-300/20 bg-rose-300/10 text-rose-100")}>
-                {feedback.text}
-              </div>
-            )}
-          </form>
-
-          <EmailDetail message={selectedMessage} onDelete={deleteMessage} onMarkRead={markRead} />
-        </div>
+        <EmailReadingPane
+          message={selectedMessage}
+          onDelete={deleteMessage}
+          onMarkRead={markRead}
+          onReply={replyToMessage}
+        />
       </section>
+
+      {composeOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm">
+          <div className="flex h-full justify-end p-4 md:p-6">
+            <div className="flex h-full w-full max-w-[680px] flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[#08101c] shadow-[0_34px_120px_rgba(0,0,0,0.5)]">
+              <div className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-5 md:px-6">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-cyan-200/80">
+                    Novo envio
+                  </p>
+                  <h3 className="mt-2 text-2xl font-semibold text-white">Escrever mensagem</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    Escolha a caixa de saida e envie direto pelo portal.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setComposeOpen(false)}
+                  className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
+                  aria-label="Fechar compositor"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSend} className="flex flex-1 flex-col overflow-hidden">
+                <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className={labelClass}>Enviar como</label>
+                      <select
+                        value={composeMailbox}
+                        onChange={(event) => setComposeMailbox(event.target.value)}
+                        className={inputClass}
+                      >
+                        {activeMailboxes.map((mailbox) => (
+                          <option key={mailbox.id} value={mailbox.email}>
+                            {mailbox.label} - {mailbox.email}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={labelClass}>Responder para (opcional)</label>
+                      <input
+                        value={replyTo}
+                        onChange={(event) => setReplyTo(event.target.value)}
+                        className={inputClass}
+                        placeholder={composeMailbox || "contato@fozemdestaque.com"}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className={labelClass}>Destinatario(s)</label>
+                    <input
+                      value={to}
+                      onChange={(event) => setTo(event.target.value)}
+                      className={inputClass}
+                      placeholder="cliente@email.com, outro@email.com"
+                      required
+                    />
+                  </div>
+
+                  <div className="mt-4">
+                    <label className={labelClass}>Assunto</label>
+                    <input
+                      value={subject}
+                      onChange={(event) => setSubject(event.target.value)}
+                      className={inputClass}
+                      placeholder="Assunto do email"
+                      required
+                    />
+                  </div>
+
+                  <div className="mt-4">
+                    <label className={labelClass}>Mensagem</label>
+                    <textarea
+                      value={body}
+                      onChange={(event) => setBody(event.target.value)}
+                      className={cn(inputClass, "min-h-[320px] resize-y leading-7")}
+                      placeholder="Escreva a mensagem aqui..."
+                      required
+                    />
+                  </div>
+
+                  {feedback && (
+                    <div
+                      className={cn(
+                        "mt-4 rounded-2xl border px-4 py-3 text-sm",
+                        feedback.type === "success"
+                          ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+                          : "border-rose-300/20 bg-rose-300/10 text-rose-100"
+                      )}
+                    >
+                      {feedback.text}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-white/10 px-5 py-4 md:px-6">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs text-slate-500">
+                      Saindo por: {composeMailbox || config.fromAddress}
+                    </p>
+
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setComposeOpen(false)}
+                        className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.06]"
+                      >
+                        Fechar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={sending || !config.canSend || !composeMailbox}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {sending ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                        Enviar email
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {configOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm">
+          <div className="flex h-full justify-end p-4 md:p-6">
+            <div className="flex h-full w-full max-w-[560px] flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[#08101c] shadow-[0_34px_120px_rgba(0,0,0,0.5)]">
+              <div className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-5 md:px-6">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-cyan-200/80">
+                    Configurar emails
+                  </p>
+                  <h3 className="mt-2 text-2xl font-semibold text-white">
+                    Caixas internas do portal
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    Tudo o que era painel solto agora fica concentrado aqui: status do sistema,
+                    webhook e gestao das caixas.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setConfigOpen(false)}
+                  className="rounded-full border border-white/10 p-2 text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
+                  aria-label="Fechar configuracao"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <ConfigStatusItem
+                    icon={<ShieldCheck className="h-4 w-4" />}
+                    label="Envio Resend"
+                    value={config.canSend ? "RESEND_API_KEY configurada" : "RESEND_API_KEY pendente"}
+                    ok={config.canSend}
+                  />
+                  <ConfigStatusItem
+                    icon={<Webhook className="h-4 w-4" />}
+                    label="Webhook de entrada"
+                    value={config.inboundWebhookUrl}
+                    ok={true}
+                    actionLabel={copied ? "Copiado" : "Copiar"}
+                    onAction={copyWebhook}
+                  />
+                  <ConfigStatusItem
+                    icon={<BadgeCheck className="h-4 w-4" />}
+                    label="Segredo inbound"
+                    value={
+                      config.webhookSecretConfigured
+                        ? "EMAIL_WEBHOOK_SECRET configurado"
+                        : "EMAIL_WEBHOOK_SECRET pendente"
+                    }
+                    ok={config.webhookSecretConfigured}
+                  />
+                  <ConfigStatusItem
+                    icon={<Mail className="h-4 w-4" />}
+                    label="Remetente padrao"
+                    value={defaultMailbox?.email || config.fromAddress}
+                    ok={Boolean(defaultMailbox?.email || config.fromAddress)}
+                  />
+                </div>
+
+                <div className="mt-5 rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        Caixas cadastradas
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-white">
+                        {mailboxes.length} caixa(s) internas
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => openMailboxEditor(null)}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100 transition hover:bg-cyan-300/20"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Nova
+                    </button>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    {mailboxes.map((mailbox) => {
+                      const selected = editingMailboxId === mailbox.id;
+                      return (
+                        <div
+                          key={mailbox.id}
+                          className={cn(
+                            "rounded-[22px] border px-4 py-3 transition",
+                            selected
+                              ? "border-cyan-300/30 bg-cyan-300/10"
+                              : "border-white/10 bg-[#0a1220]"
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="truncate text-sm font-semibold text-white">
+                                  {mailbox.label}
+                                </p>
+                                {mailbox.isDefault && (
+                                  <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-100">
+                                    Padrao
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 truncate text-xs text-slate-400">
+                                {mailbox.email}
+                              </p>
+                            </div>
+
+                            <span
+                              className={cn(
+                                "rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em]",
+                                mailbox.active
+                                  ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+                                  : "border-white/10 bg-white/[0.04] text-slate-400"
+                              )}
+                            >
+                              {mailbox.active ? "Ativa" : "Pausada"}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                              {mailboxCounts[mailbox.email] ?? 0} mensagens
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setMailboxFilter(mailbox.email)}
+                              className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-300 transition hover:bg-white/[0.06]"
+                            >
+                              Filtrar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openMailboxEditor(mailbox)}
+                              className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-300 transition hover:bg-white/[0.06]"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMailbox(mailbox.id)}
+                              className="rounded-full border border-rose-300/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-rose-100 transition hover:bg-rose-500/10"
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <form onSubmit={handleMailboxSubmit} className="mt-5 rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-2 text-cyan-100">
+                      <Mail className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        Editor de caixa
+                      </p>
+                      <h4 className="mt-2 text-lg font-semibold text-white">
+                        {editingMailboxId ? "Editar caixa" : "Nova caixa"}
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4">
+                    <div>
+                      <label className={labelClass}>Nome da caixa</label>
+                      <input
+                        value={mailboxDraft.label}
+                        onChange={(event) =>
+                          setMailboxDraft((current) => ({
+                            ...current,
+                            label: event.target.value,
+                          }))
+                        }
+                        className={inputClass}
+                        placeholder="Comercial"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClass}>Endereco</label>
+                      <input
+                        value={mailboxDraft.email}
+                        onChange={(event) =>
+                          setMailboxDraft((current) => ({
+                            ...current,
+                            email: event.target.value.toLowerCase(),
+                          }))
+                        }
+                        className={inputClass}
+                        placeholder="comercial@fozemdestaque.com"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClass}>Descricao</label>
+                      <textarea
+                        value={mailboxDraft.description}
+                        onChange={(event) =>
+                          setMailboxDraft((current) => ({
+                            ...current,
+                            description: event.target.value,
+                          }))
+                        }
+                        className={cn(inputClass, "min-h-[112px] resize-y leading-6")}
+                        placeholder="Publicidade, marcas e negociacoes."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0a1220] px-4 py-3 text-sm font-semibold text-slate-200">
+                      <span>Caixa ativa</span>
+                      <input
+                        type="checkbox"
+                        checked={mailboxDraft.active}
+                        onChange={(event) =>
+                          setMailboxDraft((current) => ({
+                            ...current,
+                            active: event.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 accent-cyan-300"
+                      />
+                    </label>
+
+                    <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0a1220] px-4 py-3 text-sm font-semibold text-slate-200">
+                      <span>Usar como padrao</span>
+                      <input
+                        type="checkbox"
+                        checked={mailboxDraft.isDefault}
+                        onChange={(event) =>
+                          setMailboxDraft((current) => ({
+                            ...current,
+                            isDefault: event.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 accent-cyan-300"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      type="submit"
+                      disabled={savingMailbox}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {savingMailbox ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <BadgeCheck className="h-4 w-4" />
+                      )}
+                      {editingMailboxId ? "Salvar caixa" : "Criar caixa"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => resetMailboxForm(null)}
+                      className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.06]"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+
+                  {mailboxFeedback && (
+                    <div
+                      className={cn(
+                        "mt-4 rounded-2xl border px-4 py-3 text-sm",
+                        mailboxFeedback.type === "success"
+                          ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+                          : "border-rose-300/20 bg-rose-300/10 text-rose-100"
+                      )}
+                    >
+                      {mailboxFeedback.text}
+                    </div>
+                  )}
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function EmailDetail({
+function EmailReadingPane({
   message,
   onDelete,
   onMarkRead,
+  onReply,
 }: {
   message: AdminEmailMessage | null;
   onDelete: (id: string) => void;
   onMarkRead: (id: string, read: boolean) => void;
+  onReply: (message: AdminEmailMessage) => void;
 }) {
   if (!message) {
     return (
-      <div className={`${panelClass} text-center text-sm text-slate-500`}>
-        Selecione uma mensagem para ver os detalhes.
+      <div className={cn(panelClass, "flex min-h-[780px] items-center justify-center p-10")}>
+        <div className="max-w-sm text-center">
+          <Mail className="mx-auto h-10 w-10 text-slate-600" />
+          <p className="mt-4 text-xl font-semibold text-white">Selecione uma mensagem</p>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            A leitura completa aparece aqui, com foco no conteudo e nas acoes principais.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <article className={panelClass}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={message.status} />
-            <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-slate-400">
-              {message.direction === "inbound" ? "Recebido" : "Enviado"}
-            </span>
-            <MailboxPill email={message.mailboxEmail} />
-          </div>
-          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-white">{message.subject}</h2>
-          <p className="mt-2 text-sm text-slate-500">{formatDate(message.createdAt)}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {message.direction === "inbound" && (
-            <button type="button" onClick={() => onMarkRead(message.id, !message.read)} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/[0.06]">
-              <CheckCheck className="h-4 w-4" />
-              {message.read ? "Marcar nao lido" : "Marcar lido"}
-            </button>
-          )}
-          <button type="button" onClick={() => onDelete(message.id)} className="inline-flex items-center gap-2 rounded-2xl border border-rose-300/20 px-4 py-2.5 text-sm font-semibold text-rose-100 hover:bg-rose-500/10">
-            <Trash2 className="h-4 w-4" />
-            Remover
-          </button>
-        </div>
-      </div>
+    <article className={cn(panelClass, "flex min-h-[780px] flex-col overflow-hidden")}>
+      <div className="border-b border-white/10 px-5 py-5 md:px-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={message.status} />
+              <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                {message.direction === "inbound" ? "Recebido" : "Enviado"}
+              </span>
+              <MailboxPill email={message.mailboxEmail} />
+            </div>
 
-      <div className="mt-6 grid gap-3 rounded-[24px] border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300 md:grid-cols-2">
-        <p><span className="text-slate-500">De:</span> {message.fromName ? `${message.fromName} <${message.fromEmail}>` : message.fromEmail}</p>
-        <p><span className="text-slate-500">Para:</span> {message.toEmail}</p>
-        {message.mailboxEmail && <p><span className="text-slate-500">Caixa:</span> {message.mailboxEmail}</p>}
-        {message.providerId && <p><span className="text-slate-500">ID provedor:</span> {message.providerId}</p>}
-        {message.provider && <p><span className="text-slate-500">Origem:</span> {message.provider}</p>}
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-white md:text-[2rem]">
+              {message.subject}
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">{formatDate(message.createdAt)}</p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {message.direction === "inbound" && (
+              <button
+                type="button"
+                onClick={() => onReply(message)}
+                className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20"
+              >
+                <Reply className="h-4 w-4" />
+                Responder
+              </button>
+            )}
+
+            {message.direction === "inbound" && (
+              <button
+                type="button"
+                onClick={() => onMarkRead(message.id, !message.read)}
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.06]"
+              >
+                <CheckCheck className="h-4 w-4" />
+                {message.read ? "Marcar nao lido" : "Marcar lido"}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => onDelete(message.id)}
+              className="inline-flex items-center gap-2 rounded-2xl border border-rose-300/20 px-4 py-2.5 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/10"
+            >
+              <Trash2 className="h-4 w-4" />
+              Remover
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <MetaCard
+            label="De"
+            value={
+              message.fromName
+                ? `${message.fromName} <${message.fromEmail}>`
+                : message.fromEmail
+            }
+          />
+          <MetaCard label="Para" value={message.toEmail} />
+          {message.mailboxEmail && <MetaCard label="Caixa" value={message.mailboxEmail} />}
+          {message.provider && <MetaCard label="Origem" value={message.provider} />}
+          {message.providerId && <MetaCard label="ID provedor" value={message.providerId} />}
+        </div>
       </div>
 
       {message.error && (
-        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-rose-300/20 bg-rose-500/10 p-4 text-sm text-rose-100">
-          <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          {message.error}
+        <div className="border-b border-rose-300/10 bg-rose-500/10 px-5 py-4 text-sm text-rose-100 md:px-6">
+          <div className="flex items-start gap-3">
+            <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{message.error}</span>
+          </div>
         </div>
       )}
 
-      <div className="mt-6 whitespace-pre-wrap rounded-[24px] border border-white/10 bg-[#070d18] p-5 text-sm leading-7 text-slate-200">
-        {messagePreview(message)}
+      <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6">
+        <div className="mx-auto max-w-3xl rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(7,13,24,0.92)_100%)] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] md:p-8">
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                Corpo da mensagem
+              </p>
+              <p className="mt-2 text-sm text-slate-400">
+                Visualizacao focada no conteudo, com leitura mais limpa.
+              </p>
+            </div>
+            <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              {message.direction === "inbound" ? "Inbox" : "Sent"}
+            </span>
+          </div>
+
+          <div className="mt-6 whitespace-pre-wrap text-[15px] leading-8 text-slate-200">
+            {messagePreview(message)}
+          </div>
+        </div>
       </div>
     </article>
   );
 }
 
-function MetricCard({ icon, label, value, detail }: { icon: ReactNode; label: string; value: number; detail: string }) {
+function MessageRow({
+  message,
+  active,
+  onClick,
+}: {
+  message: AdminEmailMessage;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const identity = getMessageIdentity(message);
+  const unread = message.direction === "inbound" && !message.read;
+
   return (
-    <div className="rounded-[28px] border border-white/10 bg-[#0b1220] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.24)]">
-      <div className="flex items-center justify-between gap-3">
-        <span className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-2 text-cyan-100">{icon}</span>
-        <span className="text-3xl font-semibold text-white">{value}</span>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "w-full rounded-[24px] border p-4 text-left transition",
+        active
+          ? "border-cyan-300/35 bg-cyan-300/10 shadow-[0_18px_40px_rgba(103,232,249,0.08)]"
+          : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]"
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-sm font-bold uppercase",
+            unread
+              ? "bg-cyan-300/15 text-cyan-100"
+              : "bg-white/[0.05] text-slate-300"
+          )}
+        >
+          {identity.initial}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                {unread && <span className="h-2 w-2 rounded-full bg-cyan-300" />}
+                <p className="truncate text-sm font-semibold text-white">{identity.name}</p>
+              </div>
+              <p className="mt-1 truncate text-xs text-slate-400">{identity.secondary}</p>
+            </div>
+
+            <div className="shrink-0 text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                {formatListDate(message.createdAt)}
+              </p>
+              <div className="mt-2 flex justify-end">
+                <StatusBadge status={message.status} compact />
+              </div>
+            </div>
+          </div>
+
+          <p className="mt-4 line-clamp-1 text-base font-semibold text-white">{message.subject}</p>
+          <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
+            {messagePreview(message)}
+          </p>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <MailboxPill email={message.mailboxEmail} compact />
+            <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+              {message.direction === "inbound" ? "Recebido" : "Enviado"}
+            </span>
+          </div>
+        </div>
       </div>
-      <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</p>
-      <p className="mt-2 text-sm text-slate-400">{detail}</p>
+    </button>
+  );
+}
+
+function MiniMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: number;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-3 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{detail}</p>
     </div>
   );
 }
 
-function ConnectionRow({
+function TabRailButton({
+  active,
+  icon,
+  label,
+  count,
+  description,
+  onClick,
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  count: number;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-start gap-3 rounded-[22px] border px-4 py-3 text-left transition",
+        active
+          ? "border-cyan-300/30 bg-cyan-300/10 text-white"
+          : "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
+      )}
+    >
+      <span
+        className={cn(
+          "mt-0.5 rounded-2xl border p-2",
+          active
+            ? "border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
+            : "border-white/10 bg-white/[0.03] text-slate-400"
+        )}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold">{label}</p>
+          <span className="text-sm font-semibold">{count}</span>
+        </div>
+        <p className={cn("mt-1 text-xs", active ? "text-cyan-50/80" : "text-slate-500")}>
+          {description}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function CompactMailboxRow({
+  active,
+  label,
+  email,
+  count,
+  unread,
+  isDefault,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  email: string;
+  count: number;
+  unread: number;
+  isDefault?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "w-full rounded-[22px] border px-4 py-3 text-left transition",
+        active
+          ? "border-cyan-300/30 bg-cyan-300/10"
+          : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold text-white">{label}</p>
+            {isDefault && (
+              <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-100">
+                Padrao
+              </span>
+            )}
+          </div>
+          <p className="mt-1 truncate text-xs text-slate-400">{email}</p>
+        </div>
+
+        <div className="shrink-0 text-right">
+          <p className="text-sm font-semibold text-white">{count}</p>
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+            {unread} novo(s)
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function ConfigStatusItem({
+  icon,
   label,
   value,
   ok,
-  copyValue,
-  onCopy,
-  copied,
+  actionLabel,
+  onAction,
 }: {
+  icon: ReactNode;
   label: string;
   value: string;
   ok: boolean;
-  copyValue?: string;
-  onCopy?: () => void;
-  copied?: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
   return (
-    <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4">
+    <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
-          <p className="mt-2 break-words text-sm font-medium text-slate-200">{value}</p>
-        </div>
-        <span className={cn("rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]", ok ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100" : "border-amber-300/20 bg-amber-300/10 text-amber-100")}>
+        <span
+          className={cn(
+            "rounded-2xl border p-2",
+            ok
+              ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+              : "border-amber-300/20 bg-amber-300/10 text-amber-100"
+          )}
+        >
+          {icon}
+        </span>
+        <span
+          className={cn(
+            "rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em]",
+            ok
+              ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+              : "border-amber-300/20 bg-amber-300/10 text-amber-100"
+          )}
+        >
           {ok ? "Ok" : "Pendente"}
         </span>
       </div>
-      {copyValue && onCopy && (
-        <button type="button" onClick={onCopy} className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-cyan-100 hover:text-white">
+
+      <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 break-words text-sm leading-6 text-slate-200">{value}</p>
+
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-cyan-100 transition hover:text-white"
+        >
           <Copy className="h-4 w-4" />
-          {copied ? "Copiado" : "Copiar valor"}
+          {actionLabel}
         </button>
       )}
     </div>
   );
 }
 
-function FilterChip({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+function MetaCard({ label, value }: { label: string; value: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition",
-        active ? "border-cyan-300/20 bg-cyan-300/10 text-cyan-100" : "border-white/10 bg-white/[0.03] text-slate-400 hover:bg-white/[0.06]"
-      )}
-    >
-      {label}
-    </button>
+    <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 break-words text-sm font-medium leading-6 text-slate-200">{value}</p>
+    </div>
   );
 }
 
-function MailboxPill({ email }: { email: string | null }) {
+function MailboxPill({ email, compact = false }: { email: string | null; compact?: boolean }) {
   if (!email) {
     return (
-      <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+      <span
+        className={cn(
+          "rounded-full border border-white/10 bg-white/[0.03] font-semibold uppercase tracking-[0.16em] text-slate-500",
+          compact ? "px-2.5 py-1 text-[10px]" : "px-3 py-1 text-[11px]"
+        )}
+      >
         Sem caixa
       </span>
     );
   }
 
   return (
-    <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100">
+    <span
+      className={cn(
+        "rounded-full border border-cyan-300/20 bg-cyan-300/10 font-semibold uppercase tracking-[0.16em] text-cyan-100",
+        compact ? "px-2.5 py-1 text-[10px]" : "px-3 py-1 text-[11px]"
+      )}
+    >
       {email}
     </span>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, compact = false }: { status: string; compact?: boolean }) {
   const styles = {
     sent: "border-emerald-300/20 bg-emerald-300/10 text-emerald-100",
     received: "border-cyan-300/20 bg-cyan-300/10 text-cyan-100",
@@ -775,13 +1467,24 @@ function StatusBadge({ status }: { status: string }) {
   const label = status === "sent" ? "Enviado" : status === "failed" ? "Falhou" : "Recebido";
 
   return (
-    <span className={cn("rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em]", styles[status] ?? styles.received)}>
+    <span
+      className={cn(
+        "rounded-full border font-bold uppercase tracking-[0.16em]",
+        compact ? "px-2.5 py-1 text-[10px]" : "px-3 py-1 text-[11px]",
+        styles[status] ?? styles.received
+      )}
+    >
       {label}
     </span>
   );
 }
 
-function createMailboxDraft(mailbox?: Pick<AdminEmailMailbox, "label" | "email" | "description" | "active" | "isDefault"> | null): MailboxDraft {
+function createMailboxDraft(
+  mailbox?: Pick<
+    AdminEmailMailbox,
+    "label" | "email" | "description" | "active" | "isDefault"
+  > | null
+): MailboxDraft {
   return {
     label: mailbox?.label || "",
     email: mailbox?.email || "",
@@ -796,9 +1499,34 @@ function messagePreview(message: AdminEmailMessage) {
 }
 
 function stripHtml(value: string) {
-  return value.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return value
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getMessageIdentity(message: AdminEmailMessage) {
+  const primary =
+    message.direction === "inbound"
+      ? message.fromName || message.fromEmail
+      : message.toEmail;
+
+  return {
+    name: primary,
+    secondary:
+      message.direction === "inbound"
+        ? message.fromEmail
+        : `Para ${message.toEmail}`,
+    initial: primary.slice(0, 1).toUpperCase(),
+  };
 }
 
 function formatDate(date: Date | string) {
   return format(new Date(date), "dd/MM/yyyy HH:mm", { locale: ptBR });
+}
+
+function formatListDate(date: Date | string) {
+  return format(new Date(date), "dd MMM HH:mm", { locale: ptBR });
 }
