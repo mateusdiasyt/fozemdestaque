@@ -127,16 +127,33 @@ body {
 }
 
 .admin-emails-page .text-slate-400 {
-  color: #5f738d;
+  color: #53677f;
 }
 
 .admin-emails-page .text-slate-500,
 .admin-emails-page .text-slate-600 {
-  color: #7d8ea4;
+  color: #445a73;
 }
 
 .admin-emails-page .text-cyan-200\/80 {
   color: rgba(14, 116, 144, 0.78);
+}
+
+.admin-emails-page .text-cyan-100,
+.admin-emails-page .text-cyan-100\/80 {
+  color: #0f4c81;
+}
+
+.admin-emails-page .text-emerald-100 {
+  color: #166534;
+}
+
+.admin-emails-page .text-amber-100 {
+  color: #92400e;
+}
+
+.admin-emails-page .text-rose-100 {
+  color: #a11d47;
 }
 
 .admin-emails-page .border-white\/10 {

@@ -110,9 +110,17 @@ const tabs: Array<{
 
 const inputClass =
   "admin-email-input w-full rounded-2xl border border-white/10 bg-[#09111f] px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/10";
-const labelClass = "mb-2 block text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500";
+const labelClass = "mb-2 block text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-700";
 const panelClass =
   "admin-email-panel rounded-[30px] border border-white/10 bg-[#09111d] shadow-[0_24px_70px_rgba(0,0,0,0.28)]";
+
+const avatarToneClasses = [
+  "bg-[#17324f] text-white",
+  "bg-[#1d3b5c] text-white",
+  "bg-[#23415a] text-white",
+  "bg-[#2b4153] text-white",
+  "bg-[#31455a] text-white",
+] as const;
 
 export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProps) {
   const router = useRouter();
@@ -494,9 +502,9 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
         <aside className={cn(panelClass, "overflow-hidden")}>
           <div className="border-b border-white/10 p-4">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                Caixa
-              </p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-700">
+              Caixa
+            </p>
               <button
                 type="button"
                 onClick={() => setConfigOpen(true)}
@@ -524,7 +532,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
           </div>
 
           <div className="border-b border-white/10 p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-700">
               Resumo rapido
             </p>
             <div className="mt-4 space-y-2">
@@ -544,9 +552,9 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
 
           <div className="space-y-6 p-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                Pastas
-              </p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-700">
+                  Pastas
+                </p>
               <div className="mt-3 space-y-2">
                 {tabs.map((tab) => (
                   <TabRailButton
@@ -568,7 +576,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
           <div className="border-b border-white/10 px-4 py-4 md:px-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-700">
                   {activeTabMeta.label}
                 </p>
                 <h3 className="mt-2 text-xl font-semibold text-white">
@@ -1146,23 +1154,23 @@ function EmailReadingPane({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={message.status} />
-              <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
                 {message.direction === "inbound" ? "Recebido" : "Enviado"}
               </span>
               <MailboxPill email={message.mailboxEmail} />
             </div>
 
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-white md:text-[2rem]">
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 md:text-[2rem]">
               {message.subject}
             </h2>
-            <p className="mt-2 text-sm text-slate-500">{formatDate(message.createdAt)}</p>
+            <p className="mt-2 text-sm text-slate-600">{formatDate(message.createdAt)}</p>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.06]"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
             >
               <X className="h-4 w-4" />
               Fechar
@@ -1172,7 +1180,7 @@ function EmailReadingPane({
               <button
                 type="button"
                 onClick={() => onReply(message)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20"
+                className="inline-flex items-center gap-2 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-semibold text-sky-800 transition hover:bg-sky-100"
               >
                 <Reply className="h-4 w-4" />
                 Responder
@@ -1183,7 +1191,7 @@ function EmailReadingPane({
               <button
                 type="button"
                 onClick={() => onMarkRead(message.id, !message.read)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.06]"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
               >
                 <CheckCheck className="h-4 w-4" />
                 {message.read ? "Marcar nao lido" : "Marcar lido"}
@@ -1193,7 +1201,7 @@ function EmailReadingPane({
             <button
               type="button"
               onClick={() => onDelete(message.id)}
-              className="inline-flex items-center gap-2 rounded-2xl border border-rose-300/20 px-4 py-2.5 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/10"
+              className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
             >
               <Trash2 className="h-4 w-4" />
               Remover
@@ -1228,21 +1236,21 @@ function EmailReadingPane({
 
       <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6 portal-scrollbar">
         <div className="admin-email-reading-surface mx-auto max-w-3xl rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(7,13,24,0.92)_100%)] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] md:p-8">
-          <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-700">
                 Corpo da mensagem
               </p>
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm text-slate-600">
                 Visualizacao focada no conteudo, com leitura mais limpa.
               </p>
             </div>
-            <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
               {message.direction === "inbound" ? "Inbox" : "Sent"}
             </span>
           </div>
 
-          <div className="mt-6 whitespace-pre-wrap text-[15px] leading-8 text-slate-200">
+          <div className="mt-6 whitespace-pre-wrap text-[15px] leading-8 text-slate-700">
             {messagePreview(message)}
           </div>
         </div>
@@ -1264,6 +1272,7 @@ function MessageRow({
 }) {
   const identity = getMessageIdentity(message);
   const unread = message.direction === "inbound" && !message.read;
+  const avatarTone = getAvatarTone(identity.initial);
 
   return (
     <button
@@ -1272,17 +1281,18 @@ function MessageRow({
       className={cn(
         "w-full px-4 py-4 text-left transition md:px-5",
         active
-          ? "bg-cyan-300/8 shadow-[inset_3px_0_0_rgba(103,232,249,0.8)]"
+          ? "bg-sky-100/80 shadow-[inset_3px_0_0_rgba(14,116,144,0.95)]"
           : unread
-            ? "bg-cyan-300/[0.05] hover:bg-cyan-300/[0.08]"
-            : "bg-transparent hover:bg-white/[0.03]"
+            ? "bg-sky-50/80 hover:bg-sky-100/60"
+            : "bg-transparent hover:bg-slate-50"
       )}
     >
       <div className="flex items-start gap-3">
         <div
           className={cn(
             "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold uppercase",
-            unread ? "bg-cyan-300/15 text-cyan-100" : "bg-white/[0.05] text-slate-400"
+            avatarTone,
+            unread && "ring-2 ring-sky-200/80 ring-offset-2 ring-offset-white"
           )}
         >
           {identity.initial}
@@ -1294,7 +1304,7 @@ function MessageRow({
               <div className="flex items-center gap-2">
                 <p
                   className={cn(
-                    "truncate text-sm text-white",
+                    "truncate text-sm text-slate-900",
                     unread ? "font-semibold" : "font-medium"
                   )}
                 >
@@ -1302,11 +1312,11 @@ function MessageRow({
                 </p>
                 {message.status === "failed" && <StatusBadge status={message.status} compact />}
               </div>
-              <p className="mt-1 truncate text-xs text-slate-500">{identity.secondary}</p>
+              <p className="mt-1 truncate text-xs text-slate-600">{identity.secondary}</p>
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
                 {formatListDate(message.createdAt)}
               </p>
               <ReadStateIcon message={message} compact />
@@ -1314,16 +1324,16 @@ function MessageRow({
           </div>
 
           <div className="mt-3">
-            <p className={cn("line-clamp-1 text-sm text-white", unread ? "font-semibold" : "font-medium")}>
+            <p className={cn("line-clamp-1 text-sm text-slate-900", unread ? "font-semibold" : "font-medium")}>
               {message.subject || "(Sem assunto)"}
             </p>
-            <p className="mt-1 line-clamp-1 text-sm leading-6 text-slate-500">
+            <p className="mt-1 line-clamp-1 text-sm leading-6 text-slate-600">
               {messagePreview(message)}
             </p>
           </div>
 
           {showMailbox && message.mailboxEmail && (
-            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100/80">
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700">
               {message.mailboxEmail}
             </p>
           )}
@@ -1345,12 +1355,12 @@ function SidebarMetricRow({
   return (
     <div className="flex items-center justify-between gap-3 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3">
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-700">
           {label}
         </p>
-        <p className="mt-1 text-xs text-slate-500">{detail}</p>
+        <p className="mt-1 text-xs text-slate-600">{detail}</p>
       </div>
-      <p className="text-2xl font-semibold text-white">{value}</p>
+      <p className="text-2xl font-semibold text-slate-900">{value}</p>
     </div>
   );
 }
@@ -1395,23 +1405,23 @@ function TabRailButton({
       className={cn(
         "flex w-full items-center gap-3 rounded-[20px] border px-4 py-3 text-left transition",
         active
-          ? "border-cyan-300/30 bg-cyan-300/10 text-white"
-          : "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
+          ? "border-sky-200 bg-sky-50 text-slate-900"
+          : "border-white/10 bg-white/[0.03] text-slate-800 hover:bg-slate-50"
       )}
     >
       <span
         className={cn(
           "mt-0.5 rounded-2xl border p-2",
           active
-            ? "border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
-            : "border-white/10 bg-white/[0.03] text-slate-400"
+            ? "border-sky-200 bg-sky-100 text-sky-700"
+            : "border-white/10 bg-white/[0.03] text-slate-500"
         )}
       >
         {icon}
       </span>
       <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
-        <p className="text-sm font-semibold">{label}</p>
-        <span className="text-sm font-semibold">{count}</span>
+        <p className="text-sm font-semibold text-slate-900">{label}</p>
+        <span className="text-sm font-semibold text-slate-700">{count}</span>
       </div>
     </button>
   );
@@ -1512,7 +1522,7 @@ function MailboxPill({ email, compact = false }: { email: string | null; compact
     return (
       <span
         className={cn(
-          "rounded-full border border-white/10 bg-white/[0.03] font-semibold uppercase tracking-[0.16em] text-slate-500",
+          "rounded-full border border-slate-200 bg-slate-50 font-semibold uppercase tracking-[0.16em] text-slate-600",
           compact ? "px-2.5 py-1 text-[10px]" : "px-3 py-1 text-[11px]"
         )}
       >
@@ -1524,7 +1534,7 @@ function MailboxPill({ email, compact = false }: { email: string | null; compact
   return (
     <span
       className={cn(
-        "rounded-full border border-cyan-300/20 bg-cyan-300/10 font-semibold uppercase tracking-[0.16em] text-cyan-100",
+        "rounded-full border border-sky-200 bg-sky-50 font-semibold uppercase tracking-[0.16em] text-sky-800",
         compact ? "px-2.5 py-1 text-[10px]" : "px-3 py-1 text-[11px]"
       )}
     >
@@ -1535,9 +1545,9 @@ function MailboxPill({ email, compact = false }: { email: string | null; compact
 
 function StatusBadge({ status, compact = false }: { status: string; compact?: boolean }) {
   const styles = {
-    sent: "border-emerald-300/20 bg-emerald-300/10 text-emerald-100",
-    received: "border-cyan-300/20 bg-cyan-300/10 text-cyan-100",
-    failed: "border-rose-300/20 bg-rose-300/10 text-rose-100",
+    sent: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    received: "border-sky-200 bg-sky-50 text-sky-700",
+    failed: "border-rose-200 bg-rose-50 text-rose-700",
   } as Record<string, string>;
 
   const label = status === "sent" ? "Enviado" : status === "failed" ? "Falhou" : "Recebido";
@@ -1605,4 +1615,10 @@ function formatDate(date: Date | string) {
 
 function formatListDate(date: Date | string) {
   return format(new Date(date), "dd MMM HH:mm", { locale: ptBR });
+}
+
+function getAvatarTone(seed: string) {
+  const normalized = seed.trim().toUpperCase() || "A";
+  const index = normalized.charCodeAt(0) % avatarToneClasses.length;
+  return avatarToneClasses[index];
 }
