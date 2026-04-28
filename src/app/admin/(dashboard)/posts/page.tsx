@@ -16,6 +16,7 @@ export default async function AdminPostsPage() {
     publishedAt: posts.publishedAt,
     createdAt: posts.createdAt,
     categoryId: posts.categoryId,
+    categoryIds: posts.categoryIds,
   }).from(posts).orderBy(desc(posts.createdAt));
   const allCategories = await db.select().from(categories);
 

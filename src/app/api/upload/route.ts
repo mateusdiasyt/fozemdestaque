@@ -2,14 +2,16 @@ import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { auth, hasPermission } from "@/lib/auth";
 
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = [
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
   "image/jpg",
   "image/png",
   "image/webp",
   "image/gif",
 ];
+const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 
 export async function POST(request: Request) {
   try {
@@ -26,6 +28,7 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
+    const kind = formData.get("kind") === "video" ? "video" : "image";
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
@@ -34,16 +37,29 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    const allowedTypes = kind === "video" ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES;
+    const maxSize = kind === "video" ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+
+    if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: "Tipo nao permitido. Use: JPEG, PNG, WebP ou GIF" },
+        {
+          error:
+            kind === "video"
+              ? "Tipo nao permitido. Use: MP4, WebM ou MOV"
+              : "Tipo nao permitido. Use: JPEG, PNG, WebP ou GIF",
+        },
         { status: 400 }
       );
     }
 
-    if (file.size > MAX_SIZE) {
+    if (file.size > maxSize) {
       return NextResponse.json(
-        { error: "Arquivo muito grande. Maximo 5MB" },
+        {
+          error:
+            kind === "video"
+              ? "Arquivo muito grande. Maximo 50MB"
+              : "Arquivo muito grande. Maximo 5MB",
+        },
         { status: 400 }
       );
     }
@@ -59,7 +75,7 @@ export async function POST(request: Request) {
     }
 
     const ext = file.name.split(".").pop() || "jpg";
-    const pathname = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const pathname = `${kind === "video" ? "videos" : "uploads"}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
     const blob = await put(pathname, file, {
       access: "public",
@@ -67,7 +83,7 @@ export async function POST(request: Request) {
       contentType: file.type,
     });
 
-    return NextResponse.json({ url: blob.url });
+    return NextResponse.json({ url: blob.url, kind });
   } catch (err) {
     console.error("[upload]", err);
     return NextResponse.json(

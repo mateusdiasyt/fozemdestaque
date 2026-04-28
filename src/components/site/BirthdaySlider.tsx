@@ -132,7 +132,7 @@ function SlideContent({ item }: { item: BirthdaySlideItem }) {
           <SiteImage
             src={item.image}
             alt={item.title}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover/slide:scale-[1.03]"
+            className="h-full w-full bg-[#f7f8fa] object-contain transition-transform duration-700 group-hover/slide:scale-[1.01]"
             loading="eager"
             fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#111827_0%,#1e293b_55%,#334155_100%)]" />}
           />

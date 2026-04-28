@@ -1,13 +1,14 @@
 ﻿import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { db } from "@/lib/db";
-import { posts, categories, contentBlocks, banners } from "@/lib/db/schema";
-import { eq, and, asc, isNull, lte, or, sql } from "drizzle-orm";
+import { categories, contentBlocks, banners } from "@/lib/db/schema";
+import { eq, and, asc } from "drizzle-orm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 import { BirthdaySlider, type BirthdaySlideItem } from "@/components/site/BirthdaySlider";
 import { HomeAdsMobile, HomeAdsRail, type HomeBannerAd } from "@/components/site/HomeAdsRail";
 import { SiteImage } from "@/components/site/SiteImage";
+import { filterPublishedPostsByCategory, getPublishedPostsBase } from "@/lib/public-posts";
 
 type PostItem = {
   id: string;
@@ -15,6 +16,8 @@ type PostItem = {
   slug: string;
   excerpt: string | null;
   featuredImage: string | null;
+  featuredImageAlt?: string | null;
+  featuredImageTitle?: string | null;
   publishedAt: Date | null;
 };
 
@@ -32,30 +35,25 @@ async function getBannersByPosition(position: "lateral_1" | "lateral_2", limit =
     .limit(limit);
 }
 
-async function getPostsByCategory(slug: string, limit: number): Promise<PostItem[]> {
-  const [cat] = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
-  if (!cat) return [];
-  const now = new Date();
+function getPostsByCategoryFromList(
+  allPublishedPosts: Awaited<ReturnType<typeof getPublishedPostsBase>>,
+  categoryId: string | null | undefined,
+  limit: number
+): PostItem[] {
+  if (!categoryId) return [];
 
-  return db
-    .select({
-      id: posts.id,
-      title: posts.title,
-      slug: posts.slug,
-      excerpt: posts.excerpt,
-      featuredImage: posts.featuredImage,
-      publishedAt: posts.publishedAt,
-    })
-    .from(posts)
-    .where(
-      and(
-        eq(posts.categoryId, cat.id),
-        eq(posts.status, "publicado"),
-        or(isNull(posts.publishedAt), lte(posts.publishedAt, now))
-      )
-    )
-    .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`)
-    .limit(limit);
+  return filterPublishedPostsByCategory(allPublishedPosts, categoryId)
+    .map((post) => ({
+      id: post.id,
+      title: post.title,
+      slug: post.slug,
+      excerpt: post.excerpt,
+      featuredImage: post.featuredImage,
+      featuredImageAlt: post.featuredImageAlt,
+      featuredImageTitle: post.featuredImageTitle,
+      publishedAt: post.publishedAt,
+    }))
+    .slice(0, limit);
 }
 
 async function getAniversariantesDoDia(limit = 10) {
@@ -73,29 +71,29 @@ function formatPostDate(date: Date | null) {
 }
 
 export default async function HomePage() {
+  const [allCategories, allPublishedPosts] = await Promise.all([
+    db.select().from(categories),
+    getPublishedPostsBase(),
+  ]);
+  const categoryBySlug = new Map(allCategories.map((category) => [category.slug, category.id]));
+
   const [
     aniversariantesBlocks,
-    aniversariosPosts,
-    datas,
-    reflexao,
-    clickSociety,
-    agenda,
-    tiTiTi,
-    merchandising,
     lateralLeftBanners,
     lateralRightBanners,
   ] = await Promise.all([
     getAniversariantesDoDia(10),
-    getPostsByCategory("aniversariantes", 12),
-    getPostsByCategory("datas", 4),
-    getPostsByCategory("reflexao-do-dia", 3),
-    getPostsByCategory("click-society", 4),
-    getPostsByCategory("agenda", 4),
-    getPostsByCategory("ti-ti-ti", 2),
-    getPostsByCategory("merchandising", 2),
     getBannersByPosition("lateral_1", 3),
     getBannersByPosition("lateral_2", 3),
   ]);
+
+  const aniversariosPosts = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("aniversariantes"), 12);
+  const datas = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("datas"), 4);
+  const reflexao = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("reflexao-do-dia"), 3);
+  const clickSociety = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("click-society"), 4);
+  const agenda = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("agenda"), 4);
+  const tiTiTi = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("ti-ti-ti"), 2);
+  const merchandising = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("merchandising"), 2);
 
   const birthdaySlides: BirthdaySlideItem[] = [
     ...aniversariantesBlocks.map((item) => ({
@@ -118,6 +116,16 @@ export default async function HomePage() {
     (item, index, arr) =>
       arr.findIndex((x) => (x.href ?? `id:${x.id}`) === (item.href ?? `id:${item.id}`)) === index
   );
+
+  const today = new Date();
+  const birthdaySlideOfTheDay = birthdaySlides.find((item) => {
+    if (!item.dateLabel) return false;
+    const [day, month, year] = item.dateLabel.split("/").map(Number);
+    return day === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear();
+  });
+  const homepageBirthdaySlides = birthdaySlideOfTheDay
+    ? [birthdaySlideOfTheDay]
+    : birthdaySlides.slice(0, 1);
 
   const hasLeftBanners = lateralLeftBanners.length > 0;
   const hasRightBanners = lateralRightBanners.length > 0;
@@ -152,7 +160,7 @@ export default async function HomePage() {
                   eyebrow="Capa do dia"
                   description="Uma vitrine principal para celebrar os destaques e manter a sensação de capa logo na abertura do portal."
                 />
-                <BirthdaySlider items={birthdaySlides} className="flex-1" />
+                <BirthdaySlider items={homepageBirthdaySlides} className="flex-1" />
               </div>
 
               <FeatureSection
@@ -299,8 +307,9 @@ function FeatureSection({
               {lead.featuredImage ? (
                 <SiteImage
                   src={lead.featuredImage}
-                  alt=""
-                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  alt={lead.featuredImageAlt || lead.title}
+                  title={lead.featuredImageTitle}
+                  className="h-full w-full bg-[#f7f8fa] object-contain transition-transform duration-700 group-hover:scale-[1.01]"
                   fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#111827_0%,#334155_50%,#0f172a_100%)]" />}
                 />
               ) : (
@@ -378,7 +387,8 @@ function EditorialSection({
           >
             <ThumbImage
               src={lead.featuredImage}
-              alt={lead.title}
+              alt={lead.featuredImageAlt || lead.title}
+              title={lead.featuredImageTitle}
               className="h-44 md:h-full md:min-h-[180px]"
               placeholderLabel={title}
             />
@@ -457,7 +467,8 @@ function ReflectionSection({
           >
             <ThumbImage
               src={lead.featuredImage}
-              alt={lead.title}
+              alt={lead.featuredImageAlt || lead.title}
+              title={lead.featuredImageTitle}
               className="h-36 md:h-full md:min-h-[150px]"
               placeholderLabel={title}
             />
@@ -563,7 +574,7 @@ function CompactSection({
               className="group grid grid-cols-[auto_68px_1fr] gap-3 rounded-[20px] border border-[#e8edf1] bg-[#fbfcfd] p-3 transition-colors hover:bg-white"
             >
               <span className="font-headline text-2xl font-semibold text-[#d1d8df] tabular-nums">{`${index + 1}`.padStart(2, "0")}</span>
-              <ThumbImage src={post.featuredImage} alt={post.title} className="h-[68px] w-[68px]" placeholderLabel={title} />
+              <ThumbImage src={post.featuredImage} alt={post.featuredImageAlt || post.title} title={post.featuredImageTitle} className="h-[68px] w-[68px]" placeholderLabel={title} />
 
               <div className="min-w-0">
                 <h3 className="font-headline text-[0.98rem] font-semibold leading-snug text-[#102033] transition-colors group-hover:text-[#ff751f] line-clamp-3">
@@ -591,7 +602,7 @@ function StoryRow({ post, index }: { post: PostItem; index: number }) {
       className="group grid grid-cols-[auto_88px_1fr] items-center gap-3 rounded-[20px] border border-[#e8edf1] bg-[#fbfcfd] p-3 transition-colors hover:bg-white"
     >
       <span className="font-headline text-2xl font-semibold text-[#d1d8df] tabular-nums">{`${index}`.padStart(2, "0")}</span>
-      <ThumbImage src={post.featuredImage} alt={post.title} className="h-20 w-[88px]" placeholderLabel="Foz" />
+      <ThumbImage src={post.featuredImage} alt={post.featuredImageAlt || post.title} title={post.featuredImageTitle} className="h-20 w-[88px]" placeholderLabel="Foz" />
       <div className="min-w-0">
         <h4 className="font-headline text-base font-semibold leading-snug text-[#102033] transition-colors group-hover:text-[#ff751f]">
           {post.title}
@@ -608,11 +619,13 @@ function StoryRow({ post, index }: { post: PostItem; index: number }) {
 function ThumbImage({
   src,
   alt,
+  title,
   className,
   placeholderLabel,
 }: {
   src: string | null;
   alt: string;
+  title?: string | null;
   className: string;
   placeholderLabel: string;
 }) {
@@ -622,7 +635,8 @@ function ThumbImage({
         <SiteImage
           src={src}
           alt={alt}
-          className="h-full w-full object-cover"
+          title={title}
+          className="h-full w-full bg-[#f7f8fa] object-contain"
           fallback={
             <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#dfe6ea_0%,#f6f7f8_100%)]">
               <span className="px-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[#718391]">

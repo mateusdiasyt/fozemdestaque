@@ -54,7 +54,9 @@ export const posts = pgTable("posts", {
   content: text("content").notNull(),
   featuredImage: text("featured_image"),
   featuredImageAlt: text("featured_image_alt"),
+  featuredImageTitle: text("featured_image_title"),
   categoryId: text("category_id").references(() => categories.id),
+  categoryIds: text("category_ids"), // JSON array: ["catId1", "catId2"]
   tags: text("tags"), // JSON array: ["tag1", "tag2"]
   scheduledAt: timestamp("scheduled_at"),
   canonicalUrl: text("canonical_url"),

@@ -3,7 +3,10 @@ import { mergeAttributes, Node } from "@tiptap/core";
 export interface ImageGridItem {
   src: string;
   alt?: string;
+  title?: string;
   href?: string;
+  width?: number;
+  height?: number;
 }
 
 declare module "@tiptap/core" {
@@ -37,7 +40,10 @@ function safeImages(value: unknown): ImageGridItem[] {
     images.push({
       src: String(image.src),
       alt: image.alt ? String(image.alt) : "",
+      title: image.title ? String(image.title) : "",
       href: image.href ? String(image.href) : "",
+      width: typeof image.width === "number" ? image.width : undefined,
+      height: typeof image.height === "number" ? image.height : undefined,
     });
   });
 
@@ -78,7 +84,10 @@ export const ImageGrid = Node.create({
             images.push({
               src: img.getAttribute("src") || "",
               alt: img.getAttribute("alt") || "",
+              title: img.getAttribute("title") || "",
               href: link?.getAttribute("href") || "",
+              width: Number(img.getAttribute("width") || 0) || undefined,
+              height: Number(img.getAttribute("height") || 0) || undefined,
             });
           });
 
@@ -109,9 +118,12 @@ export const ImageGrid = Node.create({
         {
           src: image.src,
           alt: image.alt || "",
+          title: image.title || "",
+          width: image.width || undefined,
+          height: image.height || undefined,
           loading: "lazy",
           style:
-            "width:100%;height:100%;min-height:180px;max-height:420px;object-fit:cover;border-radius:18px;display:block;box-shadow:0 14px 34px rgba(15,23,42,.14)",
+            "width:100%;height:auto;max-height:720px;object-fit:contain;border-radius:18px;display:block;box-shadow:0 14px 34px rgba(15,23,42,.14);background:#fff",
         },
       ];
       const media = image.href
@@ -132,7 +144,7 @@ export const ImageGrid = Node.create({
         {
           "data-image-index": String(index),
           style:
-            "margin:0;min-width:0;border-radius:22px;background:#f8fafc;border:1px solid #e2e8f0;padding:8px",
+            "margin:0;min-width:0;border-radius:22px;background:#f8fafc;border:1px solid #e2e8f0;padding:8px;align-self:start",
         },
         media,
         image.alt

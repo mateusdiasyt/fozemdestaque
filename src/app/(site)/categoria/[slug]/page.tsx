@@ -1,12 +1,13 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, count, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 import { SiteImage } from "@/components/site/SiteImage";
 import { db } from "@/lib/db";
-import { categories, posts } from "@/lib/db/schema";
+import { categories } from "@/lib/db/schema";
+import { filterPublishedPostsByCategory, getPublishedPostsBase } from "@/lib/public-posts";
 
 const PAGE_SIZE = 13;
 const MONTHS_PT: Record<string, number> = {
@@ -30,6 +31,8 @@ type CategoryPost = {
   slug: string;
   excerpt: string | null;
   featuredImage: string | null;
+  featuredImageAlt?: string | null;
+  featuredImageTitle?: string | null;
   publishedAt: Date | null;
 };
 
@@ -233,34 +236,29 @@ export default async function CategoryPage({
   const activeDateFilter = supportsDateFilter ? parseDateFilter(resolvedSearch.date) : null;
   const activeDateLabel = formatFilterLabel(activeDateFilter?.raw ?? null);
   const todayFilter = format(new Date(), "yyyy-MM-dd");
-  const now = new Date();
 
   const [category] = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
   if (!category || !category.active) notFound();
+
+  const allCategoryPosts = filterPublishedPostsByCategory(
+    await getPublishedPostsBase(),
+    category.id
+  ).map((post) => ({
+    id: post.id,
+    title: post.title,
+    slug: post.slug,
+    excerpt: post.excerpt,
+    featuredImage: post.featuredImage,
+    featuredImageAlt: post.featuredImageAlt,
+    featuredImageTitle: post.featuredImageTitle,
+    publishedAt: post.publishedAt,
+  }));
 
   let totalItems = 0;
   let items: CategoryPost[] = [];
 
   if (supportsDateFilter && activeDateFilter) {
-    const allReflectionPosts = await db
-      .select({
-        id: posts.id,
-        title: posts.title,
-        slug: posts.slug,
-        excerpt: posts.excerpt,
-        featuredImage: posts.featuredImage,
-        publishedAt: posts.publishedAt,
-      })
-      .from(posts)
-      .where(
-        and(
-          eq(posts.categoryId, category.id),
-          eq(posts.status, "publicado"),
-          or(isNull(posts.publishedAt), lte(posts.publishedAt, now))
-        )
-      );
-
-    const reflectionMatches = allReflectionPosts
+    const reflectionMatches = allCategoryPosts
       .map((post) => ({
         post,
         matchType: getReflectionDateMatchType(post, activeDateFilter.start),
@@ -298,45 +296,14 @@ export default async function CategoryPage({
       items,
     });
   }
-
-  const [{ totalItems: countedItems }] = await db
-    .select({ totalItems: count() })
-    .from(posts)
-    .where(
-      and(
-        eq(posts.categoryId, category.id),
-        eq(posts.status, "publicado"),
-        or(isNull(posts.publishedAt), lte(posts.publishedAt, now))
-      )
-    );
-
-  totalItems = countedItems;
+  totalItems = allCategoryPosts.length;
 
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
   const currentPage =
     Number.isFinite(requestedPage) && requestedPage > 0 ? Math.min(requestedPage, totalPages) : 1;
   const offset = (currentPage - 1) * PAGE_SIZE;
 
-  items = await db
-    .select({
-      id: posts.id,
-      title: posts.title,
-      slug: posts.slug,
-      excerpt: posts.excerpt,
-      featuredImage: posts.featuredImage,
-      publishedAt: posts.publishedAt,
-    })
-    .from(posts)
-    .where(
-      and(
-        eq(posts.categoryId, category.id),
-        eq(posts.status, "publicado"),
-        or(isNull(posts.publishedAt), lte(posts.publishedAt, now))
-      )
-    )
-    .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`)
-    .limit(PAGE_SIZE)
-    .offset(offset);
+  items = allCategoryPosts.slice(offset, offset + PAGE_SIZE);
 
   return renderCategoryPage({
     category: {
@@ -481,8 +448,9 @@ function renderCategoryPage({
                     <>
                       <SiteImage
                         src={lead.featuredImage}
-                        alt={lead.title}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                        alt={lead.featuredImageAlt || lead.title}
+                        title={lead.featuredImageTitle}
+                        className="h-full w-full bg-[#f7f8fa] object-contain transition-transform duration-500 group-hover:scale-[1.01]"
                         fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#fff1e5_0%,#f4f6f7_100%)]" />}
                       />
                       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0)_0%,rgba(15,23,42,0.7)_100%)]" />
@@ -528,8 +496,9 @@ function renderCategoryPage({
                         <>
                           <SiteImage
                             src={post.featuredImage}
-                            alt={post.title}
-                            className="h-full w-full object-cover"
+                            alt={post.featuredImageAlt || post.title}
+                            title={post.featuredImageTitle}
+                            className="h-full w-full bg-[#f7f8fa] object-contain"
                             fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#fff1e5_0%,#f4f6f7_100%)]" />}
                           />
                         </>
@@ -570,8 +539,9 @@ function renderCategoryPage({
                         <>
                           <SiteImage
                             src={post.featuredImage}
-                            alt={post.title}
-                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                            alt={post.featuredImageAlt || post.title}
+                            title={post.featuredImageTitle}
+                            className="h-full w-full bg-[#f7f8fa] object-contain transition-transform duration-500 group-hover:scale-[1.01]"
                             fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#fff1e5_0%,#f4f6f7_100%)]" />}
                           />
                         </>

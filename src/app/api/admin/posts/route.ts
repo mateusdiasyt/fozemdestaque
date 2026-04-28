@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth, hasPermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { categories, posts } from "@/lib/db/schema";
+import { coercePostCategoryState, parseCategoryIds, postHasCategory } from "@/lib/post-categories";
 import { generateId } from "@/lib/utils";
 import { getUniquePostSlug } from "@/lib/post-slugs";
 
@@ -14,7 +15,9 @@ const createPostSchema = z.object({
   content: z.string(),
   featuredImage: z.string().optional().nullable(),
   featuredImageAlt: z.string().optional().nullable(),
+  featuredImageTitle: z.string().optional().nullable(),
   categoryId: z.string().optional().nullable(),
+  categoryIds: z.array(z.string()).optional().nullable(),
   status: z.enum(["rascunho", "em_analise", "publicado"]).default("rascunho"),
   featured: z.boolean().default(false),
   metaTitle: z.string().optional().nullable(),
@@ -48,7 +51,9 @@ export async function GET(req: Request) {
       slug: posts.slug,
       excerpt: posts.excerpt,
       featuredImage: posts.featuredImage,
+      featuredImageTitle: posts.featuredImageTitle,
       categoryId: posts.categoryId,
+      categoryIds: posts.categoryIds,
       status: posts.status,
       featured: posts.featured,
       publishedAt: posts.publishedAt,
@@ -57,13 +62,18 @@ export async function GET(req: Request) {
     .from(posts)
     .orderBy(desc(posts.createdAt));
 
-  const filtered = status
-    ? all.filter((post) => post.status === status)
-    : categoryId
-      ? all.filter((post) => post.categoryId === categoryId)
-      : all;
+  const filtered = all.filter((post) => {
+    const matchesStatus = status ? post.status === status : true;
+    const matchesCategory = categoryId ? postHasCategory(post, categoryId) : true;
+    return matchesStatus && matchesCategory;
+  });
 
-  return NextResponse.json(filtered);
+  const withParsedCategories = filtered.map((post) => ({
+    ...post,
+    categoryIds: parseCategoryIds(post.categoryIds, post.categoryId),
+  }));
+
+  return NextResponse.json(withParsedCategories);
 }
 
 export async function POST(req: Request) {
@@ -80,6 +90,10 @@ export async function POST(req: Request) {
 
   const id = generateId();
   const slug = await getUniquePostSlug(parsed.data.slug, parsed.data.title);
+  const categoryState = coercePostCategoryState({
+    categoryId: parsed.data.categoryId ?? null,
+    categoryIds: parsed.data.categoryIds ?? null,
+  });
   const publishedAt =
     parsed.data.status === "publicado"
       ? parsed.data.publishedAt
@@ -95,7 +109,9 @@ export async function POST(req: Request) {
     content: parsed.data.content,
     featuredImage: parsed.data.featuredImage ?? null,
     featuredImageAlt: parsed.data.featuredImageAlt ?? null,
-    categoryId: parsed.data.categoryId ?? null,
+    featuredImageTitle: parsed.data.featuredImageTitle ?? null,
+    categoryId: categoryState.categoryId,
+    categoryIds: categoryState.categoryIdsJson,
     tags: parsed.data.tags ?? null,
     scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null,
     canonicalUrl: parsed.data.canonicalUrl ?? null,

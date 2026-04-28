@@ -1,13 +1,14 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, eq, isNull, like, lte, or } from "drizzle-orm";
+import { and, asc, eq, isNull, like, lte, or } from "drizzle-orm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 import { SiteImage } from "@/components/site/SiteImage";
 import { PostComments } from "@/components/site/PostComments";
+import { HomeAdsRail, type HomeBannerAd } from "@/components/site/HomeAdsRail";
 import { db } from "@/lib/db";
-import { categories, contentBlocks, posts } from "@/lib/db/schema";
+import { banners, categories, contentBlocks, posts } from "@/lib/db/schema";
 import { enhanceContentHtml } from "@/lib/media";
 
 const BLOCK_CATEGORY_MAP: Record<string, { slug: string; label: string }> = {
@@ -69,6 +70,20 @@ async function getEntryBySlug(slug: string) {
   return (await getPostBySlug(slug)) ?? (await getContentBlockBySlug(slug));
 }
 
+async function getBannersByPosition(position: "lateral_1" | "lateral_2", limit = 3): Promise<HomeBannerAd[]> {
+  return db
+    .select({
+      id: banners.id,
+      title: banners.title,
+      imageUrl: banners.imageUrl,
+      linkUrl: banners.linkUrl,
+    })
+    .from(banners)
+    .where(and(eq(banners.position, position), eq(banners.active, true)))
+    .orderBy(asc(banners.order))
+    .limit(limit);
+}
+
 function formatDisplayDate(date: Date | null | undefined) {
   if (!date) return null;
   return format(new Date(date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
@@ -80,7 +95,11 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const entry = await getEntryBySlug(slug);
+  const [entry, leftBanners, rightBanners] = await Promise.all([
+    getEntryBySlug(slug),
+    getBannersByPosition("lateral_1", 3),
+    getBannersByPosition("lateral_2", 3),
+  ]);
 
   if (!entry) return {};
 
@@ -113,13 +132,19 @@ export default async function PostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const entry = await getEntryBySlug(slug);
+  const [entry, leftBanners, rightBanners] = await Promise.all([
+    getEntryBySlug(slug),
+    getBannersByPosition("lateral_1", 3),
+    getBannersByPosition("lateral_2", 3),
+  ]);
 
   if (!entry) notFound();
 
   const isPost = entry.kind === "post";
   const title = isPost ? entry.post.title : entry.block.title;
   const image = isPost ? entry.post.featuredImage : entry.block.thumbnail;
+  const imageAlt = isPost ? entry.post.featuredImageAlt || entry.post.title : entry.block.title;
+  const imageTitle = isPost ? entry.post.featuredImageTitle : null;
   const category = isPost
     ? entry.category
       ? { slug: entry.category.slug, label: entry.category.name }
@@ -138,7 +163,12 @@ export default async function PostPage({
   const contentHtml = enhanceContentHtml(contentHtmlRaw);
 
   return (
-    <article className="overflow-hidden rounded-[38px] border border-[#e5dccd] bg-[linear-gradient(180deg,#fffdf9_0%,#f7f2ea_100%)] shadow-[0_32px_90px_rgba(15,23,42,0.10)]">
+    <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)_220px] 2xl:grid-cols-[240px_minmax(0,1fr)_240px] 2xl:gap-8">
+      <div className="hidden xl:block">
+        <HomeAdsRail banners={leftBanners} />
+      </div>
+
+      <article className="overflow-hidden rounded-[38px] border border-[#e5dccd] bg-[linear-gradient(180deg,#fffdf9_0%,#f7f2ea_100%)] shadow-[0_32px_90px_rgba(15,23,42,0.10)]">
       <header className="border-b border-[#ece2d3] px-6 py-8 md:px-12 md:py-14">
         <div className="mx-auto max-w-4xl">
           <Link
@@ -169,7 +199,7 @@ export default async function PostPage({
         <div className="px-6 pt-6 md:px-12 md:pt-10">
           <div className="mx-auto max-w-5xl overflow-hidden rounded-[34px] border border-[#e5dccd] bg-[#f1eadf] shadow-[0_22px_60px_rgba(15,23,42,0.08)]">
             <div className="aspect-[16/9] md:aspect-[21/9]">
-              <SiteImage src={image} alt={title} className="h-full w-full object-cover" loading="eager" fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#fff1e5_0%,#f4f6f7_100%)]" />} />
+              <SiteImage src={image} alt={imageAlt} title={imageTitle} className="h-full w-full bg-[#f7f8fa] object-contain" loading="eager" fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#fff1e5_0%,#f4f6f7_100%)]" />} />
             </div>
           </div>
         </div>
@@ -183,6 +213,11 @@ export default async function PostPage({
       </div>
 
       {isPost && <PostComments postId={entry.post.id} />}
-    </article>
+      </article>
+
+      <div className="hidden xl:block">
+        <HomeAdsRail banners={rightBanners} />
+      </div>
+    </div>
   );
 }

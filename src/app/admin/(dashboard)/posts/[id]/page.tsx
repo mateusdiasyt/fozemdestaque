@@ -3,6 +3,7 @@ import { posts, categories } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { PostEditor } from "@/components/admin/PostEditor";
+import { parseCategoryIds } from "@/lib/post-categories";
 
 export default async function EditPostPage({
   params,
@@ -13,6 +14,10 @@ export default async function EditPostPage({
   const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
   if (!post) notFound();
   const allCategories = await db.select().from(categories);
+  const postForEditor = {
+    ...post,
+    categoryIds: parseCategoryIds(post.categoryIds, post.categoryId),
+  };
 
   return (
     <div className="space-y-6 pb-10">
@@ -32,7 +37,7 @@ export default async function EditPostPage({
         </div>
       </section>
 
-      <PostEditor post={post} categories={allCategories} />
+      <PostEditor post={postForEditor} categories={allCategories} />
     </div>
   );
 }

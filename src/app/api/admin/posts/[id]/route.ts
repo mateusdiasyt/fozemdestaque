@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth, hasPermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { posts } from "@/lib/db/schema";
+import { coercePostCategoryState, parseCategoryIds } from "@/lib/post-categories";
 import { getUniquePostSlug } from "@/lib/post-slugs";
 
 const updatePostSchema = z.object({
@@ -13,7 +14,9 @@ const updatePostSchema = z.object({
   content: z.string().optional(),
   featuredImage: z.string().optional().nullable(),
   featuredImageAlt: z.string().optional().nullable(),
+  featuredImageTitle: z.string().optional().nullable(),
   categoryId: z.string().optional().nullable(),
+  categoryIds: z.array(z.string()).optional().nullable(),
   status: z.enum(["rascunho", "em_analise", "publicado"]).optional(),
   featured: z.boolean().optional(),
   metaTitle: z.string().optional().nullable(),
@@ -43,7 +46,10 @@ export async function GET(
   const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
   if (!post) return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
 
-  return NextResponse.json(post);
+  return NextResponse.json({
+    ...post,
+    categoryIds: parseCategoryIds(post.categoryIds, post.categoryId),
+  });
 }
 
 export async function PATCH(
@@ -69,6 +75,19 @@ export async function PATCH(
     ...parsed.data,
     updatedAt: new Date(),
   };
+
+  if (parsed.data.categoryId !== undefined || parsed.data.categoryIds !== undefined) {
+    const categoryState = coercePostCategoryState({
+      categoryId:
+        parsed.data.categoryId !== undefined ? parsed.data.categoryId : current.categoryId,
+      categoryIds:
+        parsed.data.categoryIds !== undefined
+          ? parsed.data.categoryIds
+          : parseCategoryIds(current.categoryIds, current.categoryId),
+    });
+    updates.categoryId = categoryState.categoryId;
+    updates.categoryIds = categoryState.categoryIdsJson;
+  }
 
   if (parsed.data.scheduledAt !== undefined) {
     updates.scheduledAt = parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null;

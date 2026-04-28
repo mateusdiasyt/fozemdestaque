@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImageIcon, Layout, Link2, PanelBottom, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { prepareImageUpload } from "@/lib/client-media";
 
 const POSITIONS = [
   {
@@ -200,8 +201,9 @@ export function BannersManager({ banners }: { banners: Banner[] }) {
 
     setUploadLoading(true);
     try {
+      const prepared = await prepareImageUpload(file);
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", prepared.file);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro no upload");

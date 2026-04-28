@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
@@ -82,6 +82,10 @@ type MailboxDraft = {
   isDefault: boolean;
 };
 
+type ResizableColumnKey = "sender" | "subject" | "mailbox" | "date";
+
+type ColumnWidths = Record<ResizableColumnKey, number>;
+
 const tabs: Array<{
   key: TabKey;
   label: string;
@@ -122,6 +126,20 @@ const avatarToneClasses = [
   "bg-[#31455a] text-white",
 ] as const;
 
+const defaultColumnWidths: ColumnWidths = {
+  sender: 230,
+  subject: 420,
+  mailbox: 220,
+  date: 128,
+};
+
+const minColumnWidths: ColumnWidths = {
+  sender: 180,
+  subject: 260,
+  mailbox: 180,
+  date: 118,
+};
+
 export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProps) {
   const router = useRouter();
   const activeMailboxes = useMemo(
@@ -151,9 +169,20 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
   const [mailboxDraft, setMailboxDraft] = useState<MailboxDraft>(() => createMailboxDraft(null));
   const [savingMailbox, setSavingMailbox] = useState(false);
   const [readOverrides, setReadOverrides] = useState<Record<string, boolean>>({});
+  const [mailboxOverrides, setMailboxOverrides] = useState<Record<string, string | null>>({});
+  const [removedMessageIds, setRemovedMessageIds] = useState<Record<string, true>>({});
+  const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [bulkMoveMailbox, setBulkMoveMailbox] = useState("");
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(defaultColumnWidths);
   const [mailboxFeedback, setMailboxFeedback] = useState<{
     type: "success" | "error";
     text: string;
+  } | null>(null);
+  const resizeStateRef = useRef<{
+    key: ResizableColumnKey;
+    startX: number;
+    startWidth: number;
   } | null>(null);
 
   useEffect(() => {
@@ -165,13 +194,55 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     }
   }, [activeMailboxes, composeMailbox, defaultMailbox]);
 
+  useEffect(() => {
+    if (!bulkMoveMailbox || !activeMailboxes.some((mailbox) => mailbox.email === bulkMoveMailbox)) {
+      setBulkMoveMailbox(defaultMailbox?.email ?? "");
+    }
+  }, [activeMailboxes, bulkMoveMailbox, defaultMailbox]);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const resizeState = resizeStateRef.current;
+      if (!resizeState) return;
+
+      const nextWidth = Math.max(
+        minColumnWidths[resizeState.key],
+        Math.round(resizeState.startWidth + (event.clientX - resizeState.startX))
+      );
+
+      setColumnWidths((current) => ({
+        ...current,
+        [resizeState.key]: nextWidth,
+      }));
+    };
+
+    const stopResize = () => {
+      resizeStateRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopResize);
+    window.addEventListener("pointercancel", stopResize);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopResize);
+      window.removeEventListener("pointercancel", stopResize);
+    };
+  }, []);
+
   const messagesWithReadState = useMemo(
     () =>
-      messages.map((message) => ({
-        ...message,
-        read: readOverrides[message.id] ?? message.read,
-      })),
-    [messages, readOverrides]
+      messages
+        .filter((message) => !removedMessageIds[message.id])
+        .map((message) => ({
+          ...message,
+          read: readOverrides[message.id] ?? message.read,
+          mailboxEmail: mailboxOverrides[message.id] ?? message.mailboxEmail,
+        })),
+    [mailboxOverrides, messages, readOverrides, removedMessageIds]
   );
 
   const counts = useMemo(() => {
@@ -187,12 +258,12 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
 
   const mailboxCounts = useMemo(() => {
     return mailboxes.reduce<Record<string, number>>((acc, mailbox) => {
-      acc[mailbox.email] = messages.filter(
+      acc[mailbox.email] = messagesWithReadState.filter(
         (message) => message.mailboxEmail === mailbox.email
       ).length;
       return acc;
     }, {});
-  }, [mailboxes, messages]);
+  }, [mailboxes, messagesWithReadState]);
 
   const filteredMessages = useMemo(() => {
     const byTab =
@@ -230,12 +301,17 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
   useEffect(() => {
     if (!filteredMessages.length) {
       setSelectedId("");
+      setSelectedMessageIds([]);
       return;
     }
 
     if (!filteredMessages.some((message) => message.id === selectedId)) {
       setSelectedId("");
     }
+
+    setSelectedMessageIds((current) =>
+      current.filter((messageId) => filteredMessages.some((message) => message.id === messageId))
+    );
   }, [filteredMessages, selectedId]);
 
   const selectedMessage =
@@ -247,6 +323,16 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
       : activeMailboxes.find((mailbox) => mailbox.email === mailboxFilter) ?? null;
   const mailboxLimitReached =
     !editingMailboxId && mailboxes.length >= MAX_EMAIL_MAILBOXES;
+  const showMailboxColumn = mailboxFilter === "all";
+  const selectedMessages = useMemo(
+    () => filteredMessages.filter((message) => selectedMessageIds.includes(message.id)),
+    [filteredMessages, selectedMessageIds]
+  );
+  const allVisibleSelected =
+    filteredMessages.length > 0 && filteredMessages.every((message) => selectedMessageIds.includes(message.id));
+  const someVisibleSelected =
+    !allVisibleSelected && filteredMessages.some((message) => selectedMessageIds.includes(message.id));
+  const listGridTemplate = getInboxGridTemplate(columnWidths, showMailboxColumn);
 
   async function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -319,6 +405,141 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     router.refresh();
   }
 
+  function startColumnResize(key: ResizableColumnKey, event: React.PointerEvent<HTMLSpanElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    resizeStateRef.current = {
+      key,
+      startX: event.clientX,
+      startWidth: columnWidths[key],
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
+
+  function toggleMessageSelection(messageId: string, checked: boolean) {
+    setSelectedMessageIds((current) =>
+      checked ? Array.from(new Set([...current, messageId])) : current.filter((id) => id !== messageId)
+    );
+  }
+
+  function toggleSelectAllVisible(checked: boolean) {
+    const visibleIds = filteredMessages.map((message) => message.id);
+    setSelectedMessageIds((current) => {
+      if (checked) {
+        return Array.from(new Set([...current, ...visibleIds]));
+      }
+      return current.filter((id) => !visibleIds.includes(id));
+    });
+  }
+
+  async function runBulkAction(action: "delete" | "mark_read" | "mark_unread" | "move") {
+    if (selectedMessages.length === 0) return;
+    if (action === "delete" && !confirm(`Remover ${selectedMessages.length} email(s) do painel?`)) {
+      return;
+    }
+
+    if (action === "move" && !bulkMoveMailbox) {
+      setFeedback({ type: "error", text: "Escolha uma caixa de destino para mover os emails." });
+      return;
+    }
+
+    setBulkSubmitting(true);
+    setFeedback(null);
+
+    const ids = selectedMessages.map((message) => message.id);
+    const previousReads = Object.fromEntries(
+      selectedMessages.map((message) => [message.id, message.read])
+    );
+    const previousMailboxes = Object.fromEntries(
+      selectedMessages.map((message) => [message.id, message.mailboxEmail ?? null])
+    );
+
+    if (action === "mark_read" || action === "mark_unread") {
+      const nextRead = action === "mark_read";
+      setReadOverrides((current) => ({
+        ...current,
+        ...Object.fromEntries(ids.map((id) => [id, nextRead])),
+      }));
+    }
+
+    if (action === "delete") {
+      setRemovedMessageIds((current) => ({
+        ...current,
+        ...Object.fromEntries(ids.map((id) => [id, true as const])),
+      }));
+    }
+
+    if (action === "move") {
+      setMailboxOverrides((current) => ({
+        ...current,
+        ...Object.fromEntries(ids.map((id) => [id, bulkMoveMailbox])),
+      }));
+    }
+
+    try {
+      const response = await fetch("/api/admin/emails/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids,
+          action,
+          mailboxEmail: action === "move" ? bulkMoveMailbox : undefined,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Nao foi possivel executar a acao em massa.");
+      }
+
+      if (action === "delete" && ids.includes(selectedId)) {
+        setSelectedId("");
+      }
+
+      setSelectedMessageIds((current) => current.filter((id) => !ids.includes(id)));
+      setFeedback({
+        type: "success",
+        text:
+          action === "delete"
+            ? `${ids.length} email(s) removido(s).`
+            : action === "move"
+              ? `${ids.length} email(s) movido(s) para ${bulkMoveMailbox}.`
+              : `${ids.length} email(s) atualizado(s).`,
+      });
+      router.refresh();
+    } catch (error) {
+      if (action === "delete") {
+        setRemovedMessageIds((current) => {
+          const next = { ...current };
+          ids.forEach((id) => delete next[id]);
+          return next;
+        });
+      }
+
+      if (action === "mark_read" || action === "mark_unread") {
+        setReadOverrides((current) => ({
+          ...current,
+          ...previousReads,
+        }));
+      }
+
+      if (action === "move") {
+        setMailboxOverrides((current) => ({
+          ...current,
+          ...previousMailboxes,
+        }));
+      }
+
+      setFeedback({
+        type: "error",
+        text: error instanceof Error ? error.message : "Erro ao aplicar a acao em massa.",
+      });
+    } finally {
+      setBulkSubmitting(false);
+    }
+  }
+
   function handleSelectMessage(message: AdminEmailMessage) {
     setSelectedId(message.id);
 
@@ -329,7 +550,21 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
 
   async function deleteMessage(id: string) {
     if (!confirm("Remover este email do painel?")) return;
-    await fetch(`/api/admin/emails/${id}`, { method: "DELETE" });
+    setRemovedMessageIds((current) => ({ ...current, [id]: true }));
+    if (selectedId === id) setSelectedId("");
+    setSelectedMessageIds((current) => current.filter((messageId) => messageId !== id));
+
+    const response = await fetch(`/api/admin/emails/${id}`, { method: "DELETE" });
+    if (!response.ok) {
+      setRemovedMessageIds((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+      setFeedback({ type: "error", text: "Nao foi possivel remover o email." });
+      return;
+    }
+
     router.refresh();
   }
 
@@ -574,7 +809,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
 
         <section className={cn(panelClass, "overflow-hidden")}>
           <div className="border-b border-white/10 px-4 py-4 md:px-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-700">
                   {activeTabMeta.label}
@@ -587,10 +822,75 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                 </p>
               </div>
 
-              <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
-                {filteredMessages.length} resultado(s)
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+                  {filteredMessages.length} resultado(s)
+                </span>
+                {selectedMessages.length > 0 && (
+                  <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+                    {selectedMessages.length} selecionado(s)
+                  </span>
+                )}
               </div>
             </div>
+
+            {selectedMessages.length > 0 && (
+              <div className="mt-4 flex flex-col gap-3 rounded-[24px] border border-sky-200 bg-sky-50/90 p-3 xl:flex-row xl:items-center xl:justify-between">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void runBulkAction("mark_read")}
+                    disabled={bulkSubmitting}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" />
+                    Marcar lidos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void runBulkAction("mark_unread")}
+                    disabled={bulkSubmitting}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    Marcar não lidos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void runBulkAction("delete")}
+                    disabled={bulkSubmitting}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Excluir
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <select
+                    value={bulkMoveMailbox}
+                    onChange={(event) => setBulkMoveMailbox(event.target.value)}
+                    className={cn(inputClass, "min-w-[240px] py-2.5")}
+                  >
+                    <option value="">Mover para...</option>
+                    {activeMailboxes.map((mailbox) => (
+                      <option key={mailbox.id} value={mailbox.email}>
+                        {mailbox.label} - {mailbox.email}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => void runBulkAction("move")}
+                    disabled={bulkSubmitting || !bulkMoveMailbox}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    <RefreshCw className={cn("h-3.5 w-3.5", bulkSubmitting && "animate-spin")} />
+                    Mover
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="max-h-[820px] overflow-y-auto portal-scrollbar">
@@ -603,16 +903,63 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-white/8">
+              <div>
+                <div className="sticky top-0 z-10 border-b border-white/10 bg-[rgba(255,252,247,0.95)] backdrop-blur">
+                  <div
+                    className="grid items-center gap-3 px-4 py-3 md:px-5"
+                    style={{ gridTemplateColumns: listGridTemplate }}
+                  >
+                    <div className="flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        ref={(element) => {
+                          if (element) element.indeterminate = someVisibleSelected;
+                        }}
+                        onChange={(event) => toggleSelectAllVisible(event.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                        aria-label="Selecionar mensagens visíveis"
+                      />
+                    </div>
+                    <ResizableColumnHeader
+                      label="Remetente"
+                      onResizeStart={(event) => startColumnResize("sender", event)}
+                    />
+                    <ResizableColumnHeader
+                      label="Assunto"
+                      onResizeStart={(event) => startColumnResize("subject", event)}
+                    />
+                    {showMailboxColumn ? (
+                      <ResizableColumnHeader
+                        label="Caixa"
+                        onResizeStart={(event) => startColumnResize("mailbox", event)}
+                      />
+                    ) : null}
+                    <ResizableColumnHeader
+                      label="Data"
+                      align="right"
+                      onResizeStart={(event) => startColumnResize("date", event)}
+                    />
+                    <div className="text-right text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Leitura
+                    </div>
+                  </div>
+                </div>
+
+                <div className="divide-y divide-white/8">
                 {filteredMessages.map((message) => (
                   <MessageRow
                     key={message.id}
                     message={message}
                     active={selectedMessage?.id === message.id}
-                    showMailbox={mailboxFilter === "all"}
+                    selected={selectedMessageIds.includes(message.id)}
+                    showMailbox={showMailboxColumn}
+                    gridTemplateColumns={listGridTemplate}
                     onClick={() => handleSelectMessage(message)}
+                    onToggleSelect={(checked) => toggleMessageSelection(message.id, checked)}
                   />
                 ))}
+              </div>
               </div>
             )}
           </div>
@@ -795,17 +1142,16 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
 
               <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6 portal-scrollbar">
                 <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="max-w-md">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                        Infraestrutura
+                        Operacao
                       </p>
                       <p className="mt-2 text-lg font-semibold text-white">
-                        Conexao da central pronta para operar
+                        Caixas do portal prontas para envio e recebimento
                       </p>
                       <p className="mt-2 text-sm leading-6 text-slate-400">
-                        Os detalhes tecnicos ficam recolhidos para a interface nao parecer um painel
-                        de servidor.
+                        Esta area agora fica focada apenas nas caixas. Os detalhes tecnicos seguem no sistema, mas saem da frente do cliente.
                       </p>
                     </div>
 
@@ -815,58 +1161,11 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                         ok={config.canSend}
                       />
                       <InlineStatusTag
-                        label={
-                          config.webhookSecretConfigured
-                            ? "Inbound protegido"
-                            : "Secret pendente"
-                        }
+                        label={config.webhookSecretConfigured ? "Recebimento ativo" : "Recebimento pendente"}
                         ok={config.webhookSecretConfigured}
                       />
                     </div>
                   </div>
-
-                  <details className="mt-4 group">
-                    <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 transition hover:text-white">
-                      Ver detalhes tecnicos
-                    </summary>
-
-                    <div className="mt-4 grid gap-3">
-                      <TechnicalLine
-                        icon={<ShieldCheck className="h-4 w-4" />}
-                        label="Envio Resend"
-                        value={
-                          config.canSend
-                            ? "RESEND_API_KEY configurada"
-                            : "RESEND_API_KEY pendente"
-                        }
-                        ok={config.canSend}
-                      />
-                      <TechnicalLine
-                        icon={<BadgeCheck className="h-4 w-4" />}
-                        label="Segredo inbound"
-                        value={
-                          config.webhookSecretConfigured
-                            ? "EMAIL_WEBHOOK_SECRET configurado"
-                            : "EMAIL_WEBHOOK_SECRET pendente"
-                        }
-                        ok={config.webhookSecretConfigured}
-                      />
-                      <TechnicalLine
-                        icon={<Mail className="h-4 w-4" />}
-                        label="Remetente padrao"
-                        value={defaultMailbox?.email || config.fromAddress}
-                        ok={Boolean(defaultMailbox?.email || config.fromAddress)}
-                      />
-                      <TechnicalLine
-                        icon={<Webhook className="h-4 w-4" />}
-                        label="Webhook de entrada"
-                        value={config.inboundWebhookUrl}
-                        ok={true}
-                        actionLabel={copied ? "Copiado" : "Copiar"}
-                        onAction={copyWebhook}
-                      />
-                    </div>
-                  </details>
                 </div>
 
                 <div className="mt-5 rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
@@ -1262,35 +1561,55 @@ function EmailReadingPane({
 function MessageRow({
   message,
   active,
+  selected,
   showMailbox,
+  gridTemplateColumns,
   onClick,
+  onToggleSelect,
 }: {
   message: AdminEmailMessage;
   active: boolean;
+  selected: boolean;
   showMailbox: boolean;
+  gridTemplateColumns: string;
   onClick: () => void;
+  onToggleSelect: (checked: boolean) => void;
 }) {
   const identity = getMessageIdentity(message);
   const unread = message.direction === "inbound" && !message.read;
   const avatarTone = getAvatarTone(identity.initial);
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       className={cn(
-        "w-full px-4 py-4 text-left transition md:px-5",
+        "transition",
         active
           ? "bg-sky-100/80 shadow-[inset_3px_0_0_rgba(14,116,144,0.95)]"
+          : selected
+            ? "bg-slate-100/90"
           : unread
             ? "bg-sky-50/80 hover:bg-sky-100/60"
             : "bg-transparent hover:bg-slate-50"
       )}
     >
-      <div className="flex items-start gap-3">
+      <div
+        className="grid items-center gap-3 px-4 py-3 md:px-5"
+        style={{ gridTemplateColumns }}
+      >
+        <div className="flex items-center justify-center">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(event) => onToggleSelect(event.target.checked)}
+            onClick={(event) => event.stopPropagation()}
+            className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+            aria-label={`Selecionar email ${message.subject || identity.name}`}
+          />
+        </div>
+
         <div
           className={cn(
-            "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold uppercase",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold uppercase",
             avatarTone,
             unread && "ring-2 ring-sky-200/80 ring-offset-2 ring-offset-white"
           )}
@@ -1298,48 +1617,55 @@ function MessageRow({
           {identity.initial}
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p
-                  className={cn(
-                    "truncate text-sm text-slate-900",
-                    unread ? "font-semibold" : "font-medium"
-                  )}
-                >
-                  {identity.name}
-                </p>
-                {message.status === "failed" && <StatusBadge status={message.status} compact />}
-              </div>
-              <p className="mt-1 truncate text-xs text-slate-600">{identity.secondary}</p>
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-                {formatListDate(message.createdAt)}
-              </p>
-              <ReadStateIcon message={message} compact />
-            </div>
+        <button type="button" onClick={onClick} className="min-w-0 text-left">
+          <div className="min-w-0">
+            <p
+              className={cn(
+                "truncate text-sm text-slate-900",
+                unread ? "font-semibold" : "font-medium"
+              )}
+            >
+              {identity.name}
+            </p>
+            <p className="mt-1 truncate text-xs text-slate-600">{identity.secondary}</p>
           </div>
+        </button>
 
-          <div className="mt-3">
-            <p className={cn("line-clamp-1 text-sm text-slate-900", unread ? "font-semibold" : "font-medium")}>
+        <button type="button" onClick={onClick} className="min-w-0 text-left">
+          <div className="min-w-0">
+            <p className={cn("truncate text-sm text-slate-900", unread ? "font-semibold" : "font-medium")}>
               {message.subject || "(Sem assunto)"}
             </p>
-            <p className="mt-1 line-clamp-1 text-sm leading-6 text-slate-600">
+            <p className="mt-1 truncate text-sm leading-6 text-slate-600">
               {messagePreview(message)}
             </p>
           </div>
+        </button>
 
-          {showMailbox && message.mailboxEmail && (
-            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700">
-              {message.mailboxEmail}
-            </p>
-          )}
+        {showMailbox ? (
+          <button type="button" onClick={onClick} className="min-w-0 text-left">
+            <div className="min-w-0">
+              <MailboxPill email={message.mailboxEmail} compact />
+            </div>
+          </button>
+        ) : null}
+
+        <button type="button" onClick={onClick} className="text-right">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+            {formatListDate(message.createdAt)}
+          </p>
+          {message.status === "failed" ? (
+            <div className="mt-1 flex justify-end">
+              <StatusBadge status={message.status} compact />
+            </div>
+          ) : null}
+        </button>
+
+        <div className="flex justify-end">
+          <ReadStateIcon message={message} compact />
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -1361,6 +1687,35 @@ function SidebarMetricRow({
         <p className="mt-1 text-xs text-slate-600">{detail}</p>
       </div>
       <p className="text-2xl font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function ResizableColumnHeader({
+  label,
+  align = "left",
+  onResizeStart,
+}: {
+  label: string;
+  align?: "left" | "right";
+  onResizeStart: (event: React.PointerEvent<HTMLSpanElement>) => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500",
+        align === "right" ? "justify-end pr-3 text-right" : "justify-start pr-3"
+      )}
+    >
+      <span>{label}</span>
+      <span
+        role="separator"
+        aria-orientation="vertical"
+        onPointerDown={onResizeStart}
+        className="absolute inset-y-0 right-0 flex w-3 cursor-col-resize touch-none items-center justify-center"
+      >
+        <span className="h-5 w-px rounded-full bg-slate-300/90" />
+      </span>
     </div>
   );
 }
@@ -1621,4 +1976,20 @@ function getAvatarTone(seed: string) {
   const normalized = seed.trim().toUpperCase() || "A";
   const index = normalized.charCodeAt(0) % avatarToneClasses.length;
   return avatarToneClasses[index];
+}
+
+function getInboxGridTemplate(widths: ColumnWidths, showMailboxColumn: boolean) {
+  const columns = [
+    "34px",
+    "40px",
+    `minmax(${minColumnWidths.sender}px, ${widths.sender}px)`,
+    `minmax(${minColumnWidths.subject}px, ${widths.subject}px)`,
+  ];
+
+  if (showMailboxColumn) {
+    columns.push(`minmax(${minColumnWidths.mailbox}px, ${widths.mailbox}px)`);
+  }
+
+  columns.push(`minmax(${minColumnWidths.date}px, ${widths.date}px)`, "56px");
+  return columns.join(" ");
 }

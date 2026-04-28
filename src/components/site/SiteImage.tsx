@@ -6,6 +6,7 @@ import { normalizeMediaUrl } from "@/lib/media";
 interface SiteImageProps {
   src: string | null | undefined;
   alt: string;
+  title?: string | null;
   className?: string;
   loading?: "lazy" | "eager";
   fallback?: ReactNode;
@@ -14,6 +15,7 @@ interface SiteImageProps {
 export function SiteImage({
   src,
   alt,
+  title,
   className,
   loading = "lazy",
   fallback = null,
@@ -34,6 +36,7 @@ export function SiteImage({
     <img
       src={normalizedSrc}
       alt={alt}
+      title={title ?? undefined}
       className={className}
       loading={loading}
       decoding="async"

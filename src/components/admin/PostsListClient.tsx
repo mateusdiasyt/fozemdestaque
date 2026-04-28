@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { CalendarDays, Eye, FileText, Pencil, Search, Star, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
+import { parseCategoryIds } from "@/lib/post-categories";
 import { cn } from "@/lib/utils";
 
 interface Post {
@@ -17,6 +18,7 @@ interface Post {
   publishedAt: Date | null;
   createdAt: Date;
   categoryId: string | null;
+  categoryIds: string[] | string | null;
 }
 
 interface Category {
@@ -74,6 +76,17 @@ export function PostsListClient({
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
+  const postsWithCategories = useMemo(
+    () =>
+      posts.map((post) => ({
+        ...post,
+        parsedCategoryIds: Array.isArray(post.categoryIds)
+          ? post.categoryIds
+          : parseCategoryIds(post.categoryIds, post.categoryId),
+      })),
+    [posts]
+  );
+
   const categoryNameById = useMemo(() => {
     return new Map(categories.map((category) => [category.id, category.name]));
   }, [categories]);
@@ -82,42 +95,48 @@ export function PostsListClient({
     return categories
       .map((category) => ({
         ...category,
-        count: posts.filter((post) => post.categoryId === category.id).length,
+        count: postsWithCategories.filter((post) => post.parsedCategoryIds.includes(category.id)).length,
       }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-  }, [categories, posts]);
+  }, [categories, postsWithCategories]);
 
   const uncategorizedCount = useMemo(
-    () => posts.filter((post) => !post.categoryId).length,
-    [posts]
+    () => postsWithCategories.filter((post) => post.parsedCategoryIds.length === 0).length,
+    [postsWithCategories]
   );
 
   const publishedCount = useMemo(
-    () => posts.filter((post) => post.status === "publicado").length,
-    [posts]
+    () => postsWithCategories.filter((post) => post.status === "publicado").length,
+    [postsWithCategories]
   );
 
   const featuredCount = useMemo(
-    () => posts.filter((post) => post.featured).length,
-    [posts]
+    () => postsWithCategories.filter((post) => post.featured).length,
+    [postsWithCategories]
   );
 
   const filteredPosts = useMemo(() => {
     const normalizedSearch = normalizeText(search.trim());
 
-    return posts.filter((post) => {
+    return postsWithCategories.filter((post) => {
       const categoryName = categoryNameById.get(post.categoryId ?? "") ?? "Sem categoria";
       const matchesCategory =
         selectedCategoryId === ALL_CATEGORIES ||
-        (selectedCategoryId === UNCATEGORIZED ? !post.categoryId : post.categoryId === selectedCategoryId);
+        (selectedCategoryId === UNCATEGORIZED
+          ? post.parsedCategoryIds.length === 0
+          : post.parsedCategoryIds.includes(selectedCategoryId));
       const matchesStatus = selectedStatus === ALL_STATUS || post.status === selectedStatus;
       const matchesSearch =
         !normalizedSearch ||
-        normalizeText(`${post.title} ${post.slug} ${categoryName}`).includes(normalizedSearch);
+        normalizeText(
+          `${post.title} ${post.slug} ${post.parsedCategoryIds
+            .map((id) => categoryNameById.get(id) ?? "")
+            .join(" ")} ${categoryName}`
+        ).includes(normalizedSearch);
 
       return matchesCategory && matchesStatus && matchesSearch;
     });
-  }, [categoryNameById, posts, search, selectedCategoryId, selectedStatus]);
+  }, [categoryNameById, postsWithCategories, search, selectedCategoryId, selectedStatus]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPosts.length / PAGE_SIZE));
   const paginatedPosts = filteredPosts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -256,7 +275,16 @@ export function PostsListClient({
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-sm text-slate-300">{getCategoryName(post.categoryId)}</td>
+                    <td className="px-4 py-4 text-sm text-slate-300">
+                      <div className="space-y-1">
+                        <p>{getCategoryName(post.categoryId)}</p>
+                        {Array.isArray((post as any).parsedCategoryIds) && (post as any).parsedCategoryIds.length > 1 && (
+                          <p className="text-xs text-slate-500">
+                            +{(post as any).parsedCategoryIds.length - 1} editoria(s)
+                          </p>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-4">
                       <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]", statusStyles[post.status] ?? "border-white/10 bg-white/5 text-slate-400")}>
                         {statusLabels[post.status] ?? post.status}

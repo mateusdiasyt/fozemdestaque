@@ -7,8 +7,13 @@ import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
+import TextAlign from "@tiptap/extension-text-align";
 import { TableKit } from "@tiptap/extension-table";
 import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
   ArrowDown,
   ArrowUp,
   Bold,
@@ -46,6 +51,8 @@ import {
 } from "lucide-react";
 import { slugify, cn } from "@/lib/utils";
 import type { SEOAnalysis } from "@/lib/seo-analyzer";
+import { prepareImageUpload } from "@/lib/client-media";
+import { parseCategoryIds } from "@/lib/post-categories";
 import { EditorHelpContent } from "./EditorHelpContent";
 import { ImageGrid, type ImageGridItem } from "./editor/ImageGridExtension";
 
@@ -63,7 +70,9 @@ interface Post {
   content: string;
   featuredImage?: string | null;
   featuredImageAlt?: string | null;
+  featuredImageTitle?: string | null;
   categoryId?: string | null;
+  categoryIds?: string[] | null;
   status: string;
   featured: boolean;
   metaTitle?: string | null;
@@ -195,10 +204,14 @@ type PendingImage = ImageGridItem & {
   fileName: string;
   uploading: boolean;
   error?: string;
+  width?: number;
+  height?: number;
+  convertedToWebp?: boolean;
 };
 
 type EditableContentImage = ImageGridItem & {
   width?: number;
+  height?: number;
 };
 
 interface ContentLayer {
@@ -209,6 +222,7 @@ interface ContentLayer {
   type: string;
   label: string;
   preview: string;
+  thumbnail?: string | null;
 }
 
 interface LayerDragState {
@@ -252,7 +266,11 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const [excerpt, setExcerpt] = useState(post?.excerpt ?? "");
   const [featuredImage, setFeaturedImage] = useState(post?.featuredImage ?? "");
   const [featuredImageAlt, setFeaturedImageAlt] = useState(post?.featuredImageAlt ?? "");
+  const [featuredImageTitle, setFeaturedImageTitle] = useState(post?.featuredImageTitle ?? "");
   const [categoryId, setCategoryId] = useState(post?.categoryId ?? "");
+  const [categoryIds, setCategoryIds] = useState<string[]>(() =>
+    post?.categoryIds?.length ? post.categoryIds : parseCategoryIds(null, post?.categoryId ?? null)
+  );
   const [status, setStatus] = useState(post?.status ?? "rascunho");
   const [featured, setFeatured] = useState(post?.featured ?? false);
   const [metaTitle, setMetaTitle] = useState(post?.metaTitle ?? "");
@@ -322,6 +340,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3, 4] } }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
       ImageWithLink.configure({
         inline: false,
         allowBase64: false,
@@ -423,6 +442,34 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       }
     : null;
 
+  function toggleCategorySelection(nextCategoryId: string) {
+    setCategoryIds((current) => {
+      if (current.includes(nextCategoryId)) {
+        const next = current.filter((id) => id !== nextCategoryId);
+        setCategoryId(next[0] ?? "");
+        return next;
+      }
+
+      const next = [...current, nextCategoryId];
+      if (!categoryId) setCategoryId(nextCategoryId);
+      return next;
+    });
+  }
+
+  function setPrimaryCategory(nextCategoryId: string) {
+    setCategoryIds((current) => {
+      if (!current.includes(nextCategoryId)) {
+        const next = [nextCategoryId, ...current];
+        setCategoryId(nextCategoryId);
+        return next;
+      }
+
+      const next = [nextCategoryId, ...current.filter((id) => id !== nextCategoryId)];
+      setCategoryId(nextCategoryId);
+      return next;
+    });
+  }
+
   function openLinkPopup() {
     const { href, rel } = editor?.getAttributes("link") ?? {};
     setLinkUrl(href ?? "");
@@ -439,9 +486,10 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     setLinkUrl("");
   }
 
-  async function uploadImage(file: File) {
+  async function uploadMedia(file: File, kind: "image" | "video" = "image") {
     const fd = new FormData();
     fd.append("file", file);
+    fd.append("kind", kind);
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error ?? "Erro ao enviar imagem");
@@ -457,7 +505,8 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       id: crypto.randomUUID(),
       src: "",
       fileName: file.name,
-      alt: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
+      alt: "",
+      title: "",
       href: "",
       uploading: true,
     }));
@@ -470,10 +519,22 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       files.map(async (file, index) => {
         const imageId = pendingImages[index].id;
         try {
-          const url = await uploadImage(file);
+          const prepared = await prepareImageUpload(file);
+          const url = await uploadMedia(prepared.file);
           setMediaImages((current) =>
             current.map((image) =>
-              image.id === imageId ? { ...image, src: url, uploading: false } : image
+              image.id === imageId
+                ? {
+                    ...image,
+                    src: url,
+                    alt: prepared.alt,
+                    title: prepared.title,
+                    width: prepared.width,
+                    height: prepared.height,
+                    convertedToWebp: prepared.convertedToWebp,
+                    uploading: false,
+                  }
+                : image
             )
           );
         } catch (err) {
@@ -503,9 +564,11 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     setUploadingFeaturedImage(true);
     setUploadError("");
     try {
-      const url = await uploadImage(file);
+      const prepared = await prepareImageUpload(file);
+      const url = await uploadMedia(prepared.file);
       setFeaturedImage(url);
-      if (!featuredImageAlt.trim()) setFeaturedImageAlt(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
+      if (!featuredImageAlt.trim()) setFeaturedImageAlt(prepared.alt);
+      if (!featuredImageTitle.trim()) setFeaturedImageTitle(prepared.title);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Nao foi possivel enviar a imagem");
     } finally {
@@ -519,7 +582,10 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       .map((image) => ({
         src: image.src,
         alt: image.alt?.trim() || "",
+        title: image.title?.trim() || "",
         href: image.href?.trim() || "",
+        width: image.width,
+        height: image.height,
       }));
 
     if (readyImages.length === 0 || !editor) return;
@@ -540,15 +606,17 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       const nextImage = {
         src: String(node.attrs.src || ""),
         alt: String(patch.alt ?? node.attrs.alt ?? ""),
+        title: String(patch.title ?? node.attrs.title ?? ""),
         href: String(patch.href ?? node.attrs.href ?? ""),
         width: nextWidth,
+        height: Number(node.attrs.height || patch.height || 0) || undefined,
       };
 
       editor
         .chain()
         .focus()
         .command(({ tr, dispatch }) => {
-          dispatch?.(tr.setNodeMarkup(imagePos, undefined, { ...node.attrs, ...patch, width: nextWidth }));
+        dispatch?.(tr.setNodeMarkup(imagePos, undefined, { ...node.attrs, ...patch, width: nextWidth }));
           return true;
         })
         .run();
@@ -573,6 +641,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
         ? {
             ...image,
             alt: patch.alt ?? image.alt,
+            title: patch.title ?? image.title,
             href: patch.href ?? image.href,
           }
         : image
@@ -655,7 +724,9 @@ export function PostEditor({ post, categories }: PostEditorProps) {
         content: editor?.getHTML() ?? "",
         featuredImage: featuredImage || undefined,
         featuredImageAlt: featuredImageAlt?.trim() || undefined,
-        categoryId: categoryId || undefined,
+        featuredImageTitle: featuredImageTitle?.trim() || undefined,
+        categoryId: categoryIds[0] || categoryId || undefined,
+        categoryIds,
         status,
         featured,
         metaTitle: metaTitle || undefined,
@@ -753,17 +824,25 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <label className={labelClass}>Conteudo</label>
-                <p className="text-sm text-slate-400">Use titulos, links, tabelas, citacoes e imagens no meio da materia.</p>
+                <p className="text-sm text-slate-400">Use titulos, links, tabelas, alinhamento, citacoes e imagens no meio da materia.</p>
               </div>
-              <button type="button" onClick={() => setImagePopup(true)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20">
-                <ImagePlus className="h-4 w-4" />
-                Inserir imagem
-              </button>
             </div>
             <div className="grid gap-4 xl:grid-cols-[290px_minmax(0,1fr)]">
               <ContentLayers editor={editor} />
               <div ref={editorSurfaceRef} className="relative overflow-hidden rounded-[30px] border border-[#e7dccd] bg-[linear-gradient(180deg,#fffdf8_0%,#f8f3ea_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.12)]">
-                <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={() => setImagePopup(true)} />
+                <div className="sticky top-3 z-20 border-b border-[#e7dccd] bg-[rgba(255,253,248,0.94)] px-3 py-3 backdrop-blur">
+                  <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a7f73]">Ferramentas flutuantes</p>
+                      <p className="mt-1 text-sm text-[#5f707d]">Formato e mídia acompanham seu scroll para manter o fluxo de edição.</p>
+                    </div>
+                    <button type="button" onClick={() => setImagePopup(true)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-[#102033] transition hover:bg-cyan-300/20">
+                      <ImagePlus className="h-4 w-4" />
+                      Inserir imagem
+                    </button>
+                  </div>
+                  <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={() => setImagePopup(true)} />
+                </div>
                 <EditorContent editor={editor} />
                 {editor && selectedGridImage?.type === "single" && (
                   <ImageResizeOverlay
@@ -798,13 +877,55 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Categoria</label>
-                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={fieldClass}>
-                  <option value="">Selecione</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>{category.name}</option>
-                  ))}
-                </select>
+                <label className={labelClass}>Editorias</label>
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-xs leading-5 text-slate-400">
+                    Selecione varias editorias para publicar a mesma materia em mais de um fluxo. A primeira vira a principal.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map((category) => {
+                      const selected = categoryIds.includes(category.id);
+                      const primary = categoryId === category.id || categoryIds[0] === category.id;
+                      return (
+                        <button
+                          key={category.id}
+                          type="button"
+                          onClick={() => toggleCategorySelection(category.id)}
+                          className={cn(
+                            "rounded-full border px-3 py-2 text-xs font-semibold transition",
+                            selected
+                              ? "border-cyan-300/40 bg-cyan-300/15 text-cyan-100"
+                              : "border-white/10 bg-[#070d18] text-slate-300 hover:bg-white/10"
+                          )}
+                        >
+                          {category.name}
+                          {primary ? " · principal" : ""}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Categoria principal
+                    </label>
+                    <select
+                      value={categoryIds[0] ?? ""}
+                      onChange={(e) => setPrimaryCategory(e.target.value)}
+                      className={fieldClass}
+                      disabled={categoryIds.length === 0}
+                    >
+                      <option value="">Selecione a principal</option>
+                      {categoryIds.map((selectedId) => {
+                        const selectedCategory = categories.find((category) => category.id === selectedId);
+                        return selectedCategory ? (
+                          <option key={selectedCategory.id} value={selectedCategory.id}>
+                            {selectedCategory.name}
+                          </option>
+                        ) : null;
+                      })}
+                    </select>
+                  </div>
+                </div>
               </div>
               <div>
                 <label className={labelClass}>Agendar</label>
@@ -838,9 +959,13 @@ export function PostEditor({ post, categories }: PostEditorProps) {
               {featuredImage && (
                 <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={featuredImage} alt="" className="h-44 w-full object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
+                  <img src={featuredImage} alt="" className="h-44 w-full object-contain bg-[#f8fafc]" onError={(e) => (e.currentTarget.style.display = "none")} />
                 </div>
               )}
+              <div>
+                <label className={labelClass}>Titulo da imagem</label>
+                <input type="text" value={featuredImageTitle} onChange={(e) => setFeaturedImageTitle(e.target.value)} placeholder="Titulo interno da midia" className={fieldClass} />
+              </div>
               <div>
                 <label className={labelClass}>Alt text obrigatorio</label>
                 <input type="text" value={featuredImageAlt} onChange={(e) => setFeaturedImageAlt(e.target.value)} placeholder="Descreva objetivamente a imagem" className={fieldClass} />
@@ -1025,10 +1150,19 @@ function ImageInlineSettings({
 
       <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={image.src} alt="" className="h-36 w-full object-cover" />
+        <img src={image.src} alt="" className="h-36 w-full object-contain bg-white" />
       </div>
 
       <div className="space-y-3">
+        <div>
+          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Titulo da imagem</label>
+          <input
+            value={image.title || ""}
+            onChange={(event) => onUpdate({ title: event.target.value })}
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+            placeholder="Titulo interno para SEO e organizacao"
+          />
+        </div>
         <div>
           <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Texto alternativo</label>
           <input
@@ -1313,12 +1447,24 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
       editor.chain().focus().setNodeSelection(layer.pos).run();
       return;
     }
-    editor.chain().focus().setTextSelection(layer.pos).run();
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({
+        from: layer.pos + 1,
+        to: Math.max(layer.pos + 1, layer.pos + layer.nodeSize - 1),
+      })
+      .run();
   }
 
   function moveLayer(fromIndex: number, toIndex: number) {
     if (!editor || fromIndex === toIndex) return;
     moveEditorLayer(editor, fromIndex, toIndex);
+  }
+
+  function deleteLayer(targetIndex: number) {
+    if (!editor) return;
+    removeEditorLayer(editor, targetIndex);
   }
 
   function setLayerRef(layerId: string, element: HTMLDivElement | null) {
@@ -1333,14 +1479,16 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
     if (event.button !== 0) return;
     const card = layerRefs.current.get(layer.id);
     if (!card) return;
+    const visibleIndex = visibleLayers.findIndex((item) => item.id === layer.id);
+    if (visibleIndex < 0) return;
 
     const rect = card.getBoundingClientRect();
     event.preventDefault();
     event.stopPropagation();
     selectLayer(layer);
     setLayerDrag({
-      originalIndex: layer.index,
-      targetIndex: layer.index,
+      originalIndex: visibleIndex,
+      targetIndex: visibleIndex,
       pointerId: event.pointerId,
       offsetX: event.clientX - rect.left,
       offsetY: event.clientY - rect.top,
@@ -1393,7 +1541,7 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
             Comece escrevendo para ver as camadas aqui.
           </div>
         ) : (
-          visibleLayers.map((layer) => {
+          visibleLayers.map((layer, index) => {
             const active = layer.id === activeLayerId;
             const dragging = layerDrag?.layer.id === layer.id;
             return (
@@ -1420,16 +1568,26 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
                       <GripVertical className="h-4 w-4" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100">{layer.label}</p>
-                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{layer.preview}</p>
+                      <div className="flex items-start gap-3">
+                        {layer.thumbnail ? (
+                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/20">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={layer.thumbnail} alt="" className="h-full w-full object-cover" />
+                          </div>
+                        ) : null}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100">{layer.label}</p>
+                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{layer.preview}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </button>
                 <div className="mt-3 flex gap-2">
                   <button
                     type="button"
-                    onClick={() => moveLayer(layer.index, Math.max(0, layer.index - 1))}
-                    disabled={layer.index === 0}
+                    onClick={() => moveLayer(index, Math.max(0, index - 1))}
+                    disabled={index === 0}
                     className="rounded-lg border border-white/10 p-1.5 text-slate-400 hover:bg-white/10 disabled:opacity-30"
                     aria-label="Mover camada para cima"
                   >
@@ -1437,12 +1595,20 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => moveLayer(layer.index, Math.min(layers.length - 1, layer.index + 1))}
-                    disabled={layer.index === layers.length - 1}
+                    onClick={() => moveLayer(index, Math.min(visibleLayers.length - 1, index + 1))}
+                    disabled={index === visibleLayers.length - 1}
                     className="rounded-lg border border-white/10 p-1.5 text-slate-400 hover:bg-white/10 disabled:opacity-30"
                     aria-label="Mover camada para baixo"
                   >
                     <ArrowDown className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteLayer(index)}
+                    className="rounded-lg border border-rose-300/20 p-1.5 text-rose-200 hover:bg-rose-500/10"
+                    aria-label="Remover camada"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
@@ -1575,7 +1741,11 @@ function getSelectedGridImageFromClick(editor: Editor, target: EventTarget | nul
       type: "grid",
       gridPos: pos,
       imageIndex,
-      image,
+      image: {
+        ...image,
+        width: typeof image.width === "number" ? image.width : undefined,
+        height: typeof image.height === "number" ? image.height : undefined,
+      },
       total: images.length,
     };
     return false;
@@ -1599,8 +1769,10 @@ function getSelectedSingleImageFromClick(editor: Editor, target: HTMLElement): S
     image: {
       src: String(nodeMatch.node.attrs.src || ""),
       alt: String(nodeMatch.node.attrs.alt || ""),
+      title: String(nodeMatch.node.attrs.title || ""),
       href: String(nodeMatch.node.attrs.href || ""),
       width: clampSingleImageWidth(nodeMatch.node.attrs.width),
+      height: Number(nodeMatch.node.attrs.height || 0) || undefined,
     },
     total: 1,
   };
@@ -1680,6 +1852,7 @@ function getEditorLayers(editor: Editor): ContentLayer[] {
       type: node.type.name,
       label: getLayerLabel(node.type.name, node.attrs),
       preview: getLayerPreview(node.type.name, node.textContent, node.attrs),
+      thumbnail: getLayerThumbnail(node.type.name, node.attrs),
     });
   });
 
@@ -1704,8 +1877,17 @@ function getLayerPreview(type: string, text: string, attrs: Record<string, unkno
     const images = safeImageGridItems(attrs.images);
     return `${images.length} imagens em grade ${attrs.columns || 3}x${attrs.columns || 3}`;
   }
-  if (type === "image") return String(attrs.alt || attrs.src || "Imagem sem descricao");
+  if (type === "image") return String(attrs.alt || attrs.title || attrs.src || "Imagem sem descricao");
   return text?.trim() || "Camada vazia";
+}
+
+function getLayerThumbnail(type: string, attrs: Record<string, unknown>) {
+  if (type === "image") return typeof attrs.src === "string" ? attrs.src : null;
+  if (type === "imageGrid") {
+    const [firstImage] = safeImageGridItems(attrs.images);
+    return firstImage?.src ?? null;
+  }
+  return null;
 }
 
 function safeImageGridItems(value: unknown): ImageGridItem[] {
@@ -1719,7 +1901,10 @@ function safeImageGridItems(value: unknown): ImageGridItem[] {
     images.push({
       src: String(image.src),
       alt: image.alt ? String(image.alt) : "",
+      title: image.title ? String(image.title) : "",
       href: image.href ? String(image.href) : "",
+      width: typeof image.width === "number" ? image.width : undefined,
+      height: typeof image.height === "number" ? image.height : undefined,
     });
   });
 
@@ -1736,6 +1921,15 @@ function moveEditorLayer(editor: Editor, fromIndex: number, toIndex: number) {
   editor.commands.setContent({ ...json, content });
 }
 
+function removeEditorLayer(editor: Editor, index: number) {
+  const json = editor.getJSON() as JSONContent;
+  const content = Array.isArray(json.content) ? [...json.content] : [];
+  if (!content[index]) return;
+
+  content.splice(index, 1);
+  editor.commands.setContent({ ...json, content });
+}
+
 function getLayerDropIndex(
   layers: ContentLayer[],
   refs: Map<string, HTMLDivElement>,
@@ -1743,16 +1937,17 @@ function getLayerDropIndex(
   clientY: number
 ) {
   const layerRects = layers
-    .filter((layer) => layer.index !== originalIndex)
-    .map((layer) => {
+    .map((layer, index) => ({ layer, index }))
+    .filter(({ index }) => index !== originalIndex)
+    .map(({ layer, index }) => {
       const rect = refs.get(layer.id)?.getBoundingClientRect();
-      return rect ? { rect } : null;
+      return rect ? { rect, index } : null;
     })
-    .filter((item): item is { rect: DOMRect } => Boolean(item))
+    .filter((item): item is { rect: DOMRect; index: number } => Boolean(item))
     .sort((a, b) => a.rect.top - b.rect.top);
 
-  const targetIndex = layerRects.findIndex(({ rect }) => clientY < rect.top + rect.height / 2);
-  return targetIndex === -1 ? layerRects.length : targetIndex;
+  const targetIndex = layerRects.find(({ rect }) => clientY < rect.top + rect.height / 2);
+  return targetIndex ? targetIndex.index : layerRects.length;
 }
 
 function reorderList<T>(items: T[], fromIndex: number, toIndex: number) {
@@ -1899,7 +2094,7 @@ function MediaDialog({
                         <div className="flex h-full items-center justify-center px-4 text-center text-sm text-rose-200">{image.error}</div>
                       ) : (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={image.src} alt="" className="h-full w-full object-cover" />
+                        <img src={image.src} alt="" className="h-full w-full object-contain bg-white" />
                       )}
                       <div className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
                         <span className="inline-flex items-center gap-1">
@@ -1916,6 +2111,9 @@ function MediaDialog({
                         <X className="h-4 w-4" />
                       </button>
                       </div>
+                      <figcaption className="px-2 pb-1 pt-2 text-xs text-slate-500">
+                        {image.convertedToWebp ? "Convertida para WebP automaticamente" : "Pronta para inserir"}
+                      </figcaption>
                     </figure>
                   ))}
                 </div>
@@ -1925,7 +2123,7 @@ function MediaDialog({
         </div>
 
         <div className="flex flex-col gap-3 border-t border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-500">Depois de inserir, clique em uma imagem no editor para ajustar texto alternativo e link.</p>
+          <p className="text-sm text-slate-500">Depois de inserir, clique em uma imagem no editor para ajustar titulo, texto alternativo e link.</p>
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/5">
               Cancelar
@@ -1987,7 +2185,7 @@ function EditorToolbar({ editor, onLinkClick, onImageClick }: { editor: Editor |
     );
 
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-[#e7dccd] bg-[rgba(255,253,248,0.95)] px-3 py-2 backdrop-blur">
+    <div className="flex flex-wrap items-center gap-1 rounded-[20px] border border-[#e7dccd] bg-[rgba(255,253,248,0.98)] p-2 shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
       <button type="button" title="Negrito" onClick={() => editor.chain().focus().toggleBold().run()} className={buttonClass(editor.isActive("bold"))}><Bold className="h-4 w-4" /></button>
       <button type="button" title="Italico" onClick={() => editor.chain().focus().toggleItalic().run()} className={buttonClass(editor.isActive("italic"))}><Italic className="h-4 w-4" /></button>
       <ToolbarDivider />
@@ -1999,6 +2197,11 @@ function EditorToolbar({ editor, onLinkClick, onImageClick }: { editor: Editor |
       <button type="button" title="Lista numerada" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={buttonClass(editor.isActive("orderedList"))}><ListOrdered className="h-4 w-4" /></button>
       <button type="button" title="Citacao" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={buttonClass(editor.isActive("blockquote"))}><Quote className="h-4 w-4" /></button>
       <button type="button" title="Linha divisoria" onClick={() => editor.chain().focus().setHorizontalRule().run()} className={buttonClass()}><Minus className="h-4 w-4" /></button>
+      <ToolbarDivider />
+      <button type="button" title="Alinhar a esquerda" onClick={() => editor.chain().focus().setTextAlign("left").run()} className={buttonClass(editor.isActive({ textAlign: "left" }))}><AlignLeft className="h-4 w-4" /></button>
+      <button type="button" title="Centralizar" onClick={() => editor.chain().focus().setTextAlign("center").run()} className={buttonClass(editor.isActive({ textAlign: "center" }))}><AlignCenter className="h-4 w-4" /></button>
+      <button type="button" title="Alinhar a direita" onClick={() => editor.chain().focus().setTextAlign("right").run()} className={buttonClass(editor.isActive({ textAlign: "right" }))}><AlignRight className="h-4 w-4" /></button>
+      <button type="button" title="Justificar" onClick={() => editor.chain().focus().setTextAlign("justify").run()} className={buttonClass(editor.isActive({ textAlign: "justify" }))}><AlignJustify className="h-4 w-4" /></button>
       <ToolbarDivider />
       <button type="button" title="Link" onClick={onLinkClick} className={buttonClass(editor.isActive("link"))}><Link2 className="h-4 w-4" /></button>
       <button type="button" title="Imagem" onClick={onImageClick} className={buttonClass()}><ImagePlus className="h-4 w-4" /></button>
