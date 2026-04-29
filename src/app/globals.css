@@ -406,6 +406,12 @@ body {
   transition: outline-color 0.2s ease, transform 0.2s ease;
 }
 
+.ProseMirror .foz-image-grid.ProseMirror-selectednode {
+  outline: 2px solid #67e8f9;
+  outline-offset: 6px;
+  border-radius: 24px;
+}
+
 .ProseMirror img[data-editable-image] {
   cursor: pointer;
   transition: outline-color 0.2s ease, transform 0.2s ease;

@@ -101,10 +101,10 @@ export const ImageGrid = Node.create({
     return [{ tag: "div[data-image-grid]" }];
   },
 
-  renderHTML({ HTMLAttributes }) {
-    const columns = normalizeColumns(HTMLAttributes.columns);
-    const images = safeImages(HTMLAttributes.images);
-    const gridId = typeof HTMLAttributes.id === "string" ? HTMLAttributes.id : "";
+  renderHTML({ node, HTMLAttributes }) {
+    const columns = normalizeColumns(node.attrs.columns);
+    const images = safeImages(node.attrs.images);
+    const gridId = typeof node.attrs.id === "string" ? node.attrs.id : "";
     const gridStyle = [
       "display:grid",
       `grid-template-columns:repeat(${columns},minmax(0,1fr))`,
