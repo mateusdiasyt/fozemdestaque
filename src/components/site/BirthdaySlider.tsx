@@ -145,7 +145,7 @@ function SlideContent({ item }: { item: BirthdaySlideItem }) {
         <div className="absolute inset-0 flex flex-col justify-between p-5 md:p-7">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <span className="inline-flex items-center rounded-full border border-white/30 bg-[rgba(255,248,241,0.78)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#102033] shadow-sm backdrop-blur">
-              Aniversários
+              {"Anivers\u00e1rios"}
             </span>
 
             {item.dateLabel && (
