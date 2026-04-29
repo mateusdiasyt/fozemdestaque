@@ -254,6 +254,16 @@ interface GalleryInsertTarget {
   hint: string;
 }
 
+interface EditorDropPreview {
+  targetIndex: number;
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  hint: string;
+  placement: "before" | "after";
+}
+
 const GALLERY_LAYOUTS: Array<{ columns: GalleryColumns; label: string; hint: string }> = [
   { columns: 1, label: "1 coluna", hint: "Uma imagem por linha" },
   { columns: 2, label: "2x2", hint: "Duas colunas amplas" },
@@ -315,6 +325,8 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const [helpPopup, setHelpPopup] = useState(false);
   const [selectedGridImage, setSelectedGridImage] = useState<SelectedGridImage | null>(null);
   const [galleryInsertTargetIndex, setGalleryInsertTargetIndex] = useState(0);
+  const [activeEditorLayerPos, setActiveEditorLayerPos] = useState<number | null>(null);
+  const [dragGalleryPreview, setDragGalleryPreview] = useState<EditorDropPreview | null>(null);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -419,6 +431,41 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   }, [editor]);
 
   useEffect(() => {
+    if (!editor) {
+      setActiveEditorLayerPos(null);
+      return;
+    }
+
+    const refresh = () => {
+      const selectionFrom = editor.state.selection.from;
+      const activeLayer = getEditorLayers(editor).find(
+        (layer) => selectionFrom >= layer.pos && selectionFrom <= layer.pos + layer.nodeSize
+      );
+      setActiveEditorLayerPos(activeLayer?.pos ?? null);
+    };
+
+    refresh();
+    editor.on("transaction", refresh);
+    editor.on("selectionUpdate", refresh);
+
+    return () => {
+      editor.off("transaction", refresh);
+      editor.off("selectionUpdate", refresh);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const editorDom = editor.view.dom;
+    editorDom.querySelectorAll(".foz-editor-selected-layer").forEach((element) => {
+      element.classList.remove("foz-editor-selected-layer");
+    });
+
+    if (activeEditorLayerPos === null) return;
+    getEditorLayerElement(editor, activeEditorLayerPos)?.classList.add("foz-editor-selected-layer");
+  }, [editor, activeEditorLayerPos]);
+
+  useEffect(() => {
     if (!editor) return;
     const editorDom = editor.view.dom;
 
@@ -431,7 +478,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       if (imageFiles.length === 0) return;
       event.preventDefault();
       event.stopPropagation();
-      void queueContentImages(imageFiles);
+      void queueContentImages(imageFiles, dragGalleryPreview?.targetIndex);
     }
 
     function handleEditorPaste(event: ClipboardEvent) {
@@ -448,6 +495,73 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     return () => {
       editorDom.removeEventListener("drop", handleEditorDrop);
       editorDom.removeEventListener("paste", handleEditorPaste);
+    };
+  }, [dragGalleryPreview?.targetIndex, editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const editorDom = editor.view.dom;
+    let dragDepth = 0;
+
+    function hasImageItems(dataTransfer: DataTransfer | null | undefined) {
+      return Array.from(dataTransfer?.items ?? []).some(
+        (item) => item.kind === "file" && item.type.startsWith("image/")
+      );
+    }
+
+    function updateDropPreview(clientY: number) {
+      const container = editorSurfaceRef.current;
+      if (!container) return;
+      const preview = getGalleryDropPreview(editor, container, clientY);
+      setDragGalleryPreview(preview);
+      setGalleryInsertTargetIndex(preview.targetIndex);
+    }
+
+    function resetDropPreview() {
+      dragDepth = 0;
+      setDragGalleryPreview(null);
+    }
+
+    function handleDragEnter(event: DragEvent) {
+      if (!hasImageItems(event.dataTransfer)) return;
+      dragDepth += 1;
+      event.preventDefault();
+      event.stopPropagation();
+      updateDropPreview(event.clientY);
+    }
+
+    function handleDragOver(event: DragEvent) {
+      if (!hasImageItems(event.dataTransfer)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+      updateDropPreview(event.clientY);
+    }
+
+    function handleDragLeave(event: DragEvent) {
+      if (!hasImageItems(event.dataTransfer)) return;
+      dragDepth = Math.max(0, dragDepth - 1);
+      const rect = editorDom.getBoundingClientRect();
+      const leftEditorBounds =
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom;
+      if (dragDepth === 0 || leftEditorBounds) {
+        setDragGalleryPreview(null);
+      }
+    }
+
+    editorDom.addEventListener("dragenter", handleDragEnter);
+    editorDom.addEventListener("dragover", handleDragOver);
+    editorDom.addEventListener("dragleave", handleDragLeave);
+    window.addEventListener("dragend", resetDropPreview);
+
+    return () => {
+      editorDom.removeEventListener("dragenter", handleDragEnter);
+      editorDom.removeEventListener("dragover", handleDragOver);
+      editorDom.removeEventListener("dragleave", handleDragLeave);
+      window.removeEventListener("dragend", resetDropPreview);
     };
   }, [editor]);
 
@@ -547,7 +661,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     return data.url as string;
   }
 
-  async function queueContentImages(files: File[]) {
+  async function queueContentImages(files: File[], preferredTargetIndex?: number) {
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
     if (imageFiles.length === 0) return;
 
@@ -561,7 +675,9 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       uploading: true,
     }));
 
-    if (!imagePopup && editor) {
+    if (typeof preferredTargetIndex === "number") {
+      setGalleryInsertTargetIndex(preferredTargetIndex);
+    } else if (!imagePopup && editor) {
       setGalleryInsertTargetIndex(getDefaultGalleryInsertTarget(editor).index);
     }
     setImagePopup(true);
@@ -920,6 +1036,28 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                   <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={openImageLibrary} />
                 </div>
                 <EditorContent editor={editor} />
+                {dragGalleryPreview && (
+                  <div
+                    className="pointer-events-none absolute z-10 overflow-hidden rounded-[24px] border border-dashed border-cyan-400/70 bg-cyan-200/12 shadow-[0_18px_45px_rgba(103,232,249,0.18)] backdrop-blur-sm transition-all duration-200 ease-out"
+                    style={{
+                      left: dragGalleryPreview.left,
+                      top: dragGalleryPreview.top,
+                      width: dragGalleryPreview.width,
+                      height: dragGalleryPreview.height,
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(103,232,249,0.18)_0%,rgba(255,255,255,0.05)_100%)]" />
+                    <div className="relative flex h-full items-center gap-3 px-5">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#102033] text-cyan-100 shadow-[0_12px_24px_rgba(16,32,51,0.18)]">
+                        <Images className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-[#102033]">Nova galeria entra aqui</p>
+                        <p className="mt-1 text-xs leading-5 text-[#405264]">{dragGalleryPreview.hint}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {editor && selectedGridImage?.type === "single" && (
                   <ImageResizeOverlay
                     editor={editor}
@@ -2087,6 +2225,75 @@ function getDefaultGalleryInsertTarget(editor: Editor): GalleryInsertTarget {
   }
 
   return targets[targets.length - 1] ?? targets[0];
+}
+
+function getEditorLayerElement(editor: Editor, pos: number) {
+  const domNode = editor.view.nodeDOM(pos);
+  return domNode instanceof HTMLElement ? domNode : null;
+}
+
+function getGalleryDropPreview(editor: Editor, container: HTMLDivElement, clientY: number): EditorDropPreview {
+  const layers = getEditorLayers(editor);
+  const containerRect = container.getBoundingClientRect();
+  const previewHeight = 88;
+  const horizontalInset = 24;
+
+  if (layers.length === 0) {
+    return {
+      targetIndex: 0,
+      top: 32,
+      left: horizontalInset,
+      width: Math.max(220, containerRect.width - horizontalInset * 2),
+      height: previewHeight,
+      hint: "A galeria sera o primeiro bloco da materia.",
+      placement: "before",
+    };
+  }
+
+  const layerEntries = layers
+    .map((layer, index) => {
+      const element = getEditorLayerElement(editor, layer.pos);
+      const rect = element?.getBoundingClientRect();
+      return element && rect ? { layer, index, rect } : null;
+    })
+    .filter((entry): entry is { layer: ContentLayer; index: number; rect: DOMRect } => Boolean(entry));
+
+  if (layerEntries.length === 0) {
+    return {
+      targetIndex: 0,
+      top: 32,
+      left: horizontalInset,
+      width: Math.max(220, containerRect.width - horizontalInset * 2),
+      height: previewHeight,
+      hint: "A galeria sera inserida no corpo do conteudo.",
+      placement: "before",
+    };
+  }
+
+  for (const entry of layerEntries) {
+    if (clientY < entry.rect.top + entry.rect.height / 2) {
+      return {
+        targetIndex: entry.index,
+        top: Math.max(24, entry.rect.top - containerRect.top - previewHeight + 12),
+        left: Math.max(16, entry.rect.left - containerRect.left),
+        width: Math.min(entry.rect.width, containerRect.width - 32),
+        height: previewHeight,
+        hint: `Entre as camadas, antes de ${entry.layer.label.toLowerCase()}.`,
+        placement: "before",
+      };
+    }
+  }
+
+  const lastEntry = layerEntries[layerEntries.length - 1];
+  return {
+    targetIndex: layers.length,
+    top: lastEntry.rect.bottom - containerRect.top + 12,
+    left: Math.max(16, lastEntry.rect.left - containerRect.left),
+    width: Math.min(lastEntry.rect.width, containerRect.width - 32),
+    height: previewHeight,
+    hint: `Entre as camadas, depois de ${lastEntry.layer.label.toLowerCase()}.`,
+    placement: "after",
+  };
 }
 
 function MediaDialog({
