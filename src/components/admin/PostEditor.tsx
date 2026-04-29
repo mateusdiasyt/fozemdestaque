@@ -247,6 +247,13 @@ interface SelectedGridImage {
   total: number;
 }
 
+interface GalleryInsertTarget {
+  index: number;
+  pos: number;
+  label: string;
+  hint: string;
+}
+
 const GALLERY_LAYOUTS: Array<{ columns: GalleryColumns; label: string; hint: string }> = [
   { columns: 1, label: "1 coluna", hint: "Uma imagem por linha" },
   { columns: 2, label: "2x2", hint: "Duas colunas amplas" },
@@ -307,6 +314,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const [seoLoading, setSeoLoading] = useState(false);
   const [helpPopup, setHelpPopup] = useState(false);
   const [selectedGridImage, setSelectedGridImage] = useState<SelectedGridImage | null>(null);
+  const [galleryInsertTargetIndex, setGalleryInsertTargetIndex] = useState(0);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -376,6 +384,9 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const displayTitle = metaTitle || title || "Titulo da pagina";
   const displayDesc = metaDescription || excerpt || "Resumo estrategico para atrair o clique no resultado de busca.";
   const previewOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const galleryInsertTargets = editor ? getGalleryInsertTargets(editor) : [{ index: 0, pos: 0, label: "No inicio do conteudo", hint: "A galeria entra antes da primeira camada." }];
+  const selectedGalleryInsertTarget =
+    galleryInsertTargets.find((target) => target.index === galleryInsertTargetIndex) ?? galleryInsertTargets[0];
 
   useEffect(() => {
     if (!editor) return;
@@ -510,6 +521,13 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     setLinkPopup(true);
   }
 
+  function openImageLibrary() {
+    if (editor) {
+      setGalleryInsertTargetIndex(getDefaultGalleryInsertTarget(editor).index);
+    }
+    setImagePopup(true);
+  }
+
   function applyLink() {
     if (linkUrl) {
       const relVal = linkRel === "follow" ? null : linkRel;
@@ -543,6 +561,9 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       uploading: true,
     }));
 
+    if (!imagePopup && editor) {
+      setGalleryInsertTargetIndex(getDefaultGalleryInsertTarget(editor).index);
+    }
     setImagePopup(true);
     setMediaImages((current) => [...current, ...pendingImages]);
     setUploadingContentImages(true);
@@ -630,9 +651,23 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       }));
 
     if (readyImages.length === 0 || !editor) return;
-    editor.chain().focus().setImageGrid({ columns: galleryColumns, images: readyImages }).run();
+    const insertTarget = selectedGalleryInsertTarget ?? getDefaultGalleryInsertTarget(editor);
+    editor
+      .chain()
+      .focus()
+      .insertContentAt(insertTarget.pos, {
+        type: "imageGrid",
+        attrs: {
+          id: crypto.randomUUID(),
+          columns: galleryColumns,
+          images: readyImages,
+        },
+      })
+      .setNodeSelection(insertTarget.pos)
+      .run();
     setImagePopup(false);
     setMediaImages([]);
+    setGalleryInsertTargetIndex(0);
   }
 
   function updateSelectedGridImage(patch: Partial<EditableContentImage>) {
@@ -877,12 +912,12 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a7f73]">Ferramentas flutuantes</p>
                       <p className="mt-1 text-sm text-[#5f707d]">Formato e mídia acompanham seu scroll para manter o fluxo de edição.</p>
                     </div>
-                    <button type="button" onClick={() => setImagePopup(true)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-[#102033] transition hover:bg-cyan-300/20">
+                    <button type="button" onClick={openImageLibrary} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-[#102033] transition hover:bg-cyan-300/20">
                       <ImagePlus className="h-4 w-4" />
                       Inserir imagem
                     </button>
                   </div>
-                  <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={() => setImagePopup(true)} />
+                  <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={openImageLibrary} />
                 </div>
                 <EditorContent editor={editor} />
                 {editor && selectedGridImage?.type === "single" && (
@@ -1142,21 +1177,27 @@ export function PostEditor({ post, categories }: PostEditorProps) {
         </DialogShell>
       )}
 
-      {imagePopup && (
-        <MediaDialog
-          galleryColumns={galleryColumns}
-          images={mediaImages}
-          onClose={() => setImagePopup(false)}
-          onInsert={insertImageIntoContent}
-          onPickFiles={() => contentImageInputRef.current?.click()}
-          onRemoveImage={(id) => setMediaImages((current) => current.filter((image) => image.id !== id))}
-          onReorderImage={(fromIndex, toIndex) =>
-            setMediaImages((current) => reorderList(current, fromIndex, toIndex))
-          }
-          onUpdateColumns={setGalleryColumns}
-          uploading={uploadingContentImages}
-        />
-      )}
+        {imagePopup && (
+          <MediaDialog
+            galleryColumns={galleryColumns}
+            insertTargets={galleryInsertTargets}
+            selectedInsertTargetIndex={selectedGalleryInsertTarget?.index ?? galleryInsertTargetIndex}
+            images={mediaImages}
+            onClose={() => {
+              setImagePopup(false);
+              setGalleryInsertTargetIndex(0);
+            }}
+            onInsert={insertImageIntoContent}
+            onPickFiles={() => contentImageInputRef.current?.click()}
+            onRemoveImage={(id) => setMediaImages((current) => current.filter((image) => image.id !== id))}
+            onReorderImage={(fromIndex, toIndex) =>
+              setMediaImages((current) => reorderList(current, fromIndex, toIndex))
+            }
+            onUpdateInsertTarget={setGalleryInsertTargetIndex}
+            onUpdateColumns={setGalleryColumns}
+            uploading={uploadingContentImages}
+          />
+        )}
     </form>
   );
 }
@@ -1999,29 +2040,86 @@ function reorderList<T>(items: T[], fromIndex: number, toIndex: number) {
   return nextItems;
 }
 
+function truncateLayerPreview(value: string, maxLength = 72) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1)}…`;
+}
+
+function getGalleryInsertTargets(editor: Editor): GalleryInsertTarget[] {
+  const layers = getEditorLayers(editor);
+  const targets: GalleryInsertTarget[] = [
+    {
+      index: 0,
+      pos: 0,
+      label: "No inicio do conteudo",
+      hint: layers[0]
+        ? `A galeria entra antes de ${layers[0].label.toLowerCase()}.`
+        : "A galeria sera o primeiro bloco da materia.",
+    },
+  ];
+
+  layers.forEach((layer) => {
+    targets.push({
+      index: layer.index + 1,
+      pos: layer.pos + layer.nodeSize,
+      label: `Apos ${layer.label.toLowerCase()}`,
+      hint: truncateLayerPreview(layer.preview) || "A galeria entra logo abaixo desta camada.",
+    });
+  });
+
+  return targets;
+}
+
+function getDefaultGalleryInsertTarget(editor: Editor): GalleryInsertTarget {
+  const targets = getGalleryInsertTargets(editor);
+  const selectionFrom = editor.state.selection.from;
+  const layers = getEditorLayers(editor);
+  const activeLayer = layers.find(
+    (layer) => selectionFrom >= layer.pos && selectionFrom <= layer.pos + layer.nodeSize
+  );
+
+  if (activeLayer) {
+    return (
+      targets.find((target) => target.index === activeLayer.index + 1) ??
+      targets[targets.length - 1]
+    );
+  }
+
+  return targets[targets.length - 1] ?? targets[0];
+}
+
 function MediaDialog({
   galleryColumns,
+  insertTargets,
+  selectedInsertTargetIndex,
   images,
   onClose,
   onInsert,
   onPickFiles,
   onRemoveImage,
   onReorderImage,
+  onUpdateInsertTarget,
   onUpdateColumns,
   uploading,
 }: {
   galleryColumns: GalleryColumns;
+  insertTargets: GalleryInsertTarget[];
+  selectedInsertTargetIndex: number;
   images: PendingImage[];
   onClose: () => void;
   onInsert: () => void;
   onPickFiles: () => void;
   onRemoveImage: (id: string) => void;
   onReorderImage: (fromIndex: number, toIndex: number) => void;
+  onUpdateInsertTarget: (targetIndex: number) => void;
   onUpdateColumns: (columns: GalleryColumns) => void;
   uploading: boolean;
 }) {
   const [draggingImageIndex, setDraggingImageIndex] = useState<number | null>(null);
   const readyCount = images.filter((image) => image.src && !image.uploading && !image.error).length;
+  const selectedInsertTarget =
+    insertTargets.find((target) => target.index === selectedInsertTargetIndex) ?? insertTargets[0];
 
   return (
     <DialogShell onClose={onClose} label="Fechar midia">
@@ -2050,6 +2148,24 @@ function MediaDialog({
               {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
               {uploading ? "Enviando imagens..." : "Selecionar varias imagens"}
             </button>
+
+            <div className="mt-6">
+              <p className={labelClass}>Onde a galeria entra</p>
+              <select
+                value={selectedInsertTargetIndex}
+                onChange={(event) => onUpdateInsertTarget(Number(event.target.value))}
+                className={compactFieldClass}
+              >
+                {insertTargets.map((target) => (
+                  <option key={`${target.index}-${target.pos}`} value={target.index}>
+                    {target.label}
+                  </option>
+                ))}
+              </select>
+              {selectedInsertTarget && (
+                <p className="mt-2 text-xs leading-5 text-slate-500">{selectedInsertTarget.hint}</p>
+              )}
+            </div>
 
             <div className="mt-6">
               <p className={labelClass}>Formato da grade</p>
