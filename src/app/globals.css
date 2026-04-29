@@ -422,12 +422,15 @@ body {
 
 .ProseMirror > .foz-editor-selected-layer,
 .ProseMirror .foz-editor-selected-layer {
+  position: relative;
   border-radius: 24px;
+  outline: 1px solid rgba(103, 232, 249, 0.42);
+  outline-offset: 6px;
   box-shadow:
-    0 0 0 1px rgba(103, 232, 249, 0.38),
-    0 0 0 8px rgba(103, 232, 249, 0.08);
+    0 0 0 1px rgba(103, 232, 249, 0.22),
+    0 0 0 10px rgba(103, 232, 249, 0.1);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(103, 232, 249, 0.06) 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(103, 232, 249, 0.1) 100%);
 }
 
 .ProseMirror > .foz-editor-drop-gap-before {

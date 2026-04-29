@@ -469,6 +469,16 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     if (!editor) return;
     const editorDom = editor.view.dom;
 
+    function handleEditorLayerClick(event: MouseEvent) {
+      const target = event.target instanceof Node ? event.target : null;
+      if (!target) return;
+
+      const clickedLayer = getEditorLayerFromTarget(editor, target);
+      if (!clickedLayer) return;
+
+      setActiveEditorLayerPos(clickedLayer.pos);
+    }
+
     function getImageFiles(fileList: FileList | null | undefined) {
       return Array.from(fileList ?? []).filter((file) => file.type.startsWith("image/"));
     }
@@ -489,10 +499,12 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       void queueContentImages(imageFiles);
     }
 
+    editorDom.addEventListener("click", handleEditorLayerClick, true);
     editorDom.addEventListener("drop", handleEditorDrop);
     editorDom.addEventListener("paste", handleEditorPaste);
 
     return () => {
+      editorDom.removeEventListener("click", handleEditorLayerClick, true);
       editorDom.removeEventListener("drop", handleEditorDrop);
       editorDom.removeEventListener("paste", handleEditorPaste);
     };
@@ -2265,6 +2277,19 @@ function getEditorLayerElement(editor: Editor, pos: number) {
   }
 
   return null;
+}
+
+function getEditorLayerFromTarget(editor: Editor, target: Node) {
+  const editorRoot = editor.view.dom;
+  if (!(editorRoot instanceof HTMLElement)) return null;
+
+  const topLevelElement = resolveTopLevelEditorElement(editor, target);
+  if (!topLevelElement) return null;
+
+  const childIndex = Array.from(editorRoot.children).indexOf(topLevelElement);
+  if (childIndex < 0) return null;
+
+  return getEditorLayers(editor).find((layer) => layer.index === childIndex) ?? null;
 }
 
 function getGalleryDropPreview(editor: Editor, container: HTMLDivElement, clientY: number): EditorDropPreview {
