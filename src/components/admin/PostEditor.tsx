@@ -2227,9 +2227,44 @@ function getDefaultGalleryInsertTarget(editor: Editor): GalleryInsertTarget {
   return targets[targets.length - 1] ?? targets[0];
 }
 
+function resolveTopLevelEditorElement(editor: Editor, node: Node | null | undefined) {
+  const editorRoot = editor.view.dom;
+  if (!(editorRoot instanceof HTMLElement) || !node) return null;
+
+  let currentElement = node instanceof HTMLElement ? node : node.parentElement;
+  while (currentElement && currentElement.parentElement !== editorRoot) {
+    currentElement = currentElement.parentElement;
+  }
+
+  return currentElement?.parentElement === editorRoot ? currentElement : null;
+}
+
 function getEditorLayerElement(editor: Editor, pos: number) {
-  const domNode = editor.view.nodeDOM(pos);
-  return domNode instanceof HTMLElement ? domNode : null;
+  const editorRoot = editor.view.dom;
+  if (!(editorRoot instanceof HTMLElement)) return null;
+
+  const layer = getEditorLayers(editor).find((item) => item.pos === pos);
+  if (layer) {
+    const indexedChild = editorRoot.children.item(layer.index);
+    if (indexedChild instanceof HTMLElement) return indexedChild;
+  }
+
+  const directNode = editor.view.nodeDOM(pos);
+  const directElement = resolveTopLevelEditorElement(editor, directNode);
+  if (directElement) return directElement;
+
+  const nearSelection = [pos + 1, Math.max(0, pos - 1)];
+  for (const targetPos of nearSelection) {
+    try {
+      const domAt = editor.view.domAtPos(targetPos);
+      const resolved = resolveTopLevelEditorElement(editor, domAt.node);
+      if (resolved) return resolved;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 function getGalleryDropPreview(editor: Editor, container: HTMLDivElement, clientY: number): EditorDropPreview {
