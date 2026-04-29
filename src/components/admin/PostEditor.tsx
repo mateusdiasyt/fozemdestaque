@@ -2143,14 +2143,15 @@ function getEditorLayers(editor: Editor): ContentLayer[] {
 
   editor.state.doc.forEach((node, offset, index) => {
     const pos = offset + 1;
+    const textContent = node.textContent ?? "";
     layers.push({
       id: `${index}-${node.type.name}-${pos}-${node.nodeSize}`,
       index,
       pos,
       nodeSize: node.nodeSize,
       type: node.type.name,
-      label: getLayerLabel(node.type.name, node.attrs),
-      preview: getLayerPreview(node.type.name, node.textContent, node.attrs),
+      label: getLayerLabel(node.type.name, node.attrs, textContent),
+      preview: getLayerPreview(node.type.name, textContent, node.attrs),
       thumbnail: getLayerThumbnail(node.type.name, node.attrs),
     });
   });
@@ -2158,8 +2159,13 @@ function getEditorLayers(editor: Editor): ContentLayer[] {
   return layers;
 }
 
-function getLayerLabel(type: string, attrs: Record<string, unknown>) {
+function isSpacerParagraph(type: string, text: string) {
+  return type === "paragraph" && !text.replace(/\u00a0/g, " ").trim();
+}
+
+function getLayerLabel(type: string, attrs: Record<string, unknown>, text: string) {
   if (type === "heading") return `Titulo H${attrs.level || 2}`;
+  if (isSpacerParagraph(type, text)) return "Espaco";
   if (type === "paragraph") return "Texto";
   if (type === "imageGrid") return "Galeria";
   if (type === "image") return "Imagem";
@@ -2176,6 +2182,7 @@ function getLayerPreview(type: string, text: string, attrs: Record<string, unkno
     const images = safeImageGridItems(attrs.images);
     return `${images.length} imagens em grade ${attrs.columns || 3}x${attrs.columns || 3}`;
   }
+  if (isSpacerParagraph(type, text)) return "Paragrafo em branco para respiro visual";
   if (type === "image") return String(attrs.alt || attrs.title || attrs.src || "Imagem sem descricao");
   return text?.trim() || "Camada vazia";
 }
