@@ -162,7 +162,7 @@ function SlideContent({ item }: { item: BirthdaySlideItem }) {
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#ff751f]">Destaque principal</p>
           </div>
 
-          <h3 className="mt-4 font-headline text-[clamp(1.55rem,2.8vw,2.45rem)] font-semibold leading-[1.04] text-[#102033] transition-colors group-hover/slide:text-[#ff751f]">
+          <h3 className="mt-4 max-w-[11ch] font-headline text-[clamp(1.3rem,2.25vw,2rem)] font-semibold leading-[1.08] text-[#102033] transition-colors group-hover/slide:text-[#ff751f]">
             {item.title}
           </h3>
 
