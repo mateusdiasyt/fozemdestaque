@@ -410,6 +410,39 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   useEffect(() => {
     if (!editor) return;
     const editorDom = editor.view.dom;
+
+    function getImageFiles(fileList: FileList | null | undefined) {
+      return Array.from(fileList ?? []).filter((file) => file.type.startsWith("image/"));
+    }
+
+    function handleEditorDrop(event: DragEvent) {
+      const imageFiles = getImageFiles(event.dataTransfer?.files);
+      if (imageFiles.length === 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void queueContentImages(imageFiles);
+    }
+
+    function handleEditorPaste(event: ClipboardEvent) {
+      const imageFiles = getImageFiles(event.clipboardData?.files);
+      if (imageFiles.length === 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void queueContentImages(imageFiles);
+    }
+
+    editorDom.addEventListener("drop", handleEditorDrop);
+    editorDom.addEventListener("paste", handleEditorPaste);
+
+    return () => {
+      editorDom.removeEventListener("drop", handleEditorDrop);
+      editorDom.removeEventListener("paste", handleEditorPaste);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const editorDom = editor.view.dom;
     editorDom.querySelectorAll(".foz-editor-selected-image").forEach((element) => {
       element.classList.remove("foz-editor-selected-image");
     });
@@ -496,12 +529,11 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     return data.url as string;
   }
 
-  async function handleContentImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const input = e.currentTarget;
-    const files = Array.from(input.files ?? []);
-    input.value = "";
-    if (files.length === 0) return;
-    const pendingImages: PendingImage[] = files.map((file) => ({
+  async function queueContentImages(files: File[]) {
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    if (imageFiles.length === 0) return;
+
+    const pendingImages: PendingImage[] = imageFiles.map((file) => ({
       id: crypto.randomUUID(),
       src: "",
       fileName: file.name,
@@ -511,12 +543,13 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       uploading: true,
     }));
 
+    setImagePopup(true);
     setMediaImages((current) => [...current, ...pendingImages]);
     setUploadingContentImages(true);
     setUploadError("");
 
     await Promise.all(
-      files.map(async (file, index) => {
+      imageFiles.map(async (file, index) => {
         const imageId = pendingImages[index].id;
         try {
           const prepared = await prepareImageUpload(file);
@@ -554,6 +587,14 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     );
 
     setUploadingContentImages(false);
+  }
+
+  async function handleContentImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget;
+    const files = Array.from(input.files ?? []);
+    input.value = "";
+    if (files.length === 0) return;
+    await queueContentImages(files);
   }
 
   async function handleFeaturedImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
