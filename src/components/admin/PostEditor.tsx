@@ -264,6 +264,13 @@ interface EditorDropPreview {
   placement: "before" | "after";
 }
 
+interface EditorLayerFrame {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
 const GALLERY_LAYOUTS: Array<{ columns: GalleryColumns; label: string; hint: string }> = [
   { columns: 1, label: "1 coluna", hint: "Uma imagem por linha" },
   { columns: 2, label: "2x2", hint: "Duas colunas amplas" },
@@ -326,6 +333,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const [selectedGridImage, setSelectedGridImage] = useState<SelectedGridImage | null>(null);
   const [galleryInsertTargetIndex, setGalleryInsertTargetIndex] = useState(0);
   const [activeEditorLayerPos, setActiveEditorLayerPos] = useState<number | null>(null);
+  const [activeEditorLayerFrame, setActiveEditorLayerFrame] = useState<EditorLayerFrame | null>(null);
   const [dragGalleryPreview, setDragGalleryPreview] = useState<EditorDropPreview | null>(null);
 
   useEffect(() => {
@@ -463,6 +471,52 @@ export function PostEditor({ post, categories }: PostEditorProps) {
 
     if (activeEditorLayerPos === null) return;
     getEditorLayerElement(editor, activeEditorLayerPos)?.classList.add("foz-editor-selected-layer");
+  }, [editor, activeEditorLayerPos]);
+
+  useEffect(() => {
+    if (!editor || activeEditorLayerPos === null) {
+      setActiveEditorLayerFrame(null);
+      return;
+    }
+
+    const currentLayerPos = activeEditorLayerPos;
+    const container = editorSurfaceRef.current;
+    if (!container) {
+      setActiveEditorLayerFrame(null);
+      return;
+    }
+
+    function updateActiveLayerFrame() {
+      const layerElement = getEditorLayerElement(editor, currentLayerPos);
+      const surface = editorSurfaceRef.current;
+      if (!layerElement || !surface) {
+        setActiveEditorLayerFrame(null);
+        return;
+      }
+
+      const layerRect = layerElement.getBoundingClientRect();
+      const surfaceRect = surface.getBoundingClientRect();
+      const paddingX = 18;
+      const paddingY = 12;
+
+      setActiveEditorLayerFrame({
+        top: Math.max(0, layerRect.top - surfaceRect.top - paddingY),
+        left: Math.max(12, layerRect.left - surfaceRect.left - paddingX),
+        width: Math.min(surfaceRect.width - 24, layerRect.width + paddingX * 2),
+        height: layerRect.height + paddingY * 2,
+      });
+    }
+
+    updateActiveLayerFrame();
+    const raf = window.requestAnimationFrame(updateActiveLayerFrame);
+    window.addEventListener("resize", updateActiveLayerFrame);
+    window.addEventListener("scroll", updateActiveLayerFrame, true);
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener("resize", updateActiveLayerFrame);
+      window.removeEventListener("scroll", updateActiveLayerFrame, true);
+    };
   }, [editor, activeEditorLayerPos]);
 
   useEffect(() => {
@@ -1048,6 +1102,19 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                   <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={openImageLibrary} />
                 </div>
                 <EditorContent editor={editor} />
+                {activeEditorLayerFrame && (
+                  <div
+                    className="pointer-events-none absolute z-[6] rounded-[28px] border border-cyan-400/75 bg-cyan-300/8 shadow-[0_0_0_1px_rgba(255,255,255,0.35),0_22px_50px_rgba(103,232,249,0.14)] transition-all duration-200 ease-out"
+                    style={{
+                      left: activeEditorLayerFrame.left,
+                      top: activeEditorLayerFrame.top,
+                      width: activeEditorLayerFrame.width,
+                      height: activeEditorLayerFrame.height,
+                    }}
+                  >
+                    <div className="absolute inset-0 rounded-[28px] bg-[linear-gradient(180deg,rgba(103,232,249,0.06)_0%,rgba(255,255,255,0.02)_100%)]" />
+                  </div>
+                )}
                 {dragGalleryPreview && (
                   <div
                     className="pointer-events-none absolute z-10 overflow-hidden rounded-[24px] border border-dashed border-cyan-400/70 bg-cyan-200/12 shadow-[0_18px_45px_rgba(103,232,249,0.18)] backdrop-blur-sm transition-all duration-200 ease-out"
