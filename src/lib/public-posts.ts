@@ -19,8 +19,37 @@ export type PublishedPostCard = {
   featured?: boolean;
 };
 
-export async function getPublishedPostsBase() {
+type PublishedPostsOptions = {
+  includeContent?: boolean;
+};
+
+export async function getPublishedPostsBase(
+  options: PublishedPostsOptions = {}
+): Promise<PublishedPostCard[]> {
   const now = new Date();
+  const { includeContent = false } = options;
+
+  if (includeContent) {
+    return db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        slug: posts.slug,
+        excerpt: posts.excerpt,
+        content: posts.content,
+        featuredImage: posts.featuredImage,
+        featuredImageAlt: posts.featuredImageAlt,
+        featuredImageTitle: posts.featuredImageTitle,
+        categoryId: posts.categoryId,
+        categoryIds: posts.categoryIds,
+        publishedAt: posts.publishedAt,
+        createdAt: posts.createdAt,
+        featured: posts.featured,
+      })
+      .from(posts)
+      .where(and(eq(posts.status, "publicado"), or(isNull(posts.publishedAt), lte(posts.publishedAt, now))))
+      .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`, desc(posts.createdAt));
+  }
 
   return db
     .select({
@@ -28,7 +57,7 @@ export async function getPublishedPostsBase() {
       title: posts.title,
       slug: posts.slug,
       excerpt: posts.excerpt,
-      content: posts.content,
+      content: sql<string | null>`null`,
       featuredImage: posts.featuredImage,
       featuredImageAlt: posts.featuredImageAlt,
       featuredImageTitle: posts.featuredImageTitle,

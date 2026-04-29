@@ -28,7 +28,7 @@ export async function GET(req: Request) {
     });
   }
 
-  let all = await getPublishedPostsBase();
+  let all = await getPublishedPostsBase({ includeContent: Boolean(q) });
 
   if (q) {
     all = all.filter((post) =>
