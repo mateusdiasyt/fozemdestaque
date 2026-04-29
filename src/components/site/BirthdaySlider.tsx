@@ -126,61 +126,61 @@ export function BirthdaySlider({ items, className }: BirthdaySliderProps) {
 
 function SlideContent({ item }: { item: BirthdaySlideItem }) {
   return (
-    <div className="relative h-full min-h-[400px] md:min-h-[520px] xl:min-h-[660px]">
-      <div className="absolute inset-0">
+    <div className="relative">
+      <div className="relative overflow-hidden bg-[linear-gradient(135deg,#111827_0%,#1e293b_55%,#334155_100%)]">
         {item.image ? (
           <SiteImage
             src={item.image}
             alt={item.title}
-            className="h-full w-full bg-[#f7f8fa] object-contain transition-transform duration-700 group-hover/slide:scale-[1.01]"
+            className="mx-auto block h-auto max-h-[780px] w-full bg-transparent object-contain transition-transform duration-700 group-hover/slide:scale-[1.01]"
             loading="eager"
-            fallback={<div className="h-full w-full bg-[linear-gradient(135deg,#111827_0%,#1e293b_55%,#334155_100%)]" />}
+            fallback={<div className="h-[400px] w-full bg-[linear-gradient(135deg,#111827_0%,#1e293b_55%,#334155_100%)] md:h-[520px] xl:h-[660px]" />}
           />
         ) : (
-          <div className="h-full w-full bg-[linear-gradient(135deg,#111827_0%,#1e293b_55%,#334155_100%)]" />
+          <div className="h-[400px] w-full bg-[linear-gradient(135deg,#111827_0%,#1e293b_55%,#334155_100%)] md:h-[520px] xl:h-[660px]" />
         )}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,15,28,0.28)_0%,rgba(8,15,28,0.42)_36%,rgba(8,15,28,0.78)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,15,28,0.22)_0%,rgba(8,15,28,0.36)_38%,rgba(8,15,28,0.74)_100%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,117,31,0.16),transparent_38%)]" />
-      </div>
 
-      <div className="relative flex h-full flex-col justify-between p-5 md:p-7">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <span className="inline-flex items-center rounded-full border border-white/30 bg-[rgba(255,248,241,0.82)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#102033] shadow-sm backdrop-blur">
-            Anivers√°rios
-          </span>
-
-          {item.dateLabel && (
-            <span className="inline-flex items-center rounded-full border border-white/20 bg-[rgba(16,32,51,0.52)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-100 backdrop-blur">
-              {item.dateLabel}
+        <div className="absolute inset-0 flex flex-col justify-between p-5 md:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <span className="inline-flex items-center rounded-full border border-white/30 bg-[rgba(255,248,241,0.78)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#102033] shadow-sm backdrop-blur">
+              Anivers·rios
             </span>
-          )}
-        </div>
 
-        <div className="max-w-[500px] rounded-[28px] border border-[#ead7c5] bg-[rgba(255,249,243,0.92)] p-5 shadow-[0_22px_45px_rgba(15,23,42,0.16)] backdrop-blur-md md:p-6">
-          <div className="flex items-center gap-3">
-            <span className="h-[3px] w-9 rounded-full bg-[#ff751f]" />
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#ff751f]">Destaque principal</p>
+            {item.dateLabel && (
+              <span className="inline-flex items-center rounded-full border border-white/20 bg-[rgba(16,32,51,0.52)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-100 backdrop-blur">
+                {item.dateLabel}
+              </span>
+            )}
           </div>
 
-          <h3 className="mt-4 max-w-[11ch] font-headline text-[clamp(1.3rem,2.25vw,2rem)] font-semibold leading-[1.08] text-[#102033] transition-colors group-hover/slide:text-[#ff751f]">
-            {item.title}
-          </h3>
+          <div className="max-w-[500px] rounded-[28px] border border-white/30 bg-[rgba(255,249,243,0.46)] p-5 shadow-[0_22px_45px_rgba(15,23,42,0.14)] backdrop-blur-xl md:p-6">
+            <div className="flex items-center gap-3">
+              <span className="h-[3px] w-9 rounded-full bg-[#ff751f]" />
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#ff751f]">Destaque principal</p>
+            </div>
 
-          {item.excerpt && (
-            <p className="mt-4 max-w-xl text-sm leading-6 text-[#5f707d] line-clamp-3">
-              {item.excerpt}
-            </p>
-          )}
+            <h3 className="mt-4 max-w-[11ch] font-headline text-[clamp(1.3rem,2.25vw,2rem)] font-semibold leading-[1.08] text-[#102033] transition-colors group-hover/slide:text-[#ff751f]">
+              {item.title}
+            </h3>
 
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c8d99]">
-              Foz em Destaque
-            </span>
+            {item.excerpt && (
+              <p className="mt-4 max-w-xl text-sm leading-6 text-[#43515d] line-clamp-3">
+                {item.excerpt}
+              </p>
+            )}
 
-            <span className="inline-flex items-center gap-2 text-sm font-semibold text-[#102033] transition-colors group-hover/slide:text-[#ff751f]">
-              Ver conteudo
-              <ArrowUpRight className="h-4 w-4" />
-            </span>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#61707d]">
+                Foz em Destaque
+              </span>
+
+              <span className="inline-flex items-center gap-2 text-sm font-semibold text-[#102033] transition-colors group-hover/slide:text-[#ff751f]">
+                Ver conteudo
+                <ArrowUpRight className="h-4 w-4" />
+              </span>
+            </div>
           </div>
         </div>
       </div>
