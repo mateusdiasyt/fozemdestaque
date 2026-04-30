@@ -381,6 +381,7 @@ interface EditorDropPreview {
   height: number;
   hint: string;
   placement: "before" | "after";
+  kind: "image" | "video";
 }
 
 interface EditorLayerFrame {
@@ -713,19 +714,22 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     const editorDom = editor.view.dom;
     let dragDepth = 0;
 
-    function hasMediaItems(dataTransfer: DataTransfer | null | undefined) {
-      return Array.from(dataTransfer?.items ?? []).some(
-        (item) =>
-          item.kind === "file" &&
-          (item.type.startsWith("image/") || item.type.startsWith("video/"))
-      );
+    function getDraggedMediaKind(dataTransfer: DataTransfer | null | undefined) {
+      const items = Array.from(dataTransfer?.items ?? []).filter((item) => item.kind === "file");
+      if (items.some((item) => item.type.startsWith("video/"))) return "video" as const;
+      if (items.some((item) => item.type.startsWith("image/"))) return "image" as const;
+      return null;
     }
 
-    function updateDropPreview(clientY: number) {
+    function updateDropPreview(clientY: number, kind: "image" | "video") {
       const container = editorSurfaceRef.current;
       if (!container) return;
-      const preview = getGalleryDropPreview(editor, container, clientY);
+      const preview = getGalleryDropPreview(editor, container, clientY, kind);
       setDragGalleryPreview(preview);
+      if (kind === "video") {
+        setVideoInsertTargetIndex(preview.targetIndex);
+        return;
+      }
       setGalleryInsertTargetIndex(preview.targetIndex);
     }
 
@@ -735,23 +739,25 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     }
 
     function handleDragEnter(event: DragEvent) {
-      if (!hasMediaItems(event.dataTransfer)) return;
+      const kind = getDraggedMediaKind(event.dataTransfer);
+      if (!kind) return;
       dragDepth += 1;
       event.preventDefault();
       event.stopPropagation();
-      updateDropPreview(event.clientY);
+      updateDropPreview(event.clientY, kind);
     }
 
     function handleDragOver(event: DragEvent) {
-      if (!hasMediaItems(event.dataTransfer)) return;
+      const kind = getDraggedMediaKind(event.dataTransfer);
+      if (!kind) return;
       event.preventDefault();
       event.stopPropagation();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
-      updateDropPreview(event.clientY);
+      updateDropPreview(event.clientY, kind);
     }
 
     function handleDragLeave(event: DragEvent) {
-      if (!hasMediaItems(event.dataTransfer)) return;
+      if (!getDraggedMediaKind(event.dataTransfer)) return;
       dragDepth = Math.max(0, dragDepth - 1);
       const rect = editorDom.getBoundingClientRect();
       const leftEditorBounds =
@@ -1350,16 +1356,9 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a7f73]">Ferramentas flutuantes</p>
                       <p className="mt-1 text-sm text-[#5f707d]">Formato e mídia acompanham seu scroll para manter o fluxo de edição.</p>
                     </div>
-                    <div className="flex flex-wrap items-center justify-center gap-2">
-                      <button type="button" onClick={openVideoLibrary} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#d9c5a4] bg-[#f5ead7] px-4 py-3 text-sm font-semibold text-[#102033] transition hover:bg-[#efe1ca]">
-                        <Film className="h-4 w-4" />
-                        Inserir video
-                      </button>
-                      <button type="button" onClick={openImageLibrary} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-[#102033] transition hover:bg-cyan-300/20">
-                      <ImagePlus className="h-4 w-4" />
-                      Inserir imagem
-                      </button>
-                    </div>
+                    <p className="text-xs font-medium text-[#7c6d5d]">
+                      Arraste imagem ou video para o conteudo ou use a barra abaixo.
+                    </p>
                   </div>
                   <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={openImageLibrary} onVideoClick={openVideoLibrary} />
                 </div>
@@ -1390,10 +1389,12 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                     <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(103,232,249,0.18)_0%,rgba(255,255,255,0.05)_100%)]" />
                     <div className="relative flex h-full items-center gap-3 px-5">
                       <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#102033] text-cyan-100 shadow-[0_12px_24px_rgba(16,32,51,0.18)]">
-                        <Images className="h-5 w-5" />
+                        {dragGalleryPreview.kind === "video" ? <Film className="h-5 w-5" /> : <Images className="h-5 w-5" />}
                       </span>
                       <div>
-                        <p className="text-sm font-semibold text-[#102033]">Nova galeria entra aqui</p>
+                        <p className="text-sm font-semibold text-[#102033]">
+                          {dragGalleryPreview.kind === "video" ? "Novo video entra aqui" : "Nova galeria entra aqui"}
+                        </p>
                         <p className="mt-1 text-xs leading-5 text-[#405264]">{dragGalleryPreview.hint}</p>
                       </div>
                     </div>
@@ -2663,7 +2664,12 @@ function getEditorLayerFromTarget(editor: Editor, target: Node) {
   return getEditorLayers(editor).find((layer) => layer.index === childIndex) ?? null;
 }
 
-function getGalleryDropPreview(editor: Editor, container: HTMLDivElement, clientY: number): EditorDropPreview {
+function getGalleryDropPreview(
+  editor: Editor,
+  container: HTMLDivElement,
+  clientY: number,
+  kind: "image" | "video" = "image"
+): EditorDropPreview {
   const layers = getEditorLayers(editor);
   const containerRect = container.getBoundingClientRect();
   const previewHeight = 88;
@@ -2676,8 +2682,9 @@ function getGalleryDropPreview(editor: Editor, container: HTMLDivElement, client
       left: horizontalInset,
       width: Math.max(220, containerRect.width - horizontalInset * 2),
       height: previewHeight,
-      hint: "A galeria sera o primeiro bloco da materia.",
+      hint: kind === "video" ? "O video sera o primeiro bloco da materia." : "A galeria sera o primeiro bloco da materia.",
       placement: "before",
+      kind,
     };
   }
 
@@ -2696,8 +2703,9 @@ function getGalleryDropPreview(editor: Editor, container: HTMLDivElement, client
       left: horizontalInset,
       width: Math.max(220, containerRect.width - horizontalInset * 2),
       height: previewHeight,
-      hint: "A galeria sera inserida no corpo do conteudo.",
+      hint: kind === "video" ? "O video sera inserido no corpo do conteudo." : "A galeria sera inserida no corpo do conteudo.",
       placement: "before",
+      kind,
     };
   }
 
@@ -2711,6 +2719,7 @@ function getGalleryDropPreview(editor: Editor, container: HTMLDivElement, client
         height: previewHeight,
         hint: `Entre as camadas, antes de ${entry.layer.label.toLowerCase()}.`,
         placement: "before",
+        kind,
       };
     }
   }
@@ -2724,6 +2733,7 @@ function getGalleryDropPreview(editor: Editor, container: HTMLDivElement, client
     height: previewHeight,
     hint: `Entre as camadas, depois de ${lastEntry.layer.label.toLowerCase()}.`,
     placement: "after",
+    kind,
   };
 }
 
@@ -3174,7 +3184,8 @@ function EditorToolbar({
     );
 
   return (
-    <div className="flex flex-wrap items-center gap-1 rounded-[20px] border border-[#e7dccd] bg-[rgba(255,253,248,0.98)] p-2 shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[#e7dccd] bg-[rgba(255,253,248,0.98)] p-2 shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
+      <div className="flex flex-wrap items-center gap-1">
       <button type="button" title="Negrito" onClick={() => editor.chain().focus().toggleBold().run()} className={buttonClass(editor.isActive("bold"))}><Bold className="h-4 w-4" /></button>
       <button type="button" title="Italico" onClick={() => editor.chain().focus().toggleItalic().run()} className={buttonClass(editor.isActive("italic"))}><Italic className="h-4 w-4" /></button>
       <ToolbarDivider />
@@ -3199,6 +3210,10 @@ function EditorToolbar({
       <ToolbarDivider />
       <button type="button" title="Desfazer" onClick={() => editor.chain().focus().undo().run()} className={buttonClass()}><Undo2 className="h-4 w-4" /></button>
       <button type="button" title="Refazer" onClick={() => editor.chain().focus().redo().run()} className={buttonClass()}><Redo2 className="h-4 w-4" /></button>
+      </div>
+      <p className="pr-2 text-[11px] font-medium text-[#8a7f73]">
+        Imagem e video tambem podem ser arrastados para o conteudo.
+      </p>
     </div>
   );
 }
