@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { mergeAttributes, type JSONContent } from "@tiptap/core";
+import { mergeAttributes, Node as TiptapNode, type JSONContent } from "@tiptap/core";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -21,6 +21,7 @@ import {
   Clock3,
   Eye,
   FileText,
+  Film,
   GripVertical,
   Heading2,
   Heading3,
@@ -89,6 +90,8 @@ interface PostEditorProps {
   categories: Category[];
 }
 
+type VideoOrientation = "horizontal" | "vertical";
+
 const DEFAULT_SINGLE_IMAGE_WIDTH = 720;
 const MIN_SINGLE_IMAGE_WIDTH = 220;
 const MAX_SINGLE_IMAGE_WIDTH = 1100;
@@ -111,6 +114,11 @@ function parseSingleImageWidth(element: Element) {
   return DEFAULT_SINGLE_IMAGE_WIDTH;
 }
 
+function inferVideoOrientation(width?: number, height?: number): VideoOrientation {
+  if (!width || !height) return "horizontal";
+  return height > width ? "vertical" : "horizontal";
+}
+
 const LinkWithRel = Link.extend({
   addAttributes() {
     const parent = this.parent?.() ?? {};
@@ -122,6 +130,106 @@ const LinkWithRel = Link.extend({
         renderHTML: (attrs) => (attrs.rel ? { rel: attrs.rel } : {}),
       },
     };
+  },
+});
+
+const VideoBlock = TiptapNode.create({
+  name: "videoBlock",
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      src: {
+        default: "",
+        parseHTML: (element) =>
+          element.querySelector("video")?.getAttribute("src") ??
+          element.getAttribute("data-video-src") ??
+          "",
+      },
+      title: {
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-video-title") ?? "",
+      },
+      orientation: {
+        default: "horizontal",
+        parseHTML: (element) =>
+          element.getAttribute("data-video-orientation") === "vertical" ? "vertical" : "horizontal",
+      },
+      width: {
+        default: null,
+        parseHTML: (element) => {
+          const raw = element.getAttribute("data-video-width");
+          return raw ? Number(raw) : null;
+        },
+      },
+      height: {
+        default: null,
+        parseHTML: (element) => {
+          const raw = element.getAttribute("data-video-height");
+          return raw ? Number(raw) : null;
+        },
+      },
+      poster: {
+        default: "",
+        parseHTML: (element) => element.querySelector("video")?.getAttribute("poster") ?? "",
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "figure[data-editor-video]" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    const orientation = HTMLAttributes.orientation === "vertical" ? "vertical" : "horizontal";
+    const title = typeof HTMLAttributes.title === "string" ? HTMLAttributes.title.trim() : "";
+    const maxWidth = orientation === "vertical" ? 520 : 980;
+    const videoNode = [
+      "video",
+      mergeAttributes(
+        {
+          src: String(HTMLAttributes.src || ""),
+          controls: "true",
+          playsinline: "true",
+          preload: "metadata",
+          class: "foz-editorial-video-element",
+        },
+        HTMLAttributes.poster ? { poster: String(HTMLAttributes.poster) } : {}
+      ),
+    ];
+
+    return [
+      "figure",
+      {
+        "data-editor-video": "true",
+        "data-video-src": String(HTMLAttributes.src || ""),
+        "data-video-title": title,
+        "data-video-orientation": orientation,
+        "data-video-width": HTMLAttributes.width ? String(HTMLAttributes.width) : "",
+        "data-video-height": HTMLAttributes.height ? String(HTMLAttributes.height) : "",
+        style: `margin:32px auto;width:min(100%,${maxWidth}px)`,
+      },
+      [
+        "div",
+        {
+          class: "foz-editorial-video-shell",
+          "data-video-orientation": orientation,
+        },
+        videoNode,
+      ],
+      title
+        ? [
+            "figcaption",
+            {
+              style: "margin-top:10px;color:#64748b;font-size:14px;line-height:1.5;text-align:center",
+            },
+            title,
+          ]
+        : ["figcaption", { style: "display:none" }, ""],
+    ] as any;
   },
 });
 
@@ -209,6 +317,17 @@ type PendingImage = ImageGridItem & {
   convertedToWebp?: boolean;
 };
 
+interface PendingVideo {
+  src: string;
+  title: string;
+  orientation: VideoOrientation;
+  width?: number;
+  height?: number;
+  fileName: string;
+  uploading: boolean;
+  error?: string;
+}
+
 type EditableContentImage = ImageGridItem & {
   width?: number;
   height?: number;
@@ -282,6 +401,7 @@ const GALLERY_LAYOUTS: Array<{ columns: GalleryColumns; label: string; hint: str
 export function PostEditor({ post, categories }: PostEditorProps) {
   const router = useRouter();
   const contentImageInputRef = useRef<HTMLInputElement>(null);
+  const contentVideoInputRef = useRef<HTMLInputElement>(null);
   const featuredImageInputRef = useRef<HTMLInputElement>(null);
   const editorSurfaceRef = useRef<HTMLDivElement>(null);
 
@@ -321,9 +441,12 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const [linkRel, setLinkRel] = useState<"follow" | "nofollow" | "sponsored">("follow");
   const [imagePopup, setImagePopup] = useState(false);
+  const [videoPopup, setVideoPopup] = useState(false);
   const [mediaImages, setMediaImages] = useState<PendingImage[]>([]);
+  const [pendingVideo, setPendingVideo] = useState<PendingVideo | null>(null);
   const [galleryColumns, setGalleryColumns] = useState<GalleryColumns>(3);
   const [uploadingContentImages, setUploadingContentImages] = useState(false);
+  const [uploadingContentVideo, setUploadingContentVideo] = useState(false);
   const [uploadingFeaturedImage, setUploadingFeaturedImage] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -332,6 +455,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const [helpPopup, setHelpPopup] = useState(false);
   const [selectedGridImage, setSelectedGridImage] = useState<SelectedGridImage | null>(null);
   const [galleryInsertTargetIndex, setGalleryInsertTargetIndex] = useState(0);
+  const [videoInsertTargetIndex, setVideoInsertTargetIndex] = useState(0);
   const [activeEditorLayerPos, setActiveEditorLayerPos] = useState<number | null>(null);
   const [activeEditorLayerFrame, setActiveEditorLayerFrame] = useState<EditorLayerFrame | null>(null);
   const [dragGalleryPreview, setDragGalleryPreview] = useState<EditorDropPreview | null>(null);
@@ -342,6 +466,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       setHelpPopup(false);
       setLinkPopup(false);
       setImagePopup(false);
+      setVideoPopup(false);
       setSelectedGridImage(null);
     };
     document.addEventListener("keydown", handleEscape);
@@ -377,6 +502,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       LinkWithRel.configure({ openOnClick: false, HTMLAttributes: { rel: "follow" } }),
       TableKit,
       ImageGrid,
+      VideoBlock,
     ],
     content: post?.content ?? "",
     editorProps: {
@@ -537,20 +663,38 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       return Array.from(fileList ?? []).filter((file) => file.type.startsWith("image/"));
     }
 
+    function getVideoFiles(fileList: FileList | null | undefined) {
+      return Array.from(fileList ?? []).filter((file) => file.type.startsWith("video/"));
+    }
+
     function handleEditorDrop(event: DragEvent) {
       const imageFiles = getImageFiles(event.dataTransfer?.files);
-      if (imageFiles.length === 0) return;
+      const videoFiles = getVideoFiles(event.dataTransfer?.files);
+      if (imageFiles.length === 0 && videoFiles.length === 0) return;
       event.preventDefault();
       event.stopPropagation();
-      void queueContentImages(imageFiles, dragGalleryPreview?.targetIndex);
+      if (imageFiles.length > 0) {
+        void queueContentImages(imageFiles, dragGalleryPreview?.targetIndex);
+        return;
+      }
+      if (videoFiles[0]) {
+        void handleQueuedVideoFile(videoFiles[0], dragGalleryPreview?.targetIndex);
+      }
     }
 
     function handleEditorPaste(event: ClipboardEvent) {
       const imageFiles = getImageFiles(event.clipboardData?.files);
-      if (imageFiles.length === 0) return;
+      const videoFiles = getVideoFiles(event.clipboardData?.files);
+      if (imageFiles.length === 0 && videoFiles.length === 0) return;
       event.preventDefault();
       event.stopPropagation();
-      void queueContentImages(imageFiles);
+      if (imageFiles.length > 0) {
+        void queueContentImages(imageFiles);
+        return;
+      }
+      if (videoFiles[0]) {
+        void handleQueuedVideoFile(videoFiles[0]);
+      }
     }
 
     editorDom.addEventListener("click", handleEditorLayerClick, true);
@@ -569,9 +713,11 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     const editorDom = editor.view.dom;
     let dragDepth = 0;
 
-    function hasImageItems(dataTransfer: DataTransfer | null | undefined) {
+    function hasMediaItems(dataTransfer: DataTransfer | null | undefined) {
       return Array.from(dataTransfer?.items ?? []).some(
-        (item) => item.kind === "file" && item.type.startsWith("image/")
+        (item) =>
+          item.kind === "file" &&
+          (item.type.startsWith("image/") || item.type.startsWith("video/"))
       );
     }
 
@@ -589,7 +735,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     }
 
     function handleDragEnter(event: DragEvent) {
-      if (!hasImageItems(event.dataTransfer)) return;
+      if (!hasMediaItems(event.dataTransfer)) return;
       dragDepth += 1;
       event.preventDefault();
       event.stopPropagation();
@@ -597,7 +743,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     }
 
     function handleDragOver(event: DragEvent) {
-      if (!hasImageItems(event.dataTransfer)) return;
+      if (!hasMediaItems(event.dataTransfer)) return;
       event.preventDefault();
       event.stopPropagation();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
@@ -605,7 +751,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     }
 
     function handleDragLeave(event: DragEvent) {
-      if (!hasImageItems(event.dataTransfer)) return;
+      if (!hasMediaItems(event.dataTransfer)) return;
       dragDepth = Math.max(0, dragDepth - 1);
       const rect = editorDom.getBoundingClientRect();
       const leftEditorBounds =
@@ -708,6 +854,13 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     setImagePopup(true);
   }
 
+  function openVideoLibrary() {
+    if (editor) {
+      setVideoInsertTargetIndex(getDefaultGalleryInsertTarget(editor).index);
+    }
+    contentVideoInputRef.current?.click();
+  }
+
   function applyLink() {
     if (linkUrl) {
       const relVal = linkRel === "follow" ? null : linkRel;
@@ -800,6 +953,81 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     await queueContentImages(files);
   }
 
+  async function readVideoMetadata(file: File) {
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const metadata = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.playsInline = true;
+        video.onloadedmetadata = () => {
+          resolve({ width: video.videoWidth, height: video.videoHeight });
+        };
+        video.onerror = () => reject(new Error("Nao foi possivel ler o video."));
+        video.src = objectUrl;
+      });
+
+      return metadata;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+
+  async function handleQueuedVideoFile(file: File, preferredTargetIndex?: number) {
+    if (!file) return;
+
+    if (typeof preferredTargetIndex === "number") {
+      setVideoInsertTargetIndex(preferredTargetIndex);
+    } else if (editor) {
+      setVideoInsertTargetIndex(getDefaultGalleryInsertTarget(editor).index);
+    }
+
+    setUploadingContentVideo(true);
+    setVideoPopup(true);
+    setUploadError("");
+    setPendingVideo({
+      src: "",
+      title: file.name.replace(/\.[^.]+$/, ""),
+      orientation: "horizontal",
+      fileName: file.name,
+      uploading: true,
+    });
+
+    try {
+      const metadata = await readVideoMetadata(file);
+      const url = await uploadMedia(file, "video");
+      setPendingVideo({
+        src: url,
+        title: file.name.replace(/\.[^.]+$/, ""),
+        orientation: inferVideoOrientation(metadata.width, metadata.height),
+        width: metadata.width,
+        height: metadata.height,
+        fileName: file.name,
+        uploading: false,
+      });
+    } catch (err) {
+      setPendingVideo({
+        src: "",
+        title: file.name.replace(/\.[^.]+$/, ""),
+        orientation: "horizontal",
+        fileName: file.name,
+        uploading: false,
+        error: err instanceof Error ? err.message : "Nao foi possivel enviar o video",
+      });
+      setUploadError(err instanceof Error ? err.message : "Nao foi possivel enviar o video");
+    } finally {
+      setUploadingContentVideo(false);
+    }
+  }
+
+  async function handleContentVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    await handleQueuedVideoFile(file);
+  }
+
   async function handleFeaturedImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const input = e.currentTarget;
     const file = input.files?.[0];
@@ -850,6 +1078,33 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     setImagePopup(false);
     setMediaImages([]);
     setGalleryInsertTargetIndex(0);
+  }
+
+  function insertVideoIntoContent() {
+    if (!editor || !pendingVideo?.src || pendingVideo.uploading || pendingVideo.error) return;
+    const insertTarget =
+      galleryInsertTargets.find((target) => target.index === videoInsertTargetIndex) ??
+      getDefaultGalleryInsertTarget(editor);
+
+    editor
+      .chain()
+      .focus()
+      .insertContentAt(insertTarget.pos, {
+        type: "videoBlock",
+        attrs: {
+          src: pendingVideo.src,
+          title: pendingVideo.title.trim(),
+          orientation: pendingVideo.orientation,
+          width: pendingVideo.width,
+          height: pendingVideo.height,
+        },
+      })
+      .setNodeSelection(insertTarget.pos)
+      .run();
+
+    setPendingVideo(null);
+    setVideoPopup(false);
+    setVideoInsertTargetIndex(0);
   }
 
   function updateSelectedGridImage(patch: Partial<EditableContentImage>) {
@@ -1021,6 +1276,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-10 text-slate-100">
       <input ref={contentImageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleContentImageUpload} />
+      <input ref={contentVideoInputRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleContentVideoUpload} />
       <input ref={featuredImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleFeaturedImageUpload} />
 
       <div className="rounded-[30px] border border-white/10 bg-gradient-to-br from-[#111a2b] via-[#0b1220] to-[#070b14] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.32)] sm:p-5">
@@ -1086,7 +1342,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
               </div>
             </div>
             <div className="grid gap-4 xl:grid-cols-[290px_minmax(0,1fr)]">
-              <ContentLayers editor={editor} />
+              <ContentLayers editor={editor} activeLayerPos={activeEditorLayerPos} onActivateLayer={setActiveEditorLayerPos} />
               <div ref={editorSurfaceRef} className="relative overflow-hidden rounded-[30px] border border-[#e7dccd] bg-[linear-gradient(180deg,#fffdf8_0%,#f8f3ea_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.12)]">
                 <div className="sticky top-3 z-20 border-b border-[#e7dccd] bg-[rgba(255,253,248,0.94)] px-3 py-3 backdrop-blur">
                   <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -1094,12 +1350,18 @@ export function PostEditor({ post, categories }: PostEditorProps) {
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a7f73]">Ferramentas flutuantes</p>
                       <p className="mt-1 text-sm text-[#5f707d]">Formato e mídia acompanham seu scroll para manter o fluxo de edição.</p>
                     </div>
-                    <button type="button" onClick={openImageLibrary} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-[#102033] transition hover:bg-cyan-300/20">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <button type="button" onClick={openVideoLibrary} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#d9c5a4] bg-[#f5ead7] px-4 py-3 text-sm font-semibold text-[#102033] transition hover:bg-[#efe1ca]">
+                        <Film className="h-4 w-4" />
+                        Inserir video
+                      </button>
+                      <button type="button" onClick={openImageLibrary} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-[#102033] transition hover:bg-cyan-300/20">
                       <ImagePlus className="h-4 w-4" />
                       Inserir imagem
-                    </button>
+                      </button>
+                    </div>
                   </div>
-                  <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={openImageLibrary} />
+                  <EditorToolbar editor={editor} onLinkClick={openLinkPopup} onImageClick={openImageLibrary} onVideoClick={openVideoLibrary} />
                 </div>
                 <EditorContent editor={editor} />
                 {activeEditorLayerFrame && (
@@ -1394,9 +1656,9 @@ export function PostEditor({ post, categories }: PostEditorProps) {
         </DialogShell>
       )}
 
-        {imagePopup && (
-          <MediaDialog
-            galleryColumns={galleryColumns}
+      {imagePopup && (
+        <MediaDialog
+          galleryColumns={galleryColumns}
             insertTargets={galleryInsertTargets}
             selectedInsertTargetIndex={selectedGalleryInsertTarget?.index ?? galleryInsertTargetIndex}
             images={mediaImages}
@@ -1412,9 +1674,28 @@ export function PostEditor({ post, categories }: PostEditorProps) {
             }
             onUpdateInsertTarget={setGalleryInsertTargetIndex}
             onUpdateColumns={setGalleryColumns}
-            uploading={uploadingContentImages}
-          />
-        )}
+          uploading={uploadingContentImages}
+        />
+      )}
+
+      {videoPopup && (
+        <VideoDialog
+          pendingVideo={pendingVideo}
+          insertTargets={galleryInsertTargets}
+          selectedInsertTargetIndex={videoInsertTargetIndex}
+          onClose={() => {
+            setVideoPopup(false);
+            setPendingVideo(null);
+          }}
+          onInsert={insertVideoIntoContent}
+          onPickVideo={() => contentVideoInputRef.current?.click()}
+          onUpdateInsertTarget={setVideoInsertTargetIndex}
+          onUpdateVideo={(patch) =>
+            setPendingVideo((current) => (current ? { ...current, ...patch } : current))
+          }
+          uploading={uploadingContentVideo}
+        />
+      )}
     </form>
   );
 }
@@ -1661,7 +1942,15 @@ function ImageResizeOverlay({
   );
 }
 
-function ContentLayers({ editor }: { editor: Editor | null }) {
+function ContentLayers({
+  editor,
+  activeLayerPos,
+  onActivateLayer,
+}: {
+  editor: Editor | null;
+  activeLayerPos: number | null;
+  onActivateLayer: (pos: number | null) => void;
+}) {
   const [layers, setLayers] = useState<ContentLayer[]>([]);
   const [activeLayerId, setActiveLayerId] = useState("");
   const [layerDrag, setLayerDrag] = useState<LayerDragState | null>(null);
@@ -1675,10 +1964,12 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
 
     const refresh = () => {
       const nextLayers = getEditorLayers(editor);
-      const selectionFrom = editor.state.selection.from;
-      const active = nextLayers.find(
-        (layer) => selectionFrom >= layer.pos && selectionFrom <= layer.pos + layer.nodeSize
-      );
+      const active =
+        nextLayers.find((layer) => layer.pos === activeLayerPos) ??
+        nextLayers.find((layer) => {
+          const selectionFrom = editor.state.selection.from;
+          return selectionFrom >= layer.pos && selectionFrom <= layer.pos + layer.nodeSize;
+        });
       setLayers(nextLayers);
       setActiveLayerId(active?.id ?? "");
     };
@@ -1691,7 +1982,7 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
       editor.off("update", refresh);
       editor.off("transaction", refresh);
     };
-  }, [editor]);
+  }, [editor, activeLayerPos]);
 
   useEffect(() => {
     if (!layerDrag) return;
@@ -1742,7 +2033,8 @@ function ContentLayers({ editor }: { editor: Editor | null }) {
   function selectLayer(layer: ContentLayer) {
     if (!editor) return;
     setActiveLayerId(layer.id);
-    if (["image", "imageGrid", "horizontalRule", "table"].includes(layer.type)) {
+    onActivateLayer(layer.pos);
+    if (["image", "imageGrid", "videoBlock", "horizontalRule", "table"].includes(layer.type)) {
       editor.chain().focus().setNodeSelection(layer.pos).run();
       return;
     }
@@ -2169,6 +2461,7 @@ function getLayerLabel(type: string, attrs: Record<string, unknown>, text: strin
   if (type === "paragraph") return "Texto";
   if (type === "imageGrid") return "Galeria";
   if (type === "image") return "Imagem";
+  if (type === "videoBlock") return "Video";
   if (type === "blockquote") return "Citacao";
   if (type === "bulletList") return "Lista";
   if (type === "orderedList") return "Lista numerada";
@@ -2183,6 +2476,10 @@ function getLayerPreview(type: string, text: string, attrs: Record<string, unkno
     return `${images.length} imagens em grade ${attrs.columns || 3}x${attrs.columns || 3}`;
   }
   if (isSpacerParagraph(type, text)) return "Paragrafo em branco para respiro visual";
+  if (type === "videoBlock") {
+    const orientation = attrs.orientation === "vertical" ? "vertical" : "horizontal";
+    return String(attrs.title || `Video ${orientation} no conteudo`);
+  }
   if (type === "image") return String(attrs.alt || attrs.title || attrs.src || "Imagem sem descricao");
   return text?.trim() || "Camada vazia";
 }
@@ -2640,6 +2937,190 @@ function MediaDialog({
     </DialogShell>
   );
 }
+
+function VideoDialog({
+  pendingVideo,
+  insertTargets,
+  selectedInsertTargetIndex,
+  onClose,
+  onInsert,
+  onPickVideo,
+  onUpdateInsertTarget,
+  onUpdateVideo,
+  uploading,
+}: {
+  pendingVideo: PendingVideo | null;
+  insertTargets: GalleryInsertTarget[];
+  selectedInsertTargetIndex: number;
+  onClose: () => void;
+  onInsert: () => void;
+  onPickVideo: () => void;
+  onUpdateInsertTarget: (targetIndex: number) => void;
+  onUpdateVideo: (patch: Partial<PendingVideo>) => void;
+  uploading: boolean;
+}) {
+  const selectedInsertTarget =
+    insertTargets.find((target) => target.index === selectedInsertTargetIndex) ?? insertTargets[0];
+  const canInsert = Boolean(pendingVideo?.src && !pendingVideo.uploading && !pendingVideo.error);
+
+  return (
+    <DialogShell onClose={onClose} label="Fechar video">
+      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[30px] border border-white/10 bg-[#0b1220] shadow-2xl">
+        <div className="flex flex-col gap-4 border-b border-white/10 p-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Video no conteudo</p>
+            <h3 className="mt-1 text-2xl font-semibold text-white">Adicionar video ao corpo da materia</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+              Suba um video curto, escolha se ele entra em formato horizontal ou vertical e defina onde esse bloco aparece no fluxo das camadas.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="self-start rounded-xl p-2 text-slate-300 hover:bg-white/10" aria-label="Fechar">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="grid min-h-0 flex-1 gap-0 overflow-hidden lg:grid-cols-[300px_minmax(0,1fr)]">
+          <aside className="border-b border-white/10 bg-[#070d18] p-5 lg:border-b-0 lg:border-r lg:border-white/10">
+            <button
+              type="button"
+              onClick={onPickVideo}
+              disabled={uploading}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#d9c5a4]/40 bg-[#f5ead7]/10 px-4 py-5 text-sm font-semibold text-[#f5ead7] transition hover:bg-[#f5ead7]/18 disabled:opacity-60"
+            >
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Film className="h-4 w-4" />}
+              {uploading ? "Enviando video..." : "Selecionar video"}
+            </button>
+
+            <div className="mt-6">
+              <p className={labelClass}>Onde o video entra</p>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <select
+                  value={selectedInsertTargetIndex}
+                  onChange={(event) => onUpdateInsertTarget(Number(event.target.value))}
+                  className={compactFieldClass}
+                >
+                  {insertTargets.map((target) => (
+                    <option key={target.index} value={target.index}>
+                      {target.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-3 text-xs leading-5 text-slate-500">
+                  {selectedInsertTarget?.hint ?? "O video sera inserido no ponto selecionado do conteudo."}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <p className={labelClass}>Formato do video</p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: "horizontal", label: "Horizontal", hint: "16:9 editorial" },
+                  { value: "vertical", label: "Vertical", hint: "9:16 estilo social" },
+                ].map((option) => {
+                  const active = pendingVideo?.orientation === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => onUpdateVideo({ orientation: option.value as VideoOrientation })}
+                      className={cn(
+                        "rounded-2xl border px-4 py-4 text-left transition",
+                        active
+                          ? "border-cyan-300/40 bg-cyan-300/15 text-cyan-100"
+                          : "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
+                      )}
+                    >
+                      <p className="text-sm font-semibold">{option.label}</p>
+                      <p className="mt-1 text-xs text-slate-500">{option.hint}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <label className={labelClass}>Titulo do video</label>
+              <input
+                type="text"
+                value={pendingVideo?.title ?? ""}
+                onChange={(event) => onUpdateVideo({ title: event.target.value })}
+                className={compactFieldClass}
+                placeholder="Legenda curta para o video"
+              />
+            </div>
+          </aside>
+
+          <div className="flex min-h-0 flex-col bg-[#0b1220] p-5">
+            <div className="flex-1 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,#09111f_0%,#0f172a_100%)] p-5">
+              {!pendingVideo ? (
+                <div className="flex h-full min-h-[360px] flex-col items-center justify-center rounded-[24px] border border-dashed border-white/10 text-center text-slate-400">
+                  <Film className="h-10 w-10 text-slate-600" />
+                  <p className="mt-4 text-lg font-semibold text-white">Nenhum video selecionado</p>
+                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+                    Selecione um arquivo MP4, WebM ou MOV para inserir um bloco de video no conteudo.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div
+                    className={cn(
+                      "mx-auto overflow-hidden rounded-[28px] border border-white/10 bg-black/50 shadow-[0_24px_60px_rgba(0,0,0,0.32)]",
+                      pendingVideo.orientation === "vertical" ? "max-w-[360px]" : "max-w-[860px]"
+                    )}
+                  >
+                    {pendingVideo.src ? (
+                      <video
+                        key={pendingVideo.src}
+                        src={pendingVideo.src}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="block aspect-auto w-full bg-black object-contain"
+                      />
+                    ) : (
+                      <div className="flex min-h-[280px] items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-cyan-200" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+                    <p className="font-semibold text-white">{pendingVideo.fileName}</p>
+                    <p className="mt-1 text-slate-500">
+                      {pendingVideo.width && pendingVideo.height
+                        ? `${pendingVideo.width}x${pendingVideo.height} · ${pendingVideo.orientation}`
+                        : `Formato ${pendingVideo.orientation}`}
+                    </p>
+                    {pendingVideo.error ? <p className="mt-2 text-rose-300">{pendingVideo.error}</p> : null}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-500">Videos verticais e horizontais entram como blocos independentes dentro das camadas do conteudo.</p>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/5">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={onInsert}
+              disabled={!canInsert}
+              className="rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Inserir video no texto
+            </button>
+          </div>
+        </div>
+      </div>
+    </DialogShell>
+  );
+}
+
 function MetricPill({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
@@ -2674,7 +3155,17 @@ function DialogShell({ children, onClose, label }: { children: React.ReactNode; 
   );
 }
 
-function EditorToolbar({ editor, onLinkClick, onImageClick }: { editor: Editor | null; onLinkClick: () => void; onImageClick: () => void }) {
+function EditorToolbar({
+  editor,
+  onLinkClick,
+  onImageClick,
+  onVideoClick,
+}: {
+  editor: Editor | null;
+  onLinkClick: () => void;
+  onImageClick: () => void;
+  onVideoClick: () => void;
+}) {
   if (!editor) return null;
   const buttonClass = (active = false) =>
     cn(
@@ -2703,6 +3194,7 @@ function EditorToolbar({ editor, onLinkClick, onImageClick }: { editor: Editor |
       <ToolbarDivider />
       <button type="button" title="Link" onClick={onLinkClick} className={buttonClass(editor.isActive("link"))}><Link2 className="h-4 w-4" /></button>
       <button type="button" title="Imagem" onClick={onImageClick} className={buttonClass()}><ImagePlus className="h-4 w-4" /></button>
+      <button type="button" title="Video" onClick={onVideoClick} className={buttonClass(editor.isActive("videoBlock"))}><Film className="h-4 w-4" /></button>
       <button type="button" title="Tabela" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} className={buttonClass()}><Table className="h-4 w-4" /></button>
       <ToolbarDivider />
       <button type="button" title="Desfazer" onClick={() => editor.chain().focus().undo().run()} className={buttonClass()}><Undo2 className="h-4 w-4" /></button>
