@@ -9,10 +9,12 @@ export interface ImageGridItem {
   height?: number;
 }
 
+export type ImageGridAlign = "left" | "center" | "right";
+
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     imageGrid: {
-      setImageGrid: (attrs: { id?: string; columns: number; images: ImageGridItem[] }) => ReturnType;
+      setImageGrid: (attrs: { id?: string; columns: number; images: ImageGridItem[]; align?: ImageGridAlign }) => ReturnType;
     };
   }
 }
@@ -25,6 +27,20 @@ function normalizeColumns(value: unknown) {
 
 function createImageGridId() {
   return globalThis.crypto?.randomUUID?.() ?? `grid-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function normalizeAlign(value: unknown): ImageGridAlign {
+  return value === "center" || value === "right" ? value : "left";
+}
+
+function getGridTrackTemplate(columns: number, imageCount: number) {
+  const effectiveColumns = Math.max(1, Math.min(columns, Math.max(imageCount, 1)));
+  if (effectiveColumns === 1) return "minmax(0, min(100%, 720px))";
+
+  const columnWidth =
+    columns === 2 ? 320 : columns === 3 ? 240 : columns === 4 ? 190 : 150;
+
+  return `repeat(${effectiveColumns}, minmax(0, ${columnWidth}px))`;
 }
 
 function safeImages(value: unknown): ImageGridItem[] {
@@ -69,6 +85,11 @@ export const ImageGrid = Node.create({
         parseHTML: (element) => normalizeColumns(element.getAttribute("data-columns")),
         renderHTML: () => ({}),
       },
+      align: {
+        default: "left",
+        parseHTML: (element) => normalizeAlign(element.getAttribute("data-align")),
+        renderHTML: () => ({}),
+      },
       images: {
         default: [],
         renderHTML: () => ({}),
@@ -103,13 +124,21 @@ export const ImageGrid = Node.create({
 
   renderHTML({ node, HTMLAttributes }) {
     const columns = normalizeColumns(node.attrs.columns);
+    const align = normalizeAlign(node.attrs.align);
     const images = safeImages(node.attrs.images);
     const gridId = typeof node.attrs.id === "string" ? node.attrs.id : "";
+    const shellStyle = [
+      "display:flex",
+      `justify-content:${align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start"}`,
+      "margin:32px 0",
+      "width:100%",
+    ].join(";");
     const gridStyle = [
       "display:grid",
-      `grid-template-columns:repeat(${columns},minmax(0,1fr))`,
+      `grid-template-columns:${getGridTrackTemplate(columns, images.length)}`,
       "gap:16px",
-      "margin:32px 0",
+      "width:fit-content",
+      "max-width:100%",
     ].join(";");
 
     const children = images.map((image, index) => {
@@ -165,11 +194,12 @@ export const ImageGrid = Node.create({
       mergeAttributes(HTMLAttributes, {
         "data-image-grid": "true",
         "data-columns": String(columns),
+        "data-align": align,
         ...(gridId ? { "data-grid-id": gridId } : {}),
         class: `foz-image-grid foz-image-grid-${columns}`,
-        style: gridStyle,
+        style: shellStyle,
       }),
-      ...children,
+      ["div", { class: "foz-image-grid-track", style: gridStyle }, ...children],
     ];
   },
 
@@ -183,6 +213,7 @@ export const ImageGrid = Node.create({
             attrs: {
               id: attrs.id || createImageGridId(),
               columns: normalizeColumns(attrs.columns),
+              align: normalizeAlign(attrs.align),
               images: safeImages(attrs.images),
             },
           }),

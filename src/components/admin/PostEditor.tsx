@@ -55,7 +55,7 @@ import type { SEOAnalysis } from "@/lib/seo-analyzer";
 import { prepareImageUpload } from "@/lib/client-media";
 import { parseCategoryIds } from "@/lib/post-categories";
 import { EditorHelpContent } from "./EditorHelpContent";
-import { ImageGrid, type ImageGridItem } from "./editor/ImageGridExtension";
+import { ImageGrid, type ImageGridAlign, type ImageGridItem } from "./editor/ImageGridExtension";
 
 interface Category {
   id: string;
@@ -307,6 +307,26 @@ const seoStatusColors: Record<"good" | "medium" | "bad", string> = {
 };
 
 type GalleryColumns = 1 | 2 | 3 | 4 | 6;
+const GALLERY_ALIGNMENTS: Array<{ value: ImageGridAlign; label: string; hint: string; icon: typeof AlignLeft }> = [
+  { value: "left", label: "Esquerda", hint: "Mantem a galeria encostada a esquerda.", icon: AlignLeft },
+  { value: "center", label: "Centro", hint: "Centraliza a galeria dentro da camada.", icon: AlignCenter },
+  { value: "right", label: "Direita", hint: "Alinha a galeria no lado direito.", icon: AlignRight },
+];
+
+function normalizeGalleryAlign(value: unknown): ImageGridAlign {
+  return value === "center" || value === "right" ? value : "left";
+}
+
+function getGalleryPreviewTrackTemplate(columns: GalleryColumns, imageCount: number) {
+  const effectiveColumns = Math.max(1, Math.min(columns, Math.max(imageCount, 1)));
+  if (effectiveColumns === 1) return "minmax(0, min(100%, 360px))";
+
+  const columnWidth =
+    columns === 2 ? 280 : columns === 3 ? 220 : columns === 4 ? 180 : columns === 6 ? 140 : 220;
+
+  return `repeat(${effectiveColumns}, minmax(0, ${columnWidth}px))`;
+}
+
 type PendingImage = ImageGridItem & {
   id: string;
   fileName: string;
@@ -446,6 +466,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
   const [mediaImages, setMediaImages] = useState<PendingImage[]>([]);
   const [pendingVideo, setPendingVideo] = useState<PendingVideo | null>(null);
   const [galleryColumns, setGalleryColumns] = useState<GalleryColumns>(3);
+  const [galleryAlign, setGalleryAlign] = useState<ImageGridAlign>("left");
   const [uploadingContentImages, setUploadingContentImages] = useState(false);
   const [uploadingContentVideo, setUploadingContentVideo] = useState(false);
   const [uploadingFeaturedImage, setUploadingFeaturedImage] = useState(false);
@@ -857,6 +878,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     if (editor) {
       setGalleryInsertTargetIndex(getDefaultGalleryInsertTarget(editor).index);
     }
+    setGalleryAlign("left");
     setImagePopup(true);
   }
 
@@ -1076,6 +1098,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
         attrs: {
           id: crypto.randomUUID(),
           columns: galleryColumns,
+          align: galleryAlign,
           images: readyImages,
         },
       })
@@ -1084,6 +1107,7 @@ export function PostEditor({ post, categories }: PostEditorProps) {
     setImagePopup(false);
     setMediaImages([]);
     setGalleryInsertTargetIndex(0);
+    setGalleryAlign("left");
   }
 
   function insertVideoIntoContent() {
@@ -1660,21 +1684,24 @@ export function PostEditor({ post, categories }: PostEditorProps) {
       {imagePopup && (
         <MediaDialog
           galleryColumns={galleryColumns}
-            insertTargets={galleryInsertTargets}
-            selectedInsertTargetIndex={selectedGalleryInsertTarget?.index ?? galleryInsertTargetIndex}
-            images={mediaImages}
-            onClose={() => {
-              setImagePopup(false);
-              setGalleryInsertTargetIndex(0);
-            }}
-            onInsert={insertImageIntoContent}
-            onPickFiles={() => contentImageInputRef.current?.click()}
-            onRemoveImage={(id) => setMediaImages((current) => current.filter((image) => image.id !== id))}
-            onReorderImage={(fromIndex, toIndex) =>
-              setMediaImages((current) => reorderList(current, fromIndex, toIndex))
-            }
-            onUpdateInsertTarget={setGalleryInsertTargetIndex}
-            onUpdateColumns={setGalleryColumns}
+          galleryAlign={galleryAlign}
+          insertTargets={galleryInsertTargets}
+          selectedInsertTargetIndex={selectedGalleryInsertTarget?.index ?? galleryInsertTargetIndex}
+          images={mediaImages}
+          onClose={() => {
+            setImagePopup(false);
+            setGalleryInsertTargetIndex(0);
+            setGalleryAlign("left");
+          }}
+          onInsert={insertImageIntoContent}
+          onPickFiles={() => contentImageInputRef.current?.click()}
+          onRemoveImage={(id) => setMediaImages((current) => current.filter((image) => image.id !== id))}
+          onReorderImage={(fromIndex, toIndex) =>
+            setMediaImages((current) => reorderList(current, fromIndex, toIndex))
+          }
+          onUpdateInsertTarget={setGalleryInsertTargetIndex}
+          onUpdateColumns={setGalleryColumns}
+          onUpdateAlign={setGalleryAlign}
           uploading={uploadingContentImages}
         />
       )}
@@ -2092,7 +2119,7 @@ function ContentLayers({
     });
   }
 
-  function updateImageGridAttrs(patch: { columns?: number; images?: ImageGridItem[] }) {
+  function updateImageGridAttrs(patch: { columns?: number; images?: ImageGridItem[]; align?: ImageGridAlign }) {
     if (!editor || !activeLayer) return;
     editor
       .chain()
@@ -2252,6 +2279,32 @@ function ContentLayers({
               <option key={layout.columns} value={layout.columns}>{layout.label}</option>
             ))}
           </select>
+          <label className="mt-3 block text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Alinhamento</label>
+          <div className="mt-1 grid grid-cols-3 gap-2">
+            {GALLERY_ALIGNMENTS.map((option) => {
+              const Icon = option.icon;
+              const active = normalizeGalleryAlign(activeNode.attrs.align) === option.value;
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => updateImageGridAttrs({ align: option.value })}
+                  className={cn(
+                    "rounded-xl border px-3 py-2 text-left text-xs transition",
+                    active
+                      ? "border-cyan-300/50 bg-cyan-300/15 text-cyan-100"
+                      : "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
+                  )}
+                >
+                  <span className="flex items-center gap-2 font-semibold">
+                    <Icon className="h-3.5 w-3.5" />
+                    {option.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
           <div className="mt-3 max-h-[280px] space-y-3 overflow-y-auto pr-1">
             {activeImages.map((image, index) => (
               <div key={`${image.src}-${index}`} className="rounded-xl border border-white/10 bg-[#070d18] p-2">
@@ -2739,6 +2792,7 @@ function getGalleryDropPreview(
 
 function MediaDialog({
   galleryColumns,
+  galleryAlign,
   insertTargets,
   selectedInsertTargetIndex,
   images,
@@ -2749,9 +2803,11 @@ function MediaDialog({
   onReorderImage,
   onUpdateInsertTarget,
   onUpdateColumns,
+  onUpdateAlign,
   uploading,
 }: {
   galleryColumns: GalleryColumns;
+  galleryAlign: ImageGridAlign;
   insertTargets: GalleryInsertTarget[];
   selectedInsertTargetIndex: number;
   images: PendingImage[];
@@ -2762,6 +2818,7 @@ function MediaDialog({
   onReorderImage: (fromIndex: number, toIndex: number) => void;
   onUpdateInsertTarget: (targetIndex: number) => void;
   onUpdateColumns: (columns: GalleryColumns) => void;
+  onUpdateAlign: (align: ImageGridAlign) => void;
   uploading: boolean;
 }) {
   const [draggingImageIndex, setDraggingImageIndex] = useState<number | null>(null);
@@ -2843,6 +2900,36 @@ function MediaDialog({
               </div>
             </div>
 
+            <div className="mt-6">
+              <p className={labelClass}>Alinhamento</p>
+              <div className="grid gap-2">
+                {GALLERY_ALIGNMENTS.map((option) => {
+                  const Icon = option.icon;
+                  const active = galleryAlign === option.value;
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => onUpdateAlign(option.value)}
+                      className={cn(
+                        "rounded-2xl border px-4 py-3 text-left transition",
+                        active
+                          ? "border-cyan-300/50 bg-cyan-300/15 text-cyan-100"
+                          : "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
+                      )}
+                    >
+                      <span className="flex items-center gap-2 text-sm font-semibold">
+                        <Icon className="h-4 w-4" />
+                        {option.label}
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-500">{option.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-400">
               <p className="font-semibold text-slate-200">Resumo</p>
               <p className="mt-2">{readyCount} imagens prontas para inserir.</p>
@@ -2869,58 +2956,67 @@ function MediaDialog({
                   <p className="text-sm text-slate-500">Arraste uma imagem para mudar a ordem.</p>
                 </div>
                 <div
-                  className="grid gap-4 max-sm:!grid-cols-1"
-                  style={{ gridTemplateColumns: `repeat(${galleryColumns}, minmax(0, 1fr))` }}
+                  className={cn(
+                    "flex w-full",
+                    galleryAlign === "center" && "justify-center",
+                    galleryAlign === "right" && "justify-end",
+                    galleryAlign === "left" && "justify-start"
+                  )}
                 >
-                  {images.map((image, index) => (
-                    <figure
-                      key={image.id}
-                      draggable
-                      onDragStart={() => setDraggingImageIndex(index)}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        if (draggingImageIndex !== null) onReorderImage(draggingImageIndex, index);
-                        setDraggingImageIndex(null);
-                      }}
-                      onDragEnd={() => setDraggingImageIndex(null)}
-                      className={cn(
-                        "group relative m-0 overflow-hidden rounded-[22px] border border-slate-200 bg-white p-2 shadow-sm transition",
-                        draggingImageIndex === index && "scale-[0.99] border-cyan-300 opacity-70"
-                      )}
-                    >
-                      <div className="relative aspect-[4/3] overflow-hidden rounded-[16px] bg-slate-200">
-                      {image.uploading ? (
-                        <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Enviando...
-                        </div>
-                      ) : image.error ? (
-                        <div className="flex h-full items-center justify-center px-4 text-center text-sm text-rose-200">{image.error}</div>
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={image.src} alt="" className="h-full w-full object-contain bg-white" />
-                      )}
-                      <div className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
-                        <span className="inline-flex items-center gap-1">
-                          <GripVertical className="h-3.5 w-3.5" />
-                          #{index + 1}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => onRemoveImage(image.id)}
-                        className="absolute right-3 top-3 rounded-full bg-black/60 p-2 text-white transition hover:bg-rose-500"
-                        aria-label="Remover imagem"
+                  <div
+                    className="grid gap-4 max-w-full max-sm:!grid-cols-1"
+                    style={{ gridTemplateColumns: getGalleryPreviewTrackTemplate(galleryColumns, images.length) }}
+                  >
+                    {images.map((image, index) => (
+                      <figure
+                        key={image.id}
+                        draggable
+                        onDragStart={() => setDraggingImageIndex(index)}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          if (draggingImageIndex !== null) onReorderImage(draggingImageIndex, index);
+                          setDraggingImageIndex(null);
+                        }}
+                        onDragEnd={() => setDraggingImageIndex(null)}
+                        className={cn(
+                          "group relative m-0 overflow-hidden rounded-[22px] border border-slate-200 bg-white p-2 shadow-sm transition",
+                          draggingImageIndex === index && "scale-[0.99] border-cyan-300 opacity-70"
+                        )}
                       >
-                        <X className="h-4 w-4" />
-                      </button>
-                      </div>
-                      <figcaption className="px-2 pb-1 pt-2 text-xs text-slate-500">
-                        {image.convertedToWebp ? "Convertida para WebP automaticamente" : "Pronta para inserir"}
-                      </figcaption>
-                    </figure>
-                  ))}
+                        <div className="relative aspect-[4/3] overflow-hidden rounded-[16px] bg-slate-200">
+                        {image.uploading ? (
+                          <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Enviando...
+                          </div>
+                        ) : image.error ? (
+                          <div className="flex h-full items-center justify-center px-4 text-center text-sm text-rose-200">{image.error}</div>
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={image.src} alt="" className="h-full w-full object-contain bg-white" />
+                        )}
+                        <div className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
+                          <span className="inline-flex items-center gap-1">
+                            <GripVertical className="h-3.5 w-3.5" />
+                            #{index + 1}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onRemoveImage(image.id)}
+                          className="absolute right-3 top-3 rounded-full bg-black/60 p-2 text-white transition hover:bg-rose-500"
+                          aria-label="Remover imagem"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                        </div>
+                        <figcaption className="px-2 pb-1 pt-2 text-xs text-slate-500">
+                          {image.convertedToWebp ? "Convertida para WebP automaticamente" : "Pronta para inserir"}
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
