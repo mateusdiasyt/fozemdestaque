@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "media:migrate:legacy": "tsx scripts/migrate-wp-uploads-to-blob.ts"
+    "media:migrate:legacy": "tsx scripts/migrate-wp-uploads-to-blob.ts",
+    "db:migrate:neon-to-postgres": "tsx scripts/migrate-neon-to-postgres.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
@@ -34,6 +35,7 @@
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
     "next-auth": "^5.0.0-beta.30",
+    "postgres": "^3.4.9",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
