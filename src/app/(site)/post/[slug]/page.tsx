@@ -10,6 +10,7 @@ import { HomeAdsRail, type HomeBannerAd } from "@/components/site/HomeAdsRail";
 import { db } from "@/lib/db";
 import { banners, categories, contentBlocks, posts } from "@/lib/db/schema";
 import { enhanceContentHtml } from "@/lib/media";
+import { safeSiteQuery } from "@/lib/safe-site-query";
 
 const BLOCK_CATEGORY_MAP: Record<string, { slug: string; label: string }> = {
   aniversario: { slug: "aniversariantes", label: "Aniversários" },
@@ -22,40 +23,58 @@ const BLOCK_CATEGORY_MAP: Record<string, { slug: string; label: string }> = {
   "ti-ti-ti": { slug: "ti-ti-ti", label: "Ti-ti-ti" },
 };
 
+type PostCategoryRow = typeof categories.$inferSelect;
+
 async function getPostBySlug(slug: string) {
   const now = new Date();
-  const [post] = await db
-    .select()
-    .from(posts)
-    .where(
-      and(eq(posts.slug, slug), eq(posts.status, "publicado"), or(isNull(posts.publishedAt), lte(posts.publishedAt, now)))
-    )
-    .limit(1);
+  const postRows = await safeSiteQuery(
+    () =>
+      db
+        .select()
+        .from(posts)
+        .where(
+          and(eq(posts.slug, slug), eq(posts.status, "publicado"), or(isNull(posts.publishedAt), lte(posts.publishedAt, now)))
+        )
+        .limit(1),
+    [],
+    `post by slug:${slug}`
+  );
+  const [post] = postRows;
   if (!post) return null;
 
   const [category] = post.categoryId
-    ? await db.select().from(categories).where(eq(categories.id, post.categoryId)).limit(1)
+    ? await safeSiteQuery(
+        () => db.select().from(categories).where(eq(categories.id, post.categoryId!)).limit(1),
+        [null] as Array<PostCategoryRow | null>,
+        `post category:${post.categoryId}`
+      )
     : [null];
 
   return { kind: "post" as const, post, category };
 }
 
 async function getContentBlockBySlug(slug: string) {
-  const [block] = await db
-    .select()
-    .from(contentBlocks)
-    .where(
-      and(
-        eq(contentBlocks.active, true),
-        or(
-          eq(contentBlocks.slug, slug),
-          eq(contentBlocks.link, slug),
-          eq(contentBlocks.link, `/post/${slug}`),
-          like(contentBlocks.link, `%/post/${slug}%`)
+  const blockRows = await safeSiteQuery(
+    () =>
+      db
+        .select()
+        .from(contentBlocks)
+        .where(
+          and(
+            eq(contentBlocks.active, true),
+            or(
+              eq(contentBlocks.slug, slug),
+              eq(contentBlocks.link, slug),
+              eq(contentBlocks.link, `/post/${slug}`),
+              like(contentBlocks.link, `%/post/${slug}%`)
+            )
+          )
         )
-      )
-    )
-    .limit(1);
+        .limit(1),
+    [],
+    `content block by slug:${slug}`
+  );
+  const [block] = blockRows;
 
   if (!block) return null;
 
@@ -71,17 +90,22 @@ async function getEntryBySlug(slug: string) {
 }
 
 async function getBannersByPosition(position: "lateral_1" | "lateral_2", limit = 3): Promise<HomeBannerAd[]> {
-  return db
-    .select({
-      id: banners.id,
-      title: banners.title,
-      imageUrl: banners.imageUrl,
-      linkUrl: banners.linkUrl,
-    })
-    .from(banners)
-    .where(and(eq(banners.position, position), eq(banners.active, true)))
-    .orderBy(asc(banners.order))
-    .limit(limit);
+  return safeSiteQuery(
+    () =>
+      db
+        .select({
+          id: banners.id,
+          title: banners.title,
+          imageUrl: banners.imageUrl,
+          linkUrl: banners.linkUrl,
+        })
+        .from(banners)
+        .where(and(eq(banners.position, position), eq(banners.active, true)))
+        .orderBy(asc(banners.order))
+        .limit(limit),
+    [],
+    `post page banners:${position}`
+  );
 }
 
 function formatDisplayDate(date: Date | null | undefined) {
@@ -138,7 +162,9 @@ export default async function PostPage({
     getBannersByPosition("lateral_2", 3),
   ]);
 
-  if (!entry) notFound();
+  if (!entry) {
+    return renderUnavailablePostPage();
+  }
 
   const isPost = entry.kind === "post";
   const title = isPost ? entry.post.title : entry.block.title;
@@ -217,6 +243,27 @@ export default async function PostPage({
 
       <div className="hidden xl:block">
         <HomeAdsRail banners={rightBanners} />
+      </div>
+    </div>
+  );
+}
+
+function renderUnavailablePostPage() {
+  return (
+    <div className="mx-auto max-w-4xl overflow-hidden rounded-[38px] border border-[#e5dccd] bg-[linear-gradient(180deg,#fffdf9_0%,#f7f2ea_100%)] shadow-[0_32px_90px_rgba(15,23,42,0.10)]">
+      <div className="px-6 py-10 md:px-12 md:py-14">
+        <Link
+          href="/"
+          className="inline-flex text-sm font-medium text-[#8d5f33] transition-colors hover:text-[#102033]"
+        >
+          Voltar
+        </Link>
+        <h1 className="mt-6 font-headline text-[clamp(2.2rem,4vw,3.8rem)] font-semibold leading-[1.02] tracking-[-0.05em] text-[#102033]">
+          Materia temporariamente indisponivel
+        </h1>
+        <p className="mt-4 max-w-3xl text-base leading-8 text-[#5f707d]">
+          Este conteudo nao pode ser carregado agora porque o banco respondeu com limitacao temporaria de cota.
+        </p>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { SiteImage } from "@/components/site/SiteImage";
 import { db } from "@/lib/db";
 import { categories } from "@/lib/db/schema";
 import { filterPublishedPostsByCategory, getPublishedPostsBase } from "@/lib/public-posts";
+import { safeSiteQuery } from "@/lib/safe-site-query";
 
 const PAGE_SIZE = 13;
 const MONTHS_PT: Record<string, number> = {
@@ -212,7 +213,12 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const [category] = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
+  const categoryRows = await safeSiteQuery(
+    () => db.select().from(categories).where(eq(categories.slug, slug)).limit(1),
+    [],
+    `category metadata:${slug}`
+  );
+  const [category] = categoryRows;
 
   if (!category) return {};
 
@@ -237,8 +243,16 @@ export default async function CategoryPage({
   const activeDateLabel = formatFilterLabel(activeDateFilter?.raw ?? null);
   const todayFilter = format(new Date(), "yyyy-MM-dd");
 
-  const [category] = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
-  if (!category || !category.active) notFound();
+  const categoryRows = await safeSiteQuery(
+    () => db.select().from(categories).where(eq(categories.slug, slug)).limit(1),
+    [],
+    `category page:${slug}`
+  );
+  const [category] = categoryRows;
+  if (!category) {
+    return renderCategoryUnavailablePage();
+  }
+  if (!category.active) notFound();
 
   const allCategoryPosts = filterPublishedPostsByCategory(
     await getPublishedPostsBase(),
@@ -320,6 +334,27 @@ export default async function CategoryPage({
     totalPages,
     items,
   });
+}
+
+function renderCategoryUnavailablePage() {
+  return (
+    <div className="space-y-8 lg:space-y-10">
+      <header className="relative overflow-hidden rounded-[30px] border border-[#e6ddcf] bg-[radial-gradient(circle_at_top_left,_#fff4ea,_#ffffff_52%,_#f4f6f7_100%)] px-6 py-8 shadow-[0_24px_70px_rgba(15,23,42,0.08)] md:px-8 md:py-10">
+        <Link href="/" className="inline-flex text-sm font-medium text-[#ff751f] transition-colors hover:text-[#e56a1a]">
+          Voltar ao inicio
+        </Link>
+        <div className="mt-8 max-w-3xl">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#ff751f]">Editoria</p>
+          <h1 className="mt-2 font-headline text-3xl font-semibold tracking-tight text-[#102033] md:text-5xl">
+            Conteudo temporariamente indisponivel
+          </h1>
+          <p className="mt-3 text-base leading-7 text-[#5f707d]">
+            O portal segue no ar, mas a consulta desta editoria ficou temporariamente indisponivel por limitacao de cota do banco.
+          </p>
+        </div>
+      </header>
+    </div>
+  );
 }
 
 function renderCategoryPage({

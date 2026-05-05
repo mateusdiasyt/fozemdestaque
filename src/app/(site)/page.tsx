@@ -9,6 +9,7 @@ import { BirthdaySlider, type BirthdaySlideItem } from "@/components/site/Birthd
 import { HomeAdsMobile, HomeAdsRail, type HomeBannerAd } from "@/components/site/HomeAdsRail";
 import { SiteImage } from "@/components/site/SiteImage";
 import { filterPublishedPostsByCategory, getPublishedPostsBase } from "@/lib/public-posts";
+import { safeSiteQuery } from "@/lib/safe-site-query";
 
 type PostItem = {
   id: string;
@@ -22,17 +23,22 @@ type PostItem = {
 };
 
 async function getBannersByPosition(position: "lateral_1" | "lateral_2", limit = 3): Promise<HomeBannerAd[]> {
-  return db
-    .select({
-      id: banners.id,
-      title: banners.title,
-      imageUrl: banners.imageUrl,
-      linkUrl: banners.linkUrl,
-    })
-    .from(banners)
-    .where(and(eq(banners.position, position), eq(banners.active, true)))
-    .orderBy(asc(banners.order))
-    .limit(limit);
+  return safeSiteQuery(
+    async () =>
+      db
+        .select({
+          id: banners.id,
+          title: banners.title,
+          imageUrl: banners.imageUrl,
+          linkUrl: banners.linkUrl,
+        })
+        .from(banners)
+        .where(and(eq(banners.position, position), eq(banners.active, true)))
+        .orderBy(asc(banners.order))
+        .limit(limit),
+    [],
+    `banners:${position}`
+  );
 }
 
 function getPostsByCategoryFromList(
@@ -57,12 +63,17 @@ function getPostsByCategoryFromList(
 }
 
 async function getAniversariantesDoDia(limit = 10) {
-  return db
-    .select()
-    .from(contentBlocks)
-    .where(and(eq(contentBlocks.type, "aniversario"), eq(contentBlocks.active, true)))
-    .orderBy(asc(contentBlocks.order))
-    .limit(limit);
+  return safeSiteQuery(
+    async () =>
+      db
+        .select()
+        .from(contentBlocks)
+        .where(and(eq(contentBlocks.type, "aniversario"), eq(contentBlocks.active, true)))
+        .orderBy(asc(contentBlocks.order))
+        .limit(limit),
+    [],
+    "birthday content blocks"
+  );
 }
 
 function formatPostDate(date: Date | null) {
@@ -72,7 +83,7 @@ function formatPostDate(date: Date | null) {
 
 export default async function HomePage() {
   const [allCategories, allPublishedPosts] = await Promise.all([
-    db.select().from(categories),
+    safeSiteQuery(() => db.select().from(categories), [], "categories"),
     getPublishedPostsBase(),
   ]);
   const categoryBySlug = new Map(allCategories.map((category) => [category.slug, category.id]));

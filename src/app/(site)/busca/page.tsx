@@ -6,6 +6,7 @@ import { eq, ilike, or, and, isNull, lte, sql } from "drizzle-orm";
 import { SiteImage } from "@/components/site/SiteImage";
 import { db } from "@/lib/db";
 import { posts } from "@/lib/db/schema";
+import { safeSiteQuery } from "@/lib/safe-site-query";
 
 export const metadata: Metadata = {
   title: "Buscar",
@@ -18,25 +19,30 @@ async function getSearchResults(q: string) {
   const pattern = `%${q.trim()}%`;
   const now = new Date();
 
-  return db
-    .select({
-      id: posts.id,
-      title: posts.title,
-      slug: posts.slug,
-      excerpt: posts.excerpt,
-      featuredImage: posts.featuredImage,
-      publishedAt: posts.publishedAt,
-    })
-    .from(posts)
-    .where(
-      and(
-        eq(posts.status, "publicado"),
-        or(isNull(posts.publishedAt), lte(posts.publishedAt, now)),
-        or(ilike(posts.title, pattern), ilike(posts.excerpt, pattern), ilike(posts.content, pattern))
-      )
-    )
-    .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`)
-    .limit(50);
+  return safeSiteQuery(
+    async () =>
+      db
+        .select({
+          id: posts.id,
+          title: posts.title,
+          slug: posts.slug,
+          excerpt: posts.excerpt,
+          featuredImage: posts.featuredImage,
+          publishedAt: posts.publishedAt,
+        })
+        .from(posts)
+        .where(
+          and(
+            eq(posts.status, "publicado"),
+            or(isNull(posts.publishedAt), lte(posts.publishedAt, now)),
+            or(ilike(posts.title, pattern), ilike(posts.excerpt, pattern), ilike(posts.content, pattern))
+          )
+        )
+        .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`)
+        .limit(50),
+    [],
+    `search:${q}`
+  );
 }
 
 export default async function BuscaPage({

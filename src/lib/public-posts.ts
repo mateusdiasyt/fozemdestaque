@@ -1,7 +1,8 @@
-import { and, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
+﻿import { and, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { posts } from "@/lib/db/schema";
 import { parseCategoryIds, postHasCategory } from "@/lib/post-categories";
+import { safeSiteQuery } from "@/lib/safe-site-query";
 
 export type PublishedPostCard = {
   id: string;
@@ -29,47 +30,53 @@ export async function getPublishedPostsBase(
   const now = new Date();
   const { includeContent = false } = options;
 
-  if (includeContent) {
-    return db
-      .select({
-        id: posts.id,
-        title: posts.title,
-        slug: posts.slug,
-        excerpt: posts.excerpt,
-        content: posts.content,
-        featuredImage: posts.featuredImage,
-        featuredImageAlt: posts.featuredImageAlt,
-        featuredImageTitle: posts.featuredImageTitle,
-        categoryId: posts.categoryId,
-        categoryIds: posts.categoryIds,
-        publishedAt: posts.publishedAt,
-        createdAt: posts.createdAt,
-        featured: posts.featured,
-      })
-      .from(posts)
-      .where(and(eq(posts.status, "publicado"), or(isNull(posts.publishedAt), lte(posts.publishedAt, now))))
-      .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`, desc(posts.createdAt));
-  }
+  return safeSiteQuery(
+    async () => {
+      if (includeContent) {
+        return db
+          .select({
+            id: posts.id,
+            title: posts.title,
+            slug: posts.slug,
+            excerpt: posts.excerpt,
+            content: posts.content,
+            featuredImage: posts.featuredImage,
+            featuredImageAlt: posts.featuredImageAlt,
+            featuredImageTitle: posts.featuredImageTitle,
+            categoryId: posts.categoryId,
+            categoryIds: posts.categoryIds,
+            publishedAt: posts.publishedAt,
+            createdAt: posts.createdAt,
+            featured: posts.featured,
+          })
+          .from(posts)
+          .where(and(eq(posts.status, "publicado"), or(isNull(posts.publishedAt), lte(posts.publishedAt, now))))
+          .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`, desc(posts.createdAt));
+      }
 
-  return db
-    .select({
-      id: posts.id,
-      title: posts.title,
-      slug: posts.slug,
-      excerpt: posts.excerpt,
-      content: sql<string | null>`null`,
-      featuredImage: posts.featuredImage,
-      featuredImageAlt: posts.featuredImageAlt,
-      featuredImageTitle: posts.featuredImageTitle,
-      categoryId: posts.categoryId,
-      categoryIds: posts.categoryIds,
-      publishedAt: posts.publishedAt,
-      createdAt: posts.createdAt,
-      featured: posts.featured,
-    })
-    .from(posts)
-    .where(and(eq(posts.status, "publicado"), or(isNull(posts.publishedAt), lte(posts.publishedAt, now))))
-    .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`, desc(posts.createdAt));
+      return db
+        .select({
+          id: posts.id,
+          title: posts.title,
+          slug: posts.slug,
+          excerpt: posts.excerpt,
+          content: sql<string | null>`null`,
+          featuredImage: posts.featuredImage,
+          featuredImageAlt: posts.featuredImageAlt,
+          featuredImageTitle: posts.featuredImageTitle,
+          categoryId: posts.categoryId,
+          categoryIds: posts.categoryIds,
+          publishedAt: posts.publishedAt,
+          createdAt: posts.createdAt,
+          featured: posts.featured,
+        })
+        .from(posts)
+        .where(and(eq(posts.status, "publicado"), or(isNull(posts.publishedAt), lte(posts.publishedAt, now))))
+        .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`, desc(posts.createdAt));
+    },
+    [],
+    includeContent ? "published posts with content" : "published posts summary"
+  );
 }
 
 export function withParsedCategoryIds<T extends { categoryId: string | null; categoryIds: string | null }>(
