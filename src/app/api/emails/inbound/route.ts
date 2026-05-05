@@ -100,7 +100,6 @@ async function normalizeInboundEmail(
   const fetchedResendEmail = receivedEmailId
     ? await fetchReceivedEmailFromResend(receivedEmailId)
     : null;
-
   const fromValue =
     fetchedResendEmail?.from ||
     resendEvent?.from ||

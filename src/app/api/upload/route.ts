@@ -4,6 +4,7 @@ import { auth, hasPermission } from "@/lib/auth";
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024; // 20MB
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
   "image/jpg",
@@ -12,6 +13,21 @@ const ALLOWED_IMAGE_TYPES = [
   "image/gif",
 ];
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+const ALLOWED_ATTACHMENT_TYPES = [
+  ...ALLOWED_IMAGE_TYPES,
+  ...ALLOWED_VIDEO_TYPES,
+  "application/pdf",
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+  "text/csv",
+];
 
 export async function POST(request: Request) {
   try {
@@ -20,7 +36,7 @@ export async function POST(request: Request) {
       (session?.user?.role as "administrador" | "editor" | "colaborador") ??
       "colaborador";
     const canUpload =
-      hasPermission(role, "banners") || hasPermission(role, "posts");
+      hasPermission(role, "banners") || hasPermission(role, "posts") || hasPermission(role, "emails");
 
     if (!session?.user || !canUpload) {
       return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
@@ -28,7 +44,9 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
-    const kind = formData.get("kind") === "video" ? "video" : "image";
+    const rawKind = formData.get("kind");
+    const kind =
+      rawKind === "video" ? "video" : rawKind === "attachment" ? "attachment" : "image";
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
@@ -37,8 +55,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const allowedTypes = kind === "video" ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES;
-    const maxSize = kind === "video" ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+    const allowedTypes =
+      kind === "video"
+        ? ALLOWED_VIDEO_TYPES
+        : kind === "attachment"
+          ? ALLOWED_ATTACHMENT_TYPES
+          : ALLOWED_IMAGE_TYPES;
+    const maxSize =
+      kind === "video"
+        ? MAX_VIDEO_SIZE
+        : kind === "attachment"
+          ? MAX_ATTACHMENT_SIZE
+          : MAX_IMAGE_SIZE;
 
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
@@ -46,6 +74,8 @@ export async function POST(request: Request) {
           error:
             kind === "video"
               ? "Tipo nao permitido. Use: MP4, WebM ou MOV"
+              : kind === "attachment"
+                ? "Tipo nao permitido para anexo. Use PDF, Office, ZIP, CSV, TXT, imagem ou video compativel."
               : "Tipo nao permitido. Use: JPEG, PNG, WebP ou GIF",
         },
         { status: 400 }
@@ -58,6 +88,8 @@ export async function POST(request: Request) {
           error:
             kind === "video"
               ? "Arquivo muito grande. Maximo 50MB"
+              : kind === "attachment"
+                ? "Arquivo muito grande. Maximo 20MB"
               : "Arquivo muito grande. Maximo 5MB",
         },
         { status: 400 }
@@ -75,7 +107,9 @@ export async function POST(request: Request) {
     }
 
     const ext = file.name.split(".").pop() || "jpg";
-    const pathname = `${kind === "video" ? "videos" : "uploads"}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const folder =
+      kind === "video" ? "videos" : kind === "attachment" ? "email-attachments" : "uploads";
+    const pathname = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
     const blob = await put(pathname, file, {
       access: "public",
@@ -83,7 +117,13 @@ export async function POST(request: Request) {
       contentType: file.type,
     });
 
-    return NextResponse.json({ url: blob.url, kind });
+    return NextResponse.json({
+      url: blob.url,
+      kind,
+      filename: file.name,
+      size: file.size,
+      contentType: file.type,
+    });
   } catch (err) {
     console.error("[upload]", err);
     return NextResponse.json(

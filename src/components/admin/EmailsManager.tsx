@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
@@ -9,9 +9,12 @@ import {
   Check,
   CheckCheck,
   Copy,
+  Download,
   Inbox,
+  Loader2,
   Mail,
   MailCheck,
+  Paperclip,
   PenSquare,
   Plus,
   RefreshCw,
@@ -39,6 +42,7 @@ export interface AdminEmailMessage {
   subject: string;
   textContent: string | null;
   htmlContent: string | null;
+  attachments?: string | null;
   provider: string | null;
   providerId: string | null;
   error: string | null;
@@ -85,6 +89,26 @@ type MailboxDraft = {
 type ResizableColumnKey = "sender" | "subject" | "mailbox" | "date";
 
 type ColumnWidths = Record<ResizableColumnKey, number>;
+
+type EmailAttachment = {
+  id?: string;
+  filename: string;
+  size?: number;
+  contentType?: string;
+  downloadUrl?: string;
+  expiresAt?: string;
+  path?: string;
+};
+
+type ComposeAttachment = {
+  id: string;
+  filename: string;
+  size?: number;
+  contentType?: string;
+  path?: string;
+  uploading: boolean;
+  error?: string;
+};
 
 const tabs: Array<{
   key: TabKey;
@@ -158,6 +182,10 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [replyTo, setReplyTo] = useState("");
+  const [composeAttachments, setComposeAttachments] = useState<ComposeAttachment[]>([]);
+  const [attachmentsUploading, setAttachmentsUploading] = useState(false);
+  const [selectedAttachments, setSelectedAttachments] = useState<EmailAttachment[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(
     null
@@ -184,6 +212,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     startX: number;
     startWidth: number;
   } | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (
@@ -334,6 +363,126 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     !allVisibleSelected && filteredMessages.some((message) => selectedMessageIds.includes(message.id));
   const listGridTemplate = getInboxGridTemplate(columnWidths, showMailboxColumn);
 
+  useEffect(() => {
+    if (!selectedMessage) {
+      setSelectedAttachments([]);
+      setAttachmentsLoading(false);
+      return;
+    }
+
+    const storedAttachments = parseEmailAttachments(selectedMessage.attachments);
+    setSelectedAttachments(storedAttachments);
+
+    if (!selectedMessage.providerId) {
+      setAttachmentsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setAttachmentsLoading(true);
+
+    fetch(`/api/admin/emails/${selectedMessage.id}/attachments`, { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.error || "Nao foi possivel carregar os anexos.");
+        }
+        return parseEmailAttachments(data?.attachments);
+      })
+      .then((attachments) => {
+        if (cancelled) return;
+        setSelectedAttachments(attachments);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSelectedAttachments(storedAttachments);
+      })
+      .finally(() => {
+        if (!cancelled) setAttachmentsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMessage]);
+
+  async function uploadAttachmentFile(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("kind", "attachment");
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data?.error || "Nao foi possivel enviar o anexo.");
+    }
+
+    return {
+      path: String(data.url || ""),
+      filename: String(data.filename || file.name),
+      size: Number(data.size || file.size) || undefined,
+      contentType: String(data.contentType || file.type || ""),
+    };
+  }
+
+  async function handleAttachmentSelection(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (files.length === 0) return;
+
+    const pendingAttachments = files.map((file) => ({
+      id: crypto.randomUUID(),
+      filename: file.name,
+      size: file.size,
+      contentType: file.type,
+      uploading: true,
+    }));
+
+    setComposeAttachments((current) => [...current, ...pendingAttachments]);
+    setAttachmentsUploading(true);
+
+    await Promise.all(
+      files.map(async (file, index) => {
+        const attachmentId = pendingAttachments[index].id;
+        try {
+          const uploaded = await uploadAttachmentFile(file);
+          setComposeAttachments((current) =>
+            current.map((attachment) =>
+              attachment.id === attachmentId
+                ? {
+                    ...attachment,
+                    ...uploaded,
+                    uploading: false,
+                  }
+                : attachment
+            )
+          );
+        } catch (error) {
+          setComposeAttachments((current) =>
+            current.map((attachment) =>
+              attachment.id === attachmentId
+                ? {
+                    ...attachment,
+                    uploading: false,
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Nao foi possivel preparar o anexo.",
+                  }
+                : attachment
+            )
+          );
+        }
+      })
+    );
+
+    setAttachmentsUploading(false);
+  }
+
   async function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!config.canSend) {
@@ -352,6 +501,14 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
       return;
     }
 
+    if (attachmentsUploading || composeAttachments.some((attachment) => attachment.uploading)) {
+      setFeedback({
+        type: "error",
+        text: "Aguarde o envio dos anexos terminar antes de enviar o email.",
+      });
+      return;
+    }
+
     setSending(true);
     setFeedback(null);
 
@@ -359,7 +516,21 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
       const response = await fetch("/api/admin/emails", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, subject, body, replyTo, mailboxEmail: composeMailbox }),
+        body: JSON.stringify({
+          to,
+          subject,
+          body,
+          replyTo,
+          mailboxEmail: composeMailbox,
+          attachments: composeAttachments
+            .filter((attachment) => attachment.path && !attachment.uploading && !attachment.error)
+            .map((attachment) => ({
+              filename: attachment.filename,
+              path: attachment.path,
+              size: attachment.size,
+              contentType: attachment.contentType,
+            })),
+        }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -370,6 +541,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
       setSubject("");
       setBody("");
       setReplyTo("");
+      setComposeAttachments([]);
       setFeedback({ type: "success", text: "Email enviado e registrado no historico." });
       router.refresh();
     } catch (error) {
@@ -592,6 +764,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     setSubject("");
     setBody("");
     setReplyTo("");
+    setComposeAttachments([]);
     setFeedback(null);
     setComposeOpen(true);
   }
@@ -602,6 +775,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
     setTo(message.fromEmail);
     setReplyTo("");
     setSubject(message.subject.startsWith("Re:") ? message.subject : `Re: ${message.subject}`);
+    setComposeAttachments([]);
     setBody(
       `\n\n---\nEm ${formatDate(message.createdAt)}, ${senderName} escreveu:\n${messagePreview(
         message
@@ -968,6 +1142,8 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
         {selectedMessage && (
           <EmailReadingPane
             message={selectedMessage}
+            attachments={selectedAttachments}
+            attachmentsLoading={attachmentsLoading}
             onDelete={deleteMessage}
             onMarkRead={markRead}
             onReply={replyToMessage}
@@ -1002,6 +1178,14 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
               </div>
 
               <form onSubmit={handleSend} className="flex flex-1 flex-col overflow-hidden">
+                <input
+                  ref={attachmentInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleAttachmentSelection}
+                  accept=".pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm,.mov"
+                />
                 <div className="flex-1 overflow-y-auto px-5 py-5 md:px-6 portal-scrollbar">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
@@ -1053,6 +1237,60 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                   </div>
 
                   <div className="mt-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <label className={labelClass}>Anexos</label>
+                      <button
+                        type="button"
+                        onClick={() => attachmentInputRef.current?.click()}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06]"
+                      >
+                        {attachmentsUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+                        {attachmentsUploading ? "Enviando anexo..." : "Adicionar arquivo"}
+                      </button>
+                    </div>
+
+                    {composeAttachments.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-500">
+                        Anexe PDFs, documentos, planilhas, imagens ou videos leves diretamente no email.
+                      </div>
+                    ) : (
+                      <div className="space-y-2 rounded-[24px] border border-white/10 bg-white/[0.03] p-3">
+                        {composeAttachments.map((attachment) => (
+                          <div key={attachment.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0a1220] px-3 py-3">
+                            <div className="min-w-0 flex items-center gap-3">
+                              <span className="rounded-2xl border border-white/10 bg-white/[0.04] p-2 text-slate-300">
+                                {attachment.uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-white">{attachment.filename}</p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  {attachment.error
+                                    ? attachment.error
+                                    : attachment.uploading
+                                      ? "Preparando anexo..."
+                                      : formatFileSize(attachment.size)}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setComposeAttachments((current) =>
+                                  current.filter((item) => item.id !== attachment.id)
+                                )
+                              }
+                              className="rounded-full border border-rose-300/20 p-2 text-rose-200 transition hover:bg-rose-500/10"
+                              aria-label={`Remover anexo ${attachment.filename}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
                     <label className={labelClass}>Mensagem</label>
                     <textarea
                       value={body}
@@ -1081,6 +1319,9 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-xs text-slate-500">
                       Saindo por: {composeMailbox || config.fromAddress}
+                      {composeAttachments.filter((attachment) => attachment.path && !attachment.error).length > 0
+                        ? ` • ${composeAttachments.filter((attachment) => attachment.path && !attachment.error).length} anexo(s)`
+                        : ""}
                     </p>
 
                     <div className="flex flex-wrap gap-3">
@@ -1093,7 +1334,7 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                       </button>
                       <button
                         type="submit"
-                        disabled={sending || !config.canSend || !composeMailbox}
+                        disabled={sending || attachmentsUploading || !config.canSend || !composeMailbox}
                         className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-200 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {sending ? (
@@ -1421,12 +1662,16 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
 
 function EmailReadingPane({
   message,
+  attachments,
+  attachmentsLoading,
   onDelete,
   onMarkRead,
   onReply,
   onClose,
 }: {
   message: AdminEmailMessage | null;
+  attachments: EmailAttachment[];
+  attachmentsLoading: boolean;
   onDelete: (id: string) => void;
   onMarkRead: (id: string, read: boolean) => void;
   onReply: (message: AdminEmailMessage) => void;
@@ -1522,6 +1767,68 @@ function EmailReadingPane({
             {message.mailboxEmail && <MessageMetaItem label="Caixa" value={message.mailboxEmail} />}
           </div>
         </div>
+
+        {(attachmentsLoading || attachments.length > 0) && (
+          <div className="mt-4 rounded-[24px] border border-slate-200/80 bg-white/80 px-4 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Anexos
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {attachmentsLoading
+                    ? "Atualizando os arquivos anexados..."
+                    : `${attachments.length} arquivo(s) nesta mensagem.`}
+                </p>
+              </div>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
+                {attachments.length}
+              </span>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {attachmentsLoading && attachments.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                  Buscando anexos...
+                </div>
+              ) : (
+                attachments.map((attachment, index) => (
+                  <div
+                    key={`${attachment.id || attachment.filename}-${index}`}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                  >
+                    <div className="min-w-0 flex items-center gap-3">
+                      <span className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-600">
+                        <Paperclip className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-900">
+                          {attachment.filename}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {[attachment.contentType, formatFileSize(attachment.size)].filter(Boolean).join(" • ") || "Arquivo anexado"}
+                        </p>
+                      </div>
+                    </div>
+                    {attachment.downloadUrl || attachment.path ? (
+                      <a
+                        href={attachment.downloadUrl || attachment.path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-100"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Baixar
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400">Sem link</span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {message.error && (
@@ -1933,6 +2240,68 @@ function createMailboxDraft(
     active: mailbox?.active ?? true,
     isDefault: mailbox?.isDefault ?? false,
   };
+}
+
+function parseEmailAttachments(value: unknown): EmailAttachment[] {
+  if (!value) return [];
+
+  const parsed =
+    typeof value === "string"
+      ? (() => {
+          try {
+            return JSON.parse(value);
+          } catch {
+            return [];
+          }
+        })()
+      : value;
+
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed.reduce<EmailAttachment[]>((acc, item) => {
+    if (!item || typeof item !== "object") return acc;
+    const attachment = item as Record<string, unknown>;
+    const filename =
+      typeof attachment.filename === "string" ? attachment.filename.trim() : "";
+    if (!filename) return acc;
+
+    acc.push({
+      id: typeof attachment.id === "string" ? attachment.id : undefined,
+      filename,
+      size:
+        typeof attachment.size === "number"
+          ? attachment.size
+          : Number(attachment.size || 0) || undefined,
+      contentType:
+        typeof attachment.contentType === "string"
+          ? attachment.contentType
+          : typeof attachment.content_type === "string"
+            ? attachment.content_type
+            : undefined,
+      downloadUrl:
+        typeof attachment.downloadUrl === "string"
+          ? attachment.downloadUrl
+          : typeof attachment.download_url === "string"
+            ? attachment.download_url
+            : undefined,
+      path: typeof attachment.path === "string" ? attachment.path : undefined,
+      expiresAt:
+        typeof attachment.expiresAt === "string"
+          ? attachment.expiresAt
+          : typeof attachment.expires_at === "string"
+            ? attachment.expires_at
+            : undefined,
+    });
+
+    return acc;
+  }, []);
+}
+
+function formatFileSize(size?: number) {
+  if (!size || !Number.isFinite(size)) return "";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function messagePreview(message: AdminEmailMessage) {

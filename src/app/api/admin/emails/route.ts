@@ -26,6 +26,17 @@ const sendSchema = z.object({
   body: z.string().min(1),
   replyTo: z.string().optional(),
   mailboxEmail: z.string().email().optional(),
+  attachments: z
+    .array(
+      z.object({
+        filename: z.string().min(1).max(255),
+        path: z.string().url(),
+        contentType: z.string().optional(),
+        size: z.number().int().nonnegative().optional(),
+      })
+    )
+    .max(10)
+    .optional(),
 });
 
 function canManageEmails(role?: string) {
@@ -83,6 +94,12 @@ export async function POST(req: Request) {
   const from = getMailboxDisplayFromAddress(mailbox) || getConfiguredFromAddress();
   const id = generateId();
   let providerId: string | null = null;
+  const attachments = (parsed.data.attachments ?? []).map((attachment) => ({
+    filename: attachment.filename,
+    path: attachment.path,
+    contentType: attachment.contentType,
+    size: attachment.size,
+  }));
 
   try {
     const result = await sendEmailWithResend({
@@ -91,6 +108,7 @@ export async function POST(req: Request) {
       text: parsed.data.body,
       replyTo: parsed.data.replyTo || undefined,
       from,
+      attachments,
     });
     providerId = result.id;
 

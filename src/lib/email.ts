@@ -4,10 +4,32 @@ export interface SendEmailInput {
   text: string;
   replyTo?: string;
   from?: string;
+  attachments?: EmailAttachmentInput[];
 }
 
 export interface SentEmailResult {
   id: string | null;
+}
+
+export interface EmailAttachmentInput {
+  filename: string;
+  path?: string;
+  content?: string;
+  contentType?: string;
+  contentId?: string;
+  size?: number;
+}
+
+export interface EmailAttachmentRecord {
+  id?: string;
+  filename: string;
+  size?: number;
+  contentType?: string;
+  contentDisposition?: string;
+  contentId?: string;
+  downloadUrl?: string;
+  expiresAt?: string;
+  path?: string;
 }
 
 export interface ResendReceivedEmail {
@@ -74,6 +96,14 @@ export async function sendEmailWithResend(input: SendEmailInput): Promise<SentEm
       text: input.text,
       html: textToHtml(input.text),
       reply_to: input.replyTo || undefined,
+      attachments:
+        input.attachments?.map((attachment) => ({
+          filename: attachment.filename,
+          path: attachment.path,
+          content: attachment.content,
+          content_type: attachment.contentType,
+          content_id: attachment.contentId,
+        })) || undefined,
     }),
   });
 
@@ -88,6 +118,14 @@ export async function sendEmailWithResend(input: SendEmailInput): Promise<SentEm
   }
 
   return { id: data?.id ?? data?.data?.id ?? null };
+}
+
+export async function listSentEmailAttachments(emailId: string): Promise<EmailAttachmentRecord[]> {
+  return listResendAttachments(`https://api.resend.com/emails/${emailId}/attachments`);
+}
+
+export async function listReceivedEmailAttachments(emailId: string): Promise<EmailAttachmentRecord[]> {
+  return listResendAttachments(`https://api.resend.com/emails/receiving/${emailId}/attachments`);
 }
 
 export async function fetchReceivedEmailFromResend(emailId: string): Promise<ResendReceivedEmail | null> {
@@ -125,4 +163,55 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+async function listResendAttachments(url: string): Promise<EmailAttachmentRecord[]> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return [];
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !Array.isArray(data?.data)) return [];
+  const items = data.data as unknown[];
+
+  return items.reduce((acc: EmailAttachmentRecord[], item: unknown) => {
+      if (!item || typeof item !== "object") return acc;
+      const attachment = item as Record<string, unknown>;
+      const filename =
+        typeof attachment.filename === "string" ? attachment.filename.trim() : "";
+      if (!filename) return acc;
+
+      acc.push({
+        id: typeof attachment.id === "string" ? attachment.id : undefined,
+        filename,
+        size:
+          typeof attachment.size === "number"
+            ? attachment.size
+            : Number(attachment.size || 0) || undefined,
+        contentType:
+          typeof attachment.content_type === "string"
+            ? attachment.content_type
+            : undefined,
+        contentDisposition:
+          typeof attachment.content_disposition === "string"
+            ? attachment.content_disposition
+            : undefined,
+        contentId:
+          typeof attachment.content_id === "string" ? attachment.content_id : undefined,
+        downloadUrl:
+          typeof attachment.download_url === "string" ? attachment.download_url : undefined,
+        expiresAt:
+          typeof attachment.expires_at === "string" ? attachment.expires_at : undefined,
+      } satisfies EmailAttachmentRecord);
+
+      return acc;
+    }, []);
 }
