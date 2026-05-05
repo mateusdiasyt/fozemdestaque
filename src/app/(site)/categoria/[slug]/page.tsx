@@ -7,8 +7,13 @@ import { ptBR } from "date-fns/locale/pt-BR";
 import { SiteImage } from "@/components/site/SiteImage";
 import { db } from "@/lib/db";
 import { categories } from "@/lib/db/schema";
-import { filterPublishedPostsByCategory, getPublishedPostsBase } from "@/lib/public-posts";
+import {
+  countPublishedPostsByCategory,
+  getPublishedPostsByCategory,
+} from "@/lib/public-posts";
 import { safeSiteQuery } from "@/lib/safe-site-query";
+
+export const revalidate = 300;
 
 const PAGE_SIZE = 13;
 const MONTHS_PT: Record<string, number> = {
@@ -254,24 +259,22 @@ export default async function CategoryPage({
   }
   if (!category.active) notFound();
 
-  const allCategoryPosts = filterPublishedPostsByCategory(
-    await getPublishedPostsBase(),
-    category.id
-  ).map((post) => ({
-    id: post.id,
-    title: post.title,
-    slug: post.slug,
-    excerpt: post.excerpt,
-    featuredImage: post.featuredImage,
-    featuredImageAlt: post.featuredImageAlt,
-    featuredImageTitle: post.featuredImageTitle,
-    publishedAt: post.publishedAt,
-  }));
-
   let totalItems = 0;
   let items: CategoryPost[] = [];
 
   if (supportsDateFilter && activeDateFilter) {
+    const allCategoryPosts = (await getPublishedPostsByCategory(category.id))
+      .map((post) => ({
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        excerpt: post.excerpt,
+        featuredImage: post.featuredImage,
+        featuredImageAlt: post.featuredImageAlt,
+        featuredImageTitle: post.featuredImageTitle,
+        publishedAt: post.publishedAt,
+      }));
+
     const reflectionMatches = allCategoryPosts
       .map((post) => ({
         post,
@@ -310,14 +313,22 @@ export default async function CategoryPage({
       items,
     });
   }
-  totalItems = allCategoryPosts.length;
-
+  totalItems = await countPublishedPostsByCategory(category.id);
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
   const currentPage =
     Number.isFinite(requestedPage) && requestedPage > 0 ? Math.min(requestedPage, totalPages) : 1;
   const offset = (currentPage - 1) * PAGE_SIZE;
 
-  items = allCategoryPosts.slice(offset, offset + PAGE_SIZE);
+  items = (await getPublishedPostsByCategory(category.id, { limit: PAGE_SIZE, offset })).map((post) => ({
+    id: post.id,
+    title: post.title,
+    slug: post.slug,
+    excerpt: post.excerpt,
+    featuredImage: post.featuredImage,
+    featuredImageAlt: post.featuredImageAlt,
+    featuredImageTitle: post.featuredImageTitle,
+    publishedAt: post.publishedAt,
+  }));
 
   return renderCategoryPage({
     category: {

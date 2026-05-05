@@ -8,8 +8,10 @@ import { ptBR } from "date-fns/locale/pt-BR";
 import { BirthdaySlider, type BirthdaySlideItem } from "@/components/site/BirthdaySlider";
 import { HomeAdsMobile, HomeAdsRail, type HomeBannerAd } from "@/components/site/HomeAdsRail";
 import { SiteImage } from "@/components/site/SiteImage";
-import { filterPublishedPostsByCategory, getPublishedPostsBase } from "@/lib/public-posts";
+import { getPublishedPostsByCategory } from "@/lib/public-posts";
 import { safeSiteQuery } from "@/lib/safe-site-query";
+
+export const revalidate = 300;
 
 type PostItem = {
   id: string;
@@ -41,14 +43,13 @@ async function getBannersByPosition(position: "lateral_1" | "lateral_2", limit =
   );
 }
 
-function getPostsByCategoryFromList(
-  allPublishedPosts: Awaited<ReturnType<typeof getPublishedPostsBase>>,
+async function getPostsByCategory(
   categoryId: string | null | undefined,
   limit: number
-): PostItem[] {
+): Promise<PostItem[]> {
   if (!categoryId) return [];
 
-  return filterPublishedPostsByCategory(allPublishedPosts, categoryId)
+  return (await getPublishedPostsByCategory(categoryId, { limit }))
     .map((post) => ({
       id: post.id,
       title: post.title,
@@ -82,29 +83,32 @@ function formatPostDate(date: Date | null) {
 }
 
 export default async function HomePage() {
-  const [allCategories, allPublishedPosts] = await Promise.all([
-    safeSiteQuery(() => db.select().from(categories), [], "categories"),
-    getPublishedPostsBase(),
-  ]);
+  const allCategories = await safeSiteQuery(() => db.select().from(categories), [], "categories");
   const categoryBySlug = new Map(allCategories.map((category) => [category.slug, category.id]));
 
   const [
     aniversariantesBlocks,
     lateralLeftBanners,
     lateralRightBanners,
+    aniversariosPosts,
+    datas,
+    reflexao,
+    clickSociety,
+    agenda,
+    tiTiTi,
+    merchandising,
   ] = await Promise.all([
     getAniversariantesDoDia(10),
     getBannersByPosition("lateral_1", 3),
     getBannersByPosition("lateral_2", 3),
+    getPostsByCategory(categoryBySlug.get("aniversariantes"), 12),
+    getPostsByCategory(categoryBySlug.get("datas"), 4),
+    getPostsByCategory(categoryBySlug.get("reflexao-do-dia"), 3),
+    getPostsByCategory(categoryBySlug.get("click-society"), 4),
+    getPostsByCategory(categoryBySlug.get("agenda"), 4),
+    getPostsByCategory(categoryBySlug.get("ti-ti-ti"), 2),
+    getPostsByCategory(categoryBySlug.get("merchandising"), 2),
   ]);
-
-  const aniversariosPosts = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("aniversariantes"), 12);
-  const datas = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("datas"), 4);
-  const reflexao = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("reflexao-do-dia"), 3);
-  const clickSociety = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("click-society"), 4);
-  const agenda = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("agenda"), 4);
-  const tiTiTi = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("ti-ti-ti"), 2);
-  const merchandising = getPostsByCategoryFromList(allPublishedPosts, categoryBySlug.get("merchandising"), 2);
 
   const birthdaySlides: BirthdaySlideItem[] = [
     ...aniversariantesBlocks.map((item) => ({

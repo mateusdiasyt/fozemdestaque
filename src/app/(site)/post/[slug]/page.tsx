@@ -12,6 +12,8 @@ import { banners, categories, contentBlocks, posts } from "@/lib/db/schema";
 import { enhanceContentHtml } from "@/lib/media";
 import { safeSiteQuery } from "@/lib/safe-site-query";
 
+export const revalidate = 300;
+
 const BLOCK_CATEGORY_MAP: Record<string, { slug: string; label: string }> = {
   aniversario: { slug: "aniversariantes", label: "Aniversários" },
   data: { slug: "datas", label: "Datas" },

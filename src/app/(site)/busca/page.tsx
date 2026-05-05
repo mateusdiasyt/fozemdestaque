@@ -8,6 +8,8 @@ import { db } from "@/lib/db";
 import { posts } from "@/lib/db/schema";
 import { safeSiteQuery } from "@/lib/safe-site-query";
 
+export const revalidate = 120;
+
 export const metadata: Metadata = {
   title: "Buscar",
   description: "Procurar notícias e destaques em Foz do Iguaçu",

@@ -1,9 +1,9 @@
-﻿import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import { and, eq, ilike, isNull, like, lte, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { posts } from "@/lib/db/schema";
-import { getPublishedPostsBase } from "@/lib/public-posts";
-import { parseCategoryIds, postHasCategory } from "@/lib/post-categories";
+import { parseCategoryIds } from "@/lib/post-categories";
+import { safeSiteQuery } from "@/lib/safe-site-query";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -11,8 +11,8 @@ export async function GET(req: Request) {
   const category = searchParams.get("category");
   const featured = searchParams.get("featured");
   const q = searchParams.get("q")?.trim().toLowerCase();
-  const limit = parseInt(searchParams.get("limit") || "20", 10);
-  const offset = parseInt(searchParams.get("offset") || "0", 10);
+  const limit = Number.parseInt(searchParams.get("limit") || "20", 10);
+  const offset = Number.parseInt(searchParams.get("offset") || "0", 10);
 
   if (slug) {
     const now = new Date();
@@ -28,31 +28,56 @@ export async function GET(req: Request) {
     });
   }
 
-  let all = await getPublishedPostsBase({ includeContent: Boolean(q) });
-
-  if (q) {
-    all = all.filter((post) =>
-      [post.title, post.excerpt, post.content]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(q)
-    );
-  }
+  const now = new Date();
+  const conditions = [
+    eq(posts.status, "publicado"),
+    or(isNull(posts.publishedAt), lte(posts.publishedAt, now)),
+  ];
 
   if (category) {
-    all = all.filter((post) => postHasCategory(post, category));
+    conditions.push(or(eq(posts.categoryId, category), like(posts.categoryIds, `%\"${category}\"%`)));
   }
 
   if (featured === "true") {
-    all = all.filter((post) => post.featured);
+    conditions.push(eq(posts.featured, true));
   }
 
+  if (q) {
+    const pattern = `%${q}%`;
+    conditions.push(or(ilike(posts.title, pattern), ilike(posts.excerpt, pattern), ilike(posts.content, pattern)));
+  }
+
+  const rows = await safeSiteQuery(
+    () =>
+      db
+        .select({
+          id: posts.id,
+          title: posts.title,
+          slug: posts.slug,
+          excerpt: posts.excerpt,
+          content: q ? posts.content : sql<string | null>`null`,
+          featuredImage: posts.featuredImage,
+          featuredImageAlt: posts.featuredImageAlt,
+          featuredImageTitle: posts.featuredImageTitle,
+          categoryId: posts.categoryId,
+          categoryIds: posts.categoryIds,
+          publishedAt: posts.publishedAt,
+          createdAt: posts.createdAt,
+          featured: posts.featured,
+        })
+        .from(posts)
+        .where(and(...conditions))
+        .orderBy(sql`coalesce(${posts.publishedAt}, ${posts.createdAt}) desc`, sql`${posts.createdAt} desc`)
+        .limit(limit)
+        .offset(offset),
+    [],
+    `api posts:${category ?? "all"}:${q ?? ""}:${featured ?? "false"}`
+  );
+
   return NextResponse.json(
-    all.slice(offset, offset + limit).map((post) => ({
+    rows.map((post) => ({
       ...post,
       categoryIds: parseCategoryIds(post.categoryIds, post.categoryId),
     }))
   );
 }
-
