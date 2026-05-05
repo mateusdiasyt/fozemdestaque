@@ -1,9 +1,24 @@
-import { db } from "@/lib/db";
-import { posts, categories } from "@/lib/db/schema";
+﻿import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { AdminDataWarning } from "@/components/admin/AdminDataWarning";
 import { PostEditor } from "@/components/admin/PostEditor";
+import { db } from "@/lib/db";
+import { categories, posts } from "@/lib/db/schema";
 import { parseCategoryIds } from "@/lib/post-categories";
+import { safeAdminQuery } from "@/lib/safe-admin-query";
+
+type EditorCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type EditorPost = typeof posts.$inferSelect;
 
 export default async function EditPostPage({
   params,
@@ -11,13 +26,27 @@ export default async function EditPostPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
-  if (!post) notFound();
-  const allCategories = await db.select().from(categories);
-  const postForEditor = {
-    ...post,
-    categoryIds: parseCategoryIds(post.categoryIds, post.categoryId),
-  };
+
+  const postResult = await safeAdminQuery<EditorPost | null>(
+    async () => {
+      const [post] = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
+      return post ?? null;
+    },
+    null,
+    "post editor data"
+  );
+
+  if (!postResult.unavailable && !postResult.data) {
+    notFound();
+  }
+
+  const categoriesResult = await safeAdminQuery<EditorCategory[]>(
+    async () => db.select().from(categories) as Promise<EditorCategory[]>,
+    [],
+    "editor categories"
+  );
+
+  const dataUnavailable = postResult.unavailable || categoriesResult.unavailable;
 
   return (
     <div className="space-y-6 pb-10">
@@ -32,12 +61,32 @@ export default async function EditPostPage({
           </div>
           <div className="max-w-md rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
             <span className="block text-xs uppercase tracking-[0.2em] text-slate-500">Editando</span>
-            <span className="line-clamp-1 font-semibold text-slate-100">{post.title}</span>
+            <span className="line-clamp-1 font-semibold text-slate-100">{postResult.data?.title ?? "Conteudo temporariamente indisponivel"}</span>
           </div>
         </div>
       </section>
 
-      <PostEditor post={postForEditor} categories={allCategories} />
+      {dataUnavailable ? (
+        <>
+          <AdminDataWarning message="O editor abriu em modo seguro, mas este post depende de leitura do banco. Assim que a cota normalizar, o conteudo completo volta automaticamente." />
+          <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-6 text-slate-300">
+            <p className="text-sm leading-6">
+              No momento nao foi possivel carregar os dados completos deste post para edicao.
+            </p>
+            <Link href="/admin/posts" className="mt-4 inline-flex rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5">
+              Voltar para posts
+            </Link>
+          </div>
+        </>
+      ) : postResult.data ? (
+        <PostEditor
+          post={{
+            ...postResult.data,
+            categoryIds: parseCategoryIds(postResult.data.categoryIds, postResult.data.categoryId),
+          }}
+          categories={categoriesResult.data}
+        />
+      ) : null}
     </div>
   );
 }

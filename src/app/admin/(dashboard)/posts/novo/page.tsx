@@ -1,9 +1,25 @@
+﻿import { AdminDataWarning } from "@/components/admin/AdminDataWarning";
+import { PostEditor } from "@/components/admin/PostEditor";
 import { db } from "@/lib/db";
 import { categories } from "@/lib/db/schema";
-import { PostEditor } from "@/components/admin/PostEditor";
+import { safeAdminQuery } from "@/lib/safe-admin-query";
+
+type EditorCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 export default async function NewPostPage() {
-  const allCategories = await db.select().from(categories);
+  const categoriesResult = await safeAdminQuery<EditorCategory[]>(
+    async () => db.select().from(categories) as Promise<EditorCategory[]>,
+    [],
+    "editor categories"
+  );
 
   return (
     <div className="space-y-6 pb-10">
@@ -22,7 +38,9 @@ export default async function NewPostPage() {
         </div>
       </section>
 
-      <PostEditor categories={allCategories} />
+      {categoriesResult.unavailable ? <AdminDataWarning /> : null}
+
+      <PostEditor categories={categoriesResult.data} />
     </div>
   );
 }

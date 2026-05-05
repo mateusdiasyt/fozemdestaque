@@ -1,24 +1,58 @@
 ﻿import Link from "next/link";
-import { db } from "@/lib/db";
-import { posts, categories } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
 import { Plus } from "lucide-react";
 import { PostsListClient } from "@/components/admin/PostsListClient";
 import { WordPressImportForm } from "@/components/admin/WordPressImportForm";
+import { AdminDataWarning } from "@/components/admin/AdminDataWarning";
+import { db } from "@/lib/db";
+import { categories, posts } from "@/lib/db/schema";
+import { safeAdminQuery } from "@/lib/safe-admin-query";
+
+type AdminPostListItem = {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+  featured: boolean;
+  publishedAt: Date | null;
+  createdAt: Date;
+  categoryId: string | null;
+  categoryIds: string[] | string | null;
+};
+
+type AdminCategoryItem = {
+  id: string;
+  name: string;
+};
 
 export default async function AdminPostsPage() {
-  const allPosts = await db.select({
-    id: posts.id,
-    title: posts.title,
-    slug: posts.slug,
-    status: posts.status,
-    featured: posts.featured,
-    publishedAt: posts.publishedAt,
-    createdAt: posts.createdAt,
-    categoryId: posts.categoryId,
-    categoryIds: posts.categoryIds,
-  }).from(posts).orderBy(desc(posts.createdAt));
-  const allCategories = await db.select().from(categories);
+  const postsResult = await safeAdminQuery<AdminPostListItem[]>(
+    async () =>
+      db
+        .select({
+          id: posts.id,
+          title: posts.title,
+          slug: posts.slug,
+          status: posts.status,
+          featured: posts.featured,
+          publishedAt: posts.publishedAt,
+          createdAt: posts.createdAt,
+          categoryId: posts.categoryId,
+          categoryIds: posts.categoryIds,
+        })
+        .from(posts)
+        .orderBy(desc(posts.createdAt)),
+    [],
+    "posts list"
+  );
+
+  const categoriesResult = await safeAdminQuery<AdminCategoryItem[]>(
+    async () => db.select({ id: categories.id, name: categories.name }).from(categories),
+    [],
+    "post categories"
+  );
+
+  const dataUnavailable = postsResult.unavailable || categoriesResult.unavailable;
 
   return (
     <div className="space-y-6 text-slate-100">
@@ -45,8 +79,10 @@ export default async function AdminPostsPage() {
         </div>
       </section>
 
+      {dataUnavailable ? <AdminDataWarning /> : null}
+
       <WordPressImportForm />
-      <PostsListClient posts={allPosts} categories={allCategories} />
+      <PostsListClient posts={postsResult.data} categories={categoriesResult.data} />
     </div>
   );
 }

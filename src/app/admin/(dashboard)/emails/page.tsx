@@ -1,11 +1,13 @@
-import { desc } from "drizzle-orm";
+﻿import { desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { EmailsManager } from "@/components/admin/EmailsManager";
+import { AdminDataWarning } from "@/components/admin/AdminDataWarning";
+import { EmailsManager, type AdminEmailMailbox, type AdminEmailMessage } from "@/components/admin/EmailsManager";
 import { auth, hasPermission } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { emailMessages } from "@/lib/db/schema";
 import { getConfiguredFromAddress, hasEmailProvider } from "@/lib/email";
 import { ensureEmailMailboxes, getDefaultMailbox } from "@/lib/email-mailboxes";
+import { safeAdminQuery } from "@/lib/safe-admin-query";
 
 export default async function AdminEmailsPage() {
   const session = await auth();
@@ -15,12 +17,18 @@ export default async function AdminEmailsPage() {
     notFound();
   }
 
-  const mailboxes = await ensureEmailMailboxes();
-  const messages = await db
-    .select()
-    .from(emailMessages)
-    .orderBy(desc(emailMessages.createdAt));
-  const defaultMailbox = getDefaultMailbox(mailboxes);
+  const mailboxesResult = await safeAdminQuery<AdminEmailMailbox[]>(
+    async () => ensureEmailMailboxes() as Promise<AdminEmailMailbox[]>,
+    [],
+    "email mailboxes"
+  );
+  const messagesResult = await safeAdminQuery<AdminEmailMessage[]>(
+    async () => db.select().from(emailMessages).orderBy(desc(emailMessages.createdAt)) as Promise<AdminEmailMessage[]>,
+    [],
+    "email messages"
+  );
+  const dataUnavailable = mailboxesResult.unavailable || messagesResult.unavailable;
+  const defaultMailbox = getDefaultMailbox(mailboxesResult.data);
 
   return (
     <div className="admin-emails-page space-y-6 pb-10">
@@ -42,9 +50,11 @@ export default async function AdminEmailsPage() {
         </div>
       </section>
 
+      {dataUnavailable ? <AdminDataWarning /> : null}
+
       <EmailsManager
-        messages={messages}
-        mailboxes={mailboxes}
+        messages={messagesResult.data}
+        mailboxes={mailboxesResult.data}
         config={{
           canSend: hasEmailProvider(),
           fromAddress: getConfiguredFromAddress(),

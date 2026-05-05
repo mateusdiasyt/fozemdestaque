@@ -1,10 +1,28 @@
+﻿import { asc } from "drizzle-orm";
+import { AdminDataWarning } from "@/components/admin/AdminDataWarning";
+import { BannersManager } from "@/components/admin/BannersManager";
 import { db } from "@/lib/db";
 import { banners } from "@/lib/db/schema";
-import { asc } from "drizzle-orm";
-import { BannersManager } from "@/components/admin/BannersManager";
+import { safeAdminQuery } from "@/lib/safe-admin-query";
+
+type AdminBannerRow = {
+  id: string;
+  title: string | null;
+  imageUrl: string;
+  linkUrl: string | null;
+  position: string;
+  order: number;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 export default async function AdminBannersPage() {
-  const all = await db.select().from(banners).orderBy(asc(banners.order));
+  const bannersResult = await safeAdminQuery<AdminBannerRow[]>(
+    async () => db.select().from(banners).orderBy(asc(banners.order)) as Promise<AdminBannerRow[]>,
+    [],
+    "banners"
+  );
 
   return (
     <div className="space-y-6 text-slate-100">
@@ -28,7 +46,9 @@ export default async function AdminBannersPage() {
         </div>
       </section>
 
-      <BannersManager banners={all} />
+      {bannersResult.unavailable ? <AdminDataWarning /> : null}
+
+      <BannersManager banners={bannersResult.data} />
     </div>
   );
 }
