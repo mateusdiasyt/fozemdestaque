@@ -5,11 +5,11 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { eq } from "drizzle-orm";
+import postgres from "postgres";
 import * as schema from "../src/lib/db/schema";
-import bcrypt from "bcryptjs";
+import { normalizeDatabaseUrl } from "../src/lib/db/url";
 import { randomUUID } from "crypto";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -95,7 +95,12 @@ const SAMPLE_POSTS: Record<string, { title: string; excerpt: string; content: st
 };
 
 async function seed() {
-  const sql = neon(DATABASE_URL);
+  const sql = postgres(normalizeDatabaseUrl(DATABASE_URL), {
+    prepare: false,
+    max: 1,
+    idle_timeout: 20,
+    connect_timeout: 15,
+  });
   const db = drizzle(sql, { schema });
 
   // Buscar ou criar admin para authorId

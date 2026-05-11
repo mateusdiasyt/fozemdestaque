@@ -19,10 +19,12 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { eq } from "drizzle-orm";
+import postgres from "postgres";
 import * as schema from "../src/lib/db/schema";
+import { normalizeDatabaseUrl } from "../src/lib/db/url";
+import { coercePostCategoryState } from "../src/lib/post-categories";
 import { generateId, slugify } from "../src/lib/utils";
 import { XMLParser } from "fast-xml-parser";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
@@ -521,7 +523,12 @@ async function main() {
   const usedSlugs = new Set<string>();
 
   if (DATABASE_URL) {
-    const sql = neon(DATABASE_URL);
+    const sql = postgres(normalizeDatabaseUrl(DATABASE_URL), {
+      prepare: false,
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 15,
+    });
     db = drizzle(sql, { schema });
 
     const [admin] = await db
@@ -538,6 +545,33 @@ async function main() {
     }
 
     await ensureRequiredCategories(db, categoryMap, existingCategorySlugs, !options.dryRun);
+
+    const xmlCategories = normalizeItem<Record<string, unknown>>(channel["wp:category"] ?? channel.category ?? []);
+    for (const rawCategory of xmlCategories) {
+      const rawSlug =
+        getText(rawCategory["wp:category_nicename"] ?? rawCategory.slug ?? rawCategory["@_nicename"]) ||
+        getText(rawCategory["#text"] ?? rawCategory);
+      const resolvedSlug = resolveCategorySlug([rawSlug], existingCategorySlugs) ?? getCategoryCandidates(rawSlug)[0];
+      if (!resolvedSlug || existingCategorySlugs.has(resolvedSlug)) continue;
+
+      const categoryName =
+        getText(rawCategory["wp:cat_name"] ?? rawCategory.name ?? rawCategory["#text"]) ||
+        resolvedSlug;
+      const categoryId = generateId();
+
+      if (!options.dryRun) {
+        await db.insert(schema.categories).values({
+          id: categoryId,
+          name: categoryName,
+          slug: resolvedSlug,
+          description: null,
+          active: true,
+        });
+      }
+
+      categoryMap.set(resolvedSlug, categoryId);
+      existingCategorySlugs.add(resolvedSlug);
+    }
 
     const existingPosts = await db.select({
       slug: schema.posts.slug,
@@ -588,6 +622,16 @@ async function main() {
       incrementCounter(byMappedCategory, resolvedCategorySlug);
     }
 
+    const mappedCategoryIds = Array.from(
+      new Set(
+        prepared.categorySlugs
+          .map((rawSlug) => resolveCategorySlug([rawSlug], existingCategorySlugs))
+          .filter(Boolean)
+          .map((slug) => categoryMap.get(slug as string))
+          .filter((value): value is string => Boolean(value))
+      )
+    );
+
     let categoryId: string | null = null;
     if (resolvedCategorySlug && categoryMap.size > 0) {
       categoryId = categoryMap.get(resolvedCategorySlug) ?? null;
@@ -596,7 +640,12 @@ async function main() {
       }
     }
 
-    if (categoryMap.size > 0 && !categoryId) {
+    const categoryState = coercePostCategoryState({
+      categoryId: categoryId ?? mappedCategoryIds[0] ?? null,
+      categoryIds: mappedCategoryIds,
+    });
+
+    if (categoryMap.size > 0 && !categoryState.categoryId) {
       skipped++;
       reportSkipped.push({
         wpPostId: prepared.wpPostId,
@@ -659,7 +708,9 @@ async function main() {
       content: prepared.content,
       featuredImage: prepared.featuredImageUrl,
       featuredImageAlt: prepared.featuredImageAlt,
-      categoryId,
+      featuredImageTitle: prepared.title,
+      categoryId: categoryState.categoryId,
+      categoryIds: categoryState.categoryIdsJson,
       tags: prepared.tags.length > 0 ? JSON.stringify(prepared.tags) : null,
       canonicalUrl: prepared.canonicalUrl,
       authorId,

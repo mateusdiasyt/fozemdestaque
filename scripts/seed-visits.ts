@@ -5,10 +5,11 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { eq } from "drizzle-orm";
+import postgres from "postgres";
 import * as schema from "../src/lib/db/schema";
+import { normalizeDatabaseUrl } from "../src/lib/db/url";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -17,7 +18,12 @@ if (!DATABASE_URL) {
 }
 
 async function seed() {
-  const sql = neon(DATABASE_URL);
+  const sql = postgres(normalizeDatabaseUrl(DATABASE_URL), {
+    prepare: false,
+    max: 1,
+    idle_timeout: 20,
+    connect_timeout: 15,
+  });
   const db = drizzle(sql, { schema });
 
   const [existing] = await db
