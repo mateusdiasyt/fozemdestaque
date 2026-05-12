@@ -40,7 +40,6 @@ export function SiteImage({
       className={className}
       loading={loading}
       decoding="async"
-      referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
     />
   );

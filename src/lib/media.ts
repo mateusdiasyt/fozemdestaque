@@ -5,7 +5,7 @@ export function normalizeMediaUrl(value: string | null | undefined): string | nu
   if (!trimmed) return null;
 
   if (trimmed.startsWith("/wp-content/")) {
-    return `https://fozemdestaque.com${trimmed}`;
+    return `https://www.fozemdestaque.com${trimmed}`;
   }
 
   if (trimmed.startsWith("//")) {
@@ -17,10 +17,10 @@ export function normalizeMediaUrl(value: string | null | undefined): string | nu
       const url = new URL(trimmed);
 
       if (
-        url.hostname === "www.fozemdestaque.com" &&
+        url.hostname === "fozemdestaque.com" &&
         url.pathname.startsWith("/wp-content/")
       ) {
-        url.hostname = "fozemdestaque.com";
+        url.hostname = "www.fozemdestaque.com";
       }
 
       if (url.protocol === "http:") {
@@ -49,10 +49,7 @@ export function enhanceContentHtml(html: string): string {
 
   output = output.replace(/<img\b(?![^>]*\bloading=)/gi, '<img loading="lazy"');
   output = output.replace(/<img\b(?![^>]*\bdecoding=)/gi, '<img decoding="async"');
-  output = output.replace(
-    /<img\b(?![^>]*\breferrerpolicy=)/gi,
-    '<img referrerpolicy="no-referrer"'
-  );
+  output = output.replace(/\sreferrerpolicy=["'][^"']*["']/gi, "");
 
   return output;
 }
