@@ -17,10 +17,11 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { execFileSync } from "child_process";
-import { neon } from "@neondatabase/serverless";
 import { put } from "@vercel/blob";
+import postgres from "postgres";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "fs";
 import { dirname, resolve } from "path";
+import { normalizeDatabaseUrl } from "../src/lib/db/url";
 
 type CliOptions = {
   uploadsRoot: string;
@@ -319,7 +320,13 @@ async function main() {
 
   const uploadsSource = createUploadsSource(absoluteUploadsRoot);
 
-  const sql = neon(DATABASE_URL);
+  const sql = postgres(normalizeDatabaseUrl(DATABASE_URL), {
+    prepare: false,
+    max: 1,
+    idle_timeout: 20,
+    connect_timeout: 15,
+  });
+
   const countRows = (await sql`
     select count(*)::int as count
     from posts
@@ -335,7 +342,7 @@ async function main() {
   while (targetPosts.length < targetLimit) {
     const remaining = targetLimit - targetPosts.length;
     const batchSize = Math.min(POSTS_BATCH_SIZE, remaining);
-    const batch = (await sql`
+    const batch = (await sql<PostRow[]>`
       select
         id,
         slug,
@@ -349,7 +356,7 @@ async function main() {
       order by created_at desc
       limit ${batchSize}
       offset ${offset}
-    `) as PostRow[];
+    `;
 
     if (batch.length === 0) {
       break;
@@ -532,6 +539,7 @@ async function main() {
   if (dryRun) {
     console.log("\nDry-run complete. No changes were written.");
   }
+  await sql.end({ timeout: 5 });
 }
 
 main().catch((error) => {
