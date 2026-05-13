@@ -356,7 +356,7 @@ async function main() {
       order by created_at desc
       limit ${batchSize}
       offset ${offset}
-    `;
+    `);
 
     if (batch.length === 0) {
       break;

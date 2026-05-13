@@ -23,6 +23,8 @@
 # misc
 .DS_Store
 *.pem
+/.tmp_hostgator_id_rsa
+/tmp/
 
 # debug
 npm-debug.log*
@@ -39,3 +41,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.env*.local
