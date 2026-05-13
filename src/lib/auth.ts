@@ -5,6 +5,26 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
+async function findActiveUserByEmail(email?: string | null) {
+  if (!email) return null;
+
+  const [user] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      avatar: users.avatar,
+      active: users.active,
+    })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (!user?.active) return null;
+  return user;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
@@ -45,7 +65,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
+        return token;
       }
+
+      const dbUser = await findActiveUserByEmail(token.email);
+      if (dbUser) {
+        token.id = dbUser.id;
+        token.role = dbUser.role;
+        token.name = dbUser.name;
+        token.picture = dbUser.avatar ?? null;
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -72,6 +102,10 @@ export const PERMISSIONS = {
   editor: ["posts", "categories", "comments", "banners", "aniversarios"],
   colaborador: ["posts", "comments"],
 } as const;
+
+export async function resolveSessionUserByEmail(email?: string | null) {
+  return findActiveUserByEmail(email);
+}
 
 export function hasPermission(role: UserRole, resource: string): boolean {
   const permissions = PERMISSIONS[role];

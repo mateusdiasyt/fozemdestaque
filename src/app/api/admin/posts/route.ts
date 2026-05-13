@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { desc } from "drizzle-orm";
 import { z } from "zod";
-import { auth, hasPermission } from "@/lib/auth";
+import { auth, hasPermission, resolveSessionUserByEmail } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { categories, posts } from "@/lib/db/schema";
 import { coercePostCategoryState, parseCategoryIds, postHasCategory } from "@/lib/post-categories";
@@ -100,6 +100,11 @@ export async function POST(req: Request) {
         ? new Date(parsed.data.publishedAt)
         : new Date()
       : null;
+  const author = await resolveSessionUserByEmail(session.user.email);
+
+  if (!author) {
+    return NextResponse.json({ error: "Usuário da sessão não encontrado no banco." }, { status: 401 });
+  }
 
   await db.insert(posts).values({
     id,
@@ -116,7 +121,7 @@ export async function POST(req: Request) {
     scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null,
     canonicalUrl: parsed.data.canonicalUrl ?? null,
     faqJson: parsed.data.faqJson ?? null,
-    authorId: session.user.id ?? null,
+    authorId: author.id,
     status: parsed.data.status,
     featured: parsed.data.featured ?? false,
     metaTitle: parsed.data.metaTitle ?? null,
