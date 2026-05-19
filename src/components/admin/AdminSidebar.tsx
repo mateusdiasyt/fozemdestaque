@@ -13,6 +13,7 @@ import {
   Image,
   Cake,
   Share2,
+  Palette,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ const menuItems = [
   { href: "/admin/users", label: "Usuarios", icon: Users, perm: "users" },
   { href: "/admin/banners", label: "Banners", icon: Image, perm: "banners" },
   { href: "/admin/aniversarios", label: "Aniversarios", icon: Cake, perm: "aniversarios" },
+  { href: "/admin/personalizado", label: "Personalizado", icon: Palette, perm: "settings" },
   { href: "/admin/redes-sociais", label: "Redes Sociais", icon: Share2, perm: "settings" },
 ];
 

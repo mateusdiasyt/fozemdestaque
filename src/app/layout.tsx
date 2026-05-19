@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Manrope, Newsreader, Sora } from "next/font/google";
 import { SessionProvider } from "@/components/providers/SessionProvider";
+import { getSiteCustomization } from "@/lib/site-customization";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -19,10 +20,26 @@ const newsreader = Newsreader({
   variable: "--font-newsreader",
 });
 
-export const metadata: Metadata = {
-  title: "Foz em Destaque",
-  description: "Portal de conteúdo e eventos de Foz do Iguaçu",
-};
+export const revalidate = 60;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteCustomization();
+
+  return {
+    title: {
+      default: settings.pageTitle,
+      template: `%s | ${settings.pageTitle}`,
+    },
+    description: "Portal de conteudo e eventos de Foz do Iguacu",
+    icons: settings.faviconUrl
+      ? {
+          icon: settings.faviconUrl,
+          shortcut: settings.faviconUrl,
+          apple: settings.faviconUrl,
+        }
+      : undefined,
+  };
+}
 
 export default function RootLayout({
   children,

@@ -131,7 +131,7 @@ export async function generateMetadata({
 
   if (entry.kind === "post") {
     return {
-      title: entry.post.metaTitle || entry.post.title,
+      title: { absolute: entry.post.metaTitle || entry.post.title },
       description: entry.post.metaDescription || entry.post.excerpt || undefined,
       openGraph: {
         title: entry.post.metaTitle || entry.post.title,
@@ -142,7 +142,7 @@ export async function generateMetadata({
   }
 
   return {
-    title: entry.block.title,
+    title: { absolute: entry.block.title },
     description: entry.block.excerpt || undefined,
     openGraph: {
       title: entry.block.title,

@@ -11,6 +11,9 @@ const ALLOWED_IMAGE_TYPES = [
   "image/png",
   "image/webp",
   "image/gif",
+  "image/svg+xml",
+  "image/x-icon",
+  "image/vnd.microsoft.icon",
 ];
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 const ALLOWED_ATTACHMENT_TYPES = [
@@ -36,7 +39,10 @@ export async function POST(request: Request) {
       (session?.user?.role as "administrador" | "editor" | "colaborador") ??
       "colaborador";
     const canUpload =
-      hasPermission(role, "banners") || hasPermission(role, "posts") || hasPermission(role, "emails");
+      hasPermission(role, "banners") ||
+      hasPermission(role, "posts") ||
+      hasPermission(role, "emails") ||
+      hasPermission(role, "settings");
 
     if (!session?.user || !canUpload) {
       return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
@@ -76,7 +82,7 @@ export async function POST(request: Request) {
               ? "Tipo nao permitido. Use: MP4, WebM ou MOV"
               : kind === "attachment"
                 ? "Tipo nao permitido para anexo. Use PDF, Office, ZIP, CSV, TXT, imagem ou video compativel."
-              : "Tipo nao permitido. Use: JPEG, PNG, WebP ou GIF",
+              : "Tipo nao permitido. Use: JPEG, PNG, WebP, GIF, SVG ou ICO",
         },
         { status: 400 }
       );
