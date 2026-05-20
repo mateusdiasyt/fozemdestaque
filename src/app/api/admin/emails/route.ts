@@ -17,6 +17,13 @@ import {
   getMailboxDisplayFromAddress,
   normalizeMailboxEmail,
 } from "@/lib/email-mailboxes";
+import {
+  assertEmailStorageAvailable,
+  clampEmailBody,
+  getAttachmentsSize,
+  normalizeStoredAttachments,
+  validateEmailAttachments,
+} from "@/lib/email-storage-policy";
 import { desc } from "drizzle-orm";
 import { z } from "zod";
 
@@ -100,12 +107,31 @@ export async function POST(req: Request) {
     contentType: attachment.contentType,
     size: attachment.size,
   }));
+  const attachmentError = validateEmailAttachments(attachments);
+  if (attachmentError) {
+    return NextResponse.json({ error: attachmentError }, { status: 400 });
+  }
+
+  const textContent = clampEmailBody(parsed.data.body) ?? "";
+  const htmlContent = textToHtml(textContent);
+  const storedAttachments = normalizeStoredAttachments(attachments);
+  const estimatedBytes =
+    Buffer.byteLength(parsed.data.subject) +
+    Buffer.byteLength(recipients.join(", ")) +
+    Buffer.byteLength(textContent) +
+    Buffer.byteLength(htmlContent) +
+    Buffer.byteLength(JSON.stringify(storedAttachments)) +
+    getAttachmentsSize(storedAttachments);
+  const storageError = await assertEmailStorageAvailable(estimatedBytes);
+  if (storageError) {
+    return NextResponse.json({ error: storageError }, { status: 413 });
+  }
 
   try {
     const result = await sendEmailWithResend({
       to: recipients,
       subject: parsed.data.subject,
-      text: parsed.data.body,
+      text: textContent,
       replyTo: parsed.data.replyTo || undefined,
       from,
       attachments,
@@ -121,8 +147,9 @@ export async function POST(req: Request) {
       fromEmail: extractEmailAddress(from),
       toEmail: recipients.join(", "),
       subject: parsed.data.subject,
-      textContent: parsed.data.body,
-      htmlContent: textToHtml(parsed.data.body),
+      textContent,
+      htmlContent,
+      attachments: JSON.stringify(storedAttachments),
       provider: "resend",
       providerId,
       read: true,
@@ -141,8 +168,9 @@ export async function POST(req: Request) {
       fromEmail: extractEmailAddress(from),
       toEmail: recipients.join(", "),
       subject: parsed.data.subject,
-      textContent: parsed.data.body,
-      htmlContent: textToHtml(parsed.data.body),
+      textContent,
+      htmlContent,
+      attachments: JSON.stringify(storedAttachments),
       provider: "resend",
       providerId,
       error: message,

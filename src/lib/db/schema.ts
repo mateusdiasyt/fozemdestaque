@@ -113,6 +113,7 @@ export const emailMessages = pgTable("email_messages", {
   subject: varchar("subject", { length: 500 }).notNull(),
   textContent: text("text_content"),
   htmlContent: text("html_content"),
+  attachments: text("attachments"), // JSON array with stored attachment metadata
   provider: varchar("provider", { length: 50 }),
   providerId: text("provider_id"),
   error: text("error"),

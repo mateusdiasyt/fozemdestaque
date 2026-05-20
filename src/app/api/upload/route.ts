@@ -1,6 +1,7 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { auth, hasPermission } from "@/lib/auth";
+import { assertEmailStorageAvailable } from "@/lib/email-storage-policy";
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
@@ -100,6 +101,13 @@ export async function POST(request: Request) {
         },
         { status: 400 }
       );
+    }
+
+    if (kind === "attachment") {
+      const storageError = await assertEmailStorageAvailable(file.size);
+      if (storageError) {
+        return NextResponse.json({ error: storageError }, { status: 413 });
+      }
     }
 
     if (!process.env.BLOB_READ_WRITE_TOKEN) {

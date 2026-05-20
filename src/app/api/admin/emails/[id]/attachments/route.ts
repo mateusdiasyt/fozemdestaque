@@ -7,6 +7,7 @@ import {
   listReceivedEmailAttachments,
   listSentEmailAttachments,
 } from "@/lib/email";
+import { normalizeStoredAttachments } from "@/lib/email-storage-policy";
 
 function canManageEmails(role?: string) {
   return hasPermission(
@@ -42,8 +43,9 @@ export async function GET(
     return NextResponse.json({ error: "Email nao encontrado" }, { status: 404 });
   }
 
+  const storedAttachments = parseStoredAttachments(message.attachments);
   if (message.provider !== "resend" || !message.providerId) {
-    return NextResponse.json({ attachments: [] });
+    return NextResponse.json({ attachments: storedAttachments });
   }
 
   const attachments =
@@ -51,5 +53,14 @@ export async function GET(
       ? await listReceivedEmailAttachments(message.providerId)
       : await listSentEmailAttachments(message.providerId);
 
-  return NextResponse.json({ attachments });
+  return NextResponse.json({ attachments: attachments.length > 0 ? attachments : storedAttachments });
+}
+
+function parseStoredAttachments(value: string | null) {
+  if (!value) return [];
+  try {
+    return normalizeStoredAttachments(JSON.parse(value));
+  } catch {
+    return [];
+  }
 }

@@ -4,6 +4,15 @@ import { db } from "@/lib/db";
 import { emailMessages } from "@/lib/db/schema";
 import { ensureEmailMailboxes, resolveMailboxEmailForRecipients } from "@/lib/email-mailboxes";
 import { fetchReceivedEmailFromResend } from "@/lib/email";
+import {
+  assertEmailStorageAvailable,
+  clampEmailBody,
+  getAttachmentsSize,
+  normalizeStoredAttachments,
+  pruneEmailStorage,
+  validateEmailAttachments,
+  type StoredEmailAttachment,
+} from "@/lib/email-storage-policy";
 import { generateId } from "@/lib/utils";
 
 type UnknownRecord = Record<string, unknown>;
@@ -30,6 +39,7 @@ export async function POST(req: Request) {
   }
 
   const mailboxes = await ensureEmailMailboxes();
+  await pruneEmailStorage();
   const normalized = await normalizeInboundEmail(payload, mailboxes.filter((mailbox) => mailbox.active));
 
   if (normalized.providerId) {
@@ -49,6 +59,27 @@ export async function POST(req: Request) {
     }
   }
 
+  const attachmentError = validateEmailAttachments(normalized.attachments);
+  if (attachmentError) {
+    return NextResponse.json({ ok: false, error: attachmentError }, { status: 413 });
+  }
+
+  const textContent = clampEmailBody(normalized.textContent);
+  const htmlContent = clampEmailBody(normalized.htmlContent);
+  const storedAttachments = normalizeStoredAttachments(normalized.attachments);
+  const estimatedBytes =
+    Buffer.byteLength(normalized.subject) +
+    Buffer.byteLength(normalized.toEmail) +
+    Buffer.byteLength(normalized.cc ?? "") +
+    Buffer.byteLength(textContent ?? "") +
+    Buffer.byteLength(htmlContent ?? "") +
+    Buffer.byteLength(JSON.stringify(storedAttachments)) +
+    getAttachmentsSize(storedAttachments);
+  const storageError = await assertEmailStorageAvailable(estimatedBytes);
+  if (storageError) {
+    return NextResponse.json({ ok: false, error: storageError }, { status: 507 });
+  }
+
   await db.insert(emailMessages).values({
     id: generateId(),
     direction: "inbound",
@@ -59,8 +90,9 @@ export async function POST(req: Request) {
     toEmail: normalized.toEmail,
     cc: normalized.cc,
     subject: normalized.subject,
-    textContent: normalized.textContent,
-    htmlContent: normalized.htmlContent,
+    textContent,
+    htmlContent,
+    attachments: JSON.stringify(storedAttachments),
     provider: normalized.provider,
     providerId: normalized.providerId,
     read: false,
@@ -152,6 +184,12 @@ async function normalizeInboundEmail(
         payload.htmlContent ||
         getNested(payload, ["body", "html"])
     ),
+    attachments: normalizeInboundAttachments(
+      resendEvent?.attachments ||
+        payload.attachments ||
+        getNested(payload, ["email", "attachments"]) ||
+        getNested(payload, ["message", "attachments"])
+    ),
     provider: String(payload.provider || (resendEvent ? "resend" : "webhook")),
     providerId: stringOrNull(
       fetchedResendEmail?.id ||
@@ -164,6 +202,32 @@ async function normalizeInboundEmail(
         payload.email_id
     ),
   };
+}
+
+function normalizeInboundAttachments(value: unknown): StoredEmailAttachment[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.reduce<StoredEmailAttachment[]>((acc, item) => {
+    if (!item || typeof item !== "object") return acc;
+    const attachment = item as UnknownRecord;
+    const filename = String(
+      attachment.filename || attachment.name || attachment.file_name || ""
+    ).trim();
+    if (!filename) return acc;
+
+    acc.push({
+      filename,
+      path: stringOrNull(attachment.path || attachment.url || attachment.download_url) ?? undefined,
+      contentType:
+        stringOrNull(attachment.contentType || attachment.content_type || attachment.type) ??
+        undefined,
+      size:
+        typeof attachment.size === "number"
+          ? attachment.size
+          : Number(attachment.size || attachment.bytes || 0) || undefined,
+    });
+    return acc;
+  }, []);
 }
 
 function getResendEventData(payload: UnknownRecord) {
