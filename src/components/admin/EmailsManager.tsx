@@ -68,6 +68,12 @@ export interface AdminEmailConfig {
   inboundWebhookUrl: string;
   webhookSecretConfigured: boolean;
   siteUrl?: string;
+  storage: {
+    bytes: number;
+    count: number;
+    limitBytes: number;
+    maxMessages: number;
+  };
 }
 
 interface EmailsManagerProps {
@@ -353,6 +359,10 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
   const mailboxLimitReached =
     !editingMailboxId && mailboxes.length >= MAX_EMAIL_MAILBOXES;
   const showMailboxColumn = mailboxFilter === "all";
+  const storagePercent =
+    config.storage.limitBytes > 0
+      ? Math.min(100, Math.round((config.storage.bytes / config.storage.limitBytes) * 100))
+      : 0;
   const selectedMessages = useMemo(
     () => filteredMessages.filter((message) => selectedMessageIds.includes(message.id)),
     [filteredMessages, selectedMessageIds]
@@ -956,6 +966,39 @@ export function EmailsManager({ messages, mailboxes, config }: EmailsManagerProp
                 value={activeMailboxes.length}
                 detail="Ativas"
               />
+            </div>
+          </div>
+
+          <div className="border-b border-white/10 p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-700">
+                  Armazenamento
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-white">
+                  {formatFileSize(config.storage.bytes) || "0 B"}
+                </p>
+              </div>
+              <span className="rounded-full border border-cyan-200/30 bg-cyan-200/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-100">
+                {storagePercent}%
+              </span>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all",
+                  storagePercent >= 90
+                    ? "bg-rose-300"
+                    : storagePercent >= 70
+                      ? "bg-amber-300"
+                      : "bg-cyan-200"
+                )}
+                style={{ width: `${storagePercent}%` }}
+              />
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              <span>{config.storage.count}/{config.storage.maxMessages} mensagens</span>
+              <span>Limite {formatFileSize(config.storage.limitBytes)}</span>
             </div>
           </div>
 
@@ -2301,7 +2344,8 @@ function formatFileSize(size?: number) {
   if (!size || !Number.isFinite(size)) return "";
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
 function messagePreview(message: AdminEmailMessage) {

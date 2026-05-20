@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { emailMessages } from "@/lib/db/schema";
 import { getConfiguredFromAddress, hasEmailProvider } from "@/lib/email";
 import { ensureEmailMailboxes, getDefaultMailbox } from "@/lib/email-mailboxes";
+import { getEmailStorageUsage } from "@/lib/email-storage-policy";
 import { safeAdminQuery } from "@/lib/safe-admin-query";
 
 export default async function AdminEmailsPage() {
@@ -27,7 +28,12 @@ export default async function AdminEmailsPage() {
     [],
     "email messages"
   );
-  const dataUnavailable = mailboxesResult.unavailable || messagesResult.unavailable;
+  const storageResult = await safeAdminQuery(
+    async () => getEmailStorageUsage(),
+    { bytes: 0, count: 0, limitBytes: 10_240 * 1024 * 1024, maxMessages: 5000 },
+    "email storage usage"
+  );
+  const dataUnavailable = mailboxesResult.unavailable || messagesResult.unavailable || storageResult.unavailable;
   const defaultMailbox = getDefaultMailbox(mailboxesResult.data);
 
   return (
@@ -61,6 +67,7 @@ export default async function AdminEmailsPage() {
           inboundWebhookUrl: getInboundWebhookUrl(),
           webhookSecretConfigured: Boolean(process.env.EMAIL_WEBHOOK_SECRET),
           siteUrl: getBaseUrl(),
+          storage: storageResult.data,
         }}
       />
     </div>

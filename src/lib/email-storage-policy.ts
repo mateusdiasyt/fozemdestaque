@@ -1,8 +1,8 @@
-import { and, asc, eq, lt, sql } from "drizzle-orm";
+import { and, asc, eq, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { emailMessages } from "@/lib/db/schema";
 
-export const EMAIL_STORAGE_LIMIT_BYTES = envNumber("EMAIL_STORAGE_LIMIT_MB", 500) * 1024 * 1024;
+export const EMAIL_STORAGE_LIMIT_BYTES = envNumber("EMAIL_STORAGE_LIMIT_MB", 10_240) * 1024 * 1024;
 export const EMAIL_MAX_MESSAGES = envNumber("EMAIL_MAX_MESSAGES", 5000);
 export const EMAIL_RETENTION_DAYS = envNumber("EMAIL_RETENTION_DAYS", 365);
 export const EMAIL_MAX_BODY_CHARS = envNumber("EMAIL_MAX_BODY_CHARS", 200_000);
@@ -49,26 +49,35 @@ export function validateEmailAttachments(attachments: StoredEmailAttachment[] | 
 }
 
 export async function getEmailStorageUsage() {
-  const [row] = await db
+  const rows = await db
     .select({
-      bytes: sql<number>`
-        coalesce(sum(
-          octet_length(coalesce(${emailMessages.subject}, '')) +
-          octet_length(coalesce(${emailMessages.toEmail}, '')) +
-          octet_length(coalesce(${emailMessages.cc}, '')) +
-          octet_length(coalesce(${emailMessages.bcc}, '')) +
-          octet_length(coalesce(${emailMessages.textContent}, '')) +
-          octet_length(coalesce(${emailMessages.htmlContent}, '')) +
-          octet_length(coalesce(${emailMessages.attachments}, ''))
-        ), 0)
-      `,
-      count: sql<number>`count(*)`,
+      subject: emailMessages.subject,
+      toEmail: emailMessages.toEmail,
+      cc: emailMessages.cc,
+      bcc: emailMessages.bcc,
+      textContent: emailMessages.textContent,
+      htmlContent: emailMessages.htmlContent,
+      attachments: emailMessages.attachments,
     })
     .from(emailMessages);
+  const bytes = rows.reduce((total, row) => {
+    const attachments = parseStoredAttachments(row.attachments);
+    return (
+      total +
+      Buffer.byteLength(row.subject ?? "") +
+      Buffer.byteLength(row.toEmail ?? "") +
+      Buffer.byteLength(row.cc ?? "") +
+      Buffer.byteLength(row.bcc ?? "") +
+      Buffer.byteLength(row.textContent ?? "") +
+      Buffer.byteLength(row.htmlContent ?? "") +
+      Buffer.byteLength(row.attachments ?? "") +
+      getAttachmentsSize(attachments)
+    );
+  }, 0);
 
   return {
-    bytes: Number(row?.bytes ?? 0),
-    count: Number(row?.count ?? 0),
+    bytes,
+    count: rows.length,
     limitBytes: EMAIL_STORAGE_LIMIT_BYTES,
     maxMessages: EMAIL_MAX_MESSAGES,
   };
@@ -125,4 +134,13 @@ export function formatBytes(bytes: number) {
 function envNumber(key: string, fallback: number) {
   const value = Number(process.env[key]);
   return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function parseStoredAttachments(value: string | null) {
+  if (!value) return [];
+  try {
+    return normalizeStoredAttachments(JSON.parse(value));
+  } catch {
+    return [];
+  }
 }
