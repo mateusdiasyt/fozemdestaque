@@ -88,3 +88,17 @@ Configure opcionalmente para exibir temperatura em tempo real:
 NEXT_PUBLIC_WEATHER_LAT=-25.5478
 NEXT_PUBLIC_WEATHER_LON=-54.5882
 ```
+
+## Uploads de Midia na VPS
+
+O painel admin envia imagens, videos, banners e anexos para um servico privado na VPS. A Vercel fica apenas como hospedagem do site/API, sem Vercel Blob.
+
+Variaveis necessarias no projeto da Vercel:
+
+```bash
+MEDIA_UPLOAD_ENDPOINT="https://seu-dominio-de-upload/upload"
+MEDIA_UPLOAD_TOKEN="um-token-longo-e-secreto"
+MEDIA_PUBLIC_BASE_URL="https://fozemdestaque-media.bohu4g.easypanel.host"
+```
+
+Na VPS/EasyPanel, use o servico em `media-upload-server/`. Ele deve compartilhar o mesmo volume do nginx que publica os arquivos. O arquivo `media-upload-server/easypanel-compose.yml` mostra a estrutura recomendada para um stack com `nginx` + `uploader`.

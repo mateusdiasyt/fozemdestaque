@@ -1,0 +1,20 @@
+services:
+  media:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - media-data:/usr/share/nginx/html
+
+  uploader:
+    build: ./media-upload-server
+    restart: unless-stopped
+    environment:
+      MEDIA_UPLOAD_TOKEN: ${MEDIA_UPLOAD_TOKEN}
+      MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL}
+      UPLOAD_ROOT: /media
+      MAX_UPLOAD_BYTES: 104857600
+    volumes:
+      - media-data:/media
+
+volumes:
+  media-data:

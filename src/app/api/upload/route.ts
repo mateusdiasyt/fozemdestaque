@@ -1,7 +1,7 @@
-import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { auth, hasPermission } from "@/lib/auth";
 import { assertEmailStorageAvailable } from "@/lib/email-storage-policy";
+import { buildMediaPath, uploadFileToVpsMedia } from "@/lib/vps-media";
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
@@ -29,8 +29,10 @@ const ALLOWED_ATTACHMENT_TYPES = [
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.ms-powerpoint",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/xml",
   "text/plain",
   "text/csv",
+  "text/xml",
 ];
 
 export async function POST(request: Request) {
@@ -110,29 +112,16 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      return NextResponse.json(
-        {
-          error:
-            "BLOB_READ_WRITE_TOKEN nao configurado. Crie um Blob Store no painel da Vercel e adicione a variavel de ambiente.",
-        },
-        { status: 500 }
-      );
-    }
-
-    const ext = file.name.split(".").pop() || "jpg";
-    const folder =
-      kind === "video" ? "videos" : kind === "attachment" ? "email-attachments" : "uploads";
-    const pathname = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
-    const blob = await put(pathname, file, {
-      access: "public",
-      addRandomSuffix: false,
+    const pathname = buildMediaPath({
+      kind,
+      filename: file.name,
       contentType: file.type,
     });
+    const media = await uploadFileToVpsMedia({ file, kind, pathname });
 
     return NextResponse.json({
-      url: blob.url,
+      url: media.url,
+      path: media.path,
       kind,
       filename: file.name,
       size: file.size,

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileX, Loader2, Upload } from "lucide-react";
-import { upload } from "@vercel/blob/client";
 
 export function WordPressImportForm() {
   const router = useRouter();
@@ -21,11 +20,17 @@ export function WordPressImportForm() {
     setProgress(null);
     try {
       setStatus("uploading");
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/wordpress-import/upload",
-        multipart: file.size > 10 * 1024 * 1024,
+      const uploadForm = new FormData();
+      uploadForm.set("file", file);
+      uploadForm.set("kind", "attachment");
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadForm,
       });
+      const uploaded = (await uploadResponse.json()) as { url?: string; error?: string };
+      if (!uploadResponse.ok || !uploaded.url) {
+        throw new Error(uploaded.error || "Erro ao enviar XML para a VPS.");
+      }
       setStatus("importing");
       let totalImported = 0;
       let totalSkipped = 0;
@@ -40,7 +45,7 @@ export function WordPressImportForm() {
         const res = await fetch("/api/wordpress-import", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: blob.url, offset, limit, skipImages: true }),
+          body: JSON.stringify({ url: uploaded.url, offset, limit, skipImages: true }),
         });
         let data: { ok: boolean; imported?: number; skipped?: number; total?: number; hasMore?: boolean; nextOffset?: number; categoriesCreated?: number; error?: string };
         const text = await res.text();

@@ -5,7 +5,7 @@ import { posts, categories } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { generateId, slugify } from "@/lib/utils";
 import { XMLParser } from "fast-xml-parser";
-import { put } from "@vercel/blob";
+import { buildMediaPath, uploadBufferToVpsMedia } from "@/lib/vps-media";
 
 function normalizeItem(item: unknown): unknown[] {
   if (!item) return [];
@@ -34,9 +34,16 @@ async function downloadAndUploadImage(url: string): Promise<string | null> {
     const buffer = await res.arrayBuffer();
     const contentType = res.headers.get("content-type") || "image/jpeg";
     const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : contentType.includes("gif") ? "gif" : "jpg";
-    const pathname = `imports/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const blob = await put(pathname, Buffer.from(buffer), { access: "public", contentType });
-    return blob.url;
+    const filename = `import.${ext}`;
+    const pathname = buildMediaPath({ kind: "import", filename, contentType });
+    const media = await uploadBufferToVpsMedia({
+      buffer: Buffer.from(buffer),
+      contentType,
+      filename,
+      kind: "import",
+      pathname,
+    });
+    return media.url;
   } catch {
     return null;
   }
@@ -55,10 +62,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const session = await auth(req, res);
     if (!session?.user || !hasPermission((session.user.role as "administrador" | "editor" | "colaborador") ?? "colaborador", "posts")) {
       return res.status(401).json({ ok: false, error: "Não autorizado" });
-    }
-
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      return res.status(500).json({ ok: false, error: "BLOB_READ_WRITE_TOKEN não configurado" });
     }
 
     const body = req.body as { url?: string; offset?: number; limit?: number; skipImages?: boolean };

@@ -1,5 +1,5 @@
 /**
- * Migrates legacy WordPress media from /wp-content/uploads into Vercel Blob
+ * Migrates legacy WordPress media from /wp-content/uploads into the VPS media service
  * and rewrites featured_image/content in posts that still point to old URLs.
  *
  * Supported sources:
@@ -17,11 +17,11 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { execFileSync } from "child_process";
-import { put } from "@vercel/blob";
 import postgres from "postgres";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "fs";
 import { dirname, resolve } from "path";
 import { normalizeDatabaseUrl } from "../src/lib/db/url";
+import { uploadBufferToVpsMedia } from "../src/lib/vps-media";
 
 type CliOptions = {
   uploadsRoot: string;
@@ -71,7 +71,6 @@ type SourceLocation = {
 };
 
 const DATABASE_URL = process.env.DATABASE_URL;
-const BLOB_READ_WRITE_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
 const UPLOADS_MARKER = "/wp-content/uploads/";
 const TAR_MAX_BUFFER = 1024 * 1024 * 256;
 const POSTS_BATCH_SIZE = 100;
@@ -309,10 +308,6 @@ async function main() {
     throw new Error("DATABASE_URL is not defined.");
   }
 
-  if (!dryRun && !BLOB_READ_WRITE_TOKEN) {
-    throw new Error("BLOB_READ_WRITE_TOKEN is not defined.");
-  }
-
   const absoluteUploadsRoot = resolve(process.cwd(), uploadsRoot);
   if (!existsSync(absoluteUploadsRoot)) {
     throw new Error(`Uploads source not found: ${absoluteUploadsRoot}`);
@@ -431,18 +426,18 @@ async function main() {
           relativePath,
           sourceLocation.archiveEntry
         );
-        const blob = await put(`legacy/${relativePath.replace(/\\/g, "/")}`, buffer, {
-          access: "public",
-          addRandomSuffix: false,
-          allowOverwrite: true,
+        const media = await uploadBufferToVpsMedia({
+          buffer,
           contentType: inferContentType(relativePath),
-          token: BLOB_READ_WRITE_TOKEN,
+          filename: relativePath.split("/").pop() ?? "media",
+          kind: "image",
+          pathname: `legacy/${relativePath.replace(/\\/g, "/")}`,
         });
-        migration.blobUrl = blob.url;
+        migration.blobUrl = media.url;
         uploadedCount++;
       } catch (error) {
         migration.error =
-          error instanceof Error ? error.message : "Failed to upload file to Blob.";
+          error instanceof Error ? error.message : "Failed to upload file to the VPS media service.";
       }
     }
 
@@ -531,7 +526,7 @@ async function main() {
   console.log(`- Legacy posts: ${totalLegacyPosts}`);
   console.log(`- Processed posts: ${targetPosts.length}`);
   console.log(`- Unique URLs: ${uniqueUrls.size}`);
-  console.log(`- Files uploaded to Blob: ${dryRun ? 0 : uploadedCount}`);
+  console.log(`- Files uploaded to VPS media service: ${dryRun ? 0 : uploadedCount}`);
   console.log(`- Posts updated: ${dryRun ? 0 : updatedPosts}`);
   console.log(`- Missing source files: ${report.missingFiles.length}`);
   console.log(`- Upload failures: ${report.failedUploads.length}`);
