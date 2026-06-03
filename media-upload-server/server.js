@@ -1,5 +1,5 @@
 import Busboy from "busboy";
-import { createWriteStream } from "fs";
+import { createReadStream, createWriteStream } from "fs";
 import { mkdir, rm, stat } from "fs/promises";
 import http from "http";
 import path from "path";
@@ -45,6 +45,86 @@ function normalizePath(value) {
 function publicUrlFor(uploadPath) {
   if (!PUBLIC_BASE_URL) return "";
   return `${PUBLIC_BASE_URL}/${uploadPath}`;
+}
+
+function inferContentType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const contentTypes = {
+    ".csv": "text/csv",
+    ".gif": "image/gif",
+    ".ico": "image/x-icon",
+    ".jpeg": "image/jpeg",
+    ".jpg": "image/jpeg",
+    ".mov": "video/quicktime",
+    ".mp4": "video/mp4",
+    ".pdf": "application/pdf",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".txt": "text/plain",
+    ".webm": "video/webm",
+    ".webp": "image/webp",
+    ".xml": "text/xml",
+    ".zip": "application/zip",
+  };
+  return contentTypes[ext] || "application/octet-stream";
+}
+
+async function handleStaticFile(request, response) {
+  try {
+    const requestUrl = new URL(request.url || "/", "http://localhost");
+    const uploadPath = normalizePath(requestUrl.pathname);
+    const filePath = path.join(UPLOAD_ROOT, ...uploadPath.split("/"));
+    const fileStat = await stat(filePath);
+
+    if (!fileStat.isFile()) {
+      sendJson(response, 404, { error: "Not found" });
+      return;
+    }
+
+    const range = request.headers.range;
+    const contentType = inferContentType(filePath);
+    const commonHeaders = {
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "Content-Type": contentType,
+    };
+
+    if (range) {
+      const match = range.match(/^bytes=(\d*)-(\d*)$/);
+      if (!match) {
+        response.writeHead(416, commonHeaders);
+        response.end();
+        return;
+      }
+
+      const start = match[1] ? Number(match[1]) : 0;
+      const end = match[2] ? Number(match[2]) : fileStat.size - 1;
+      if (start >= fileStat.size || end >= fileStat.size || start > end) {
+        response.writeHead(416, {
+          ...commonHeaders,
+          "Content-Range": `bytes */${fileStat.size}`,
+        });
+        response.end();
+        return;
+      }
+
+      response.writeHead(206, {
+        ...commonHeaders,
+        "Content-Length": end - start + 1,
+        "Content-Range": `bytes ${start}-${end}/${fileStat.size}`,
+      });
+      createReadStream(filePath, { start, end }).pipe(response);
+      return;
+    }
+
+    response.writeHead(200, {
+      ...commonHeaders,
+      "Content-Length": fileStat.size,
+    });
+    createReadStream(filePath).pipe(response);
+  } catch {
+    sendJson(response, 404, { error: "Not found" });
+  }
 }
 
 async function handleUpload(request, response) {
@@ -150,6 +230,11 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === "POST" && request.url === "/upload") {
     await handleUpload(request, response);
+    return;
+  }
+
+  if (request.method === "GET" || request.method === "HEAD") {
+    await handleStaticFile(request, response);
     return;
   }
 
