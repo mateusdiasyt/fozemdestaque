@@ -55,12 +55,14 @@ npm run dev
 - Site: http://localhost:3000
 - Admin: http://localhost:3000/admin
 
-## Deploy (Vercel)
+## Deploy (EasyPanel)
 
-1. Conecte o repositório à Vercel
-2. Configure as variáveis de ambiente
-3. Execute `db:push` ou migrations após o deploy
-4. Execute o seed do admin
+O projeto possui `Dockerfile` de produção e gera o servidor `standalone` do
+Next.js. No EasyPanel, conecte este repositório, use a porta `3000`, configure
+as variáveis de ambiente e valide `/api/health` antes de apontar o domínio.
+
+O banco PostgreSQL e o serviço de mídia continuam externos ao contêiner da
+aplicação. Não execute seed ou `db:push` durante um deploy comum.
 
 ## Estrutura do Painel Admin
 
@@ -91,9 +93,9 @@ NEXT_PUBLIC_WEATHER_LON=-54.5882
 
 ## Uploads de Midia na VPS
 
-O painel admin envia imagens, videos, banners e anexos para um servico privado na VPS. A Vercel fica apenas como hospedagem do site/API, sem Vercel Blob.
+O painel admin envia imagens, videos, banners e anexos para um servico privado na VPS. A aplicação web também pode rodar no EasyPanel, sem Vercel Blob.
 
-Variaveis necessarias no projeto da Vercel:
+Variaveis necessarias no serviço da aplicação:
 
 ```bash
 MEDIA_UPLOAD_ENDPOINT="https://seu-dominio-de-upload/upload"
