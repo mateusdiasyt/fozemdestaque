@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Script from "next/script";
 import { Manrope, Newsreader, Sora } from "next/font/google";
 import { SessionProvider } from "@/components/providers/SessionProvider";
+import { AnalyticsConsent } from "@/components/site/AnalyticsConsent";
 import { getSiteCustomization } from "@/lib/site-customization";
 import "./globals.css";
 
@@ -31,6 +33,9 @@ export async function generateMetadata(): Promise<Metadata> {
       template: `%s | ${settings.pageTitle}`,
     },
     description: "Portal de conteudo e eventos de Foz do Iguacu",
+    verification: {
+      other: { "facebook-domain-verification": "diyx3lh76qaahyzpmoc6p3tb7msi28" },
+    },
     icons: settings.faviconUrl
       ? {
           icon: settings.faviconUrl,
@@ -72,6 +77,7 @@ export default function RootLayout({
       >
         <div id="google_translate_element" className="invisible absolute w-0 h-0 overflow-hidden" aria-hidden />
         <SessionProvider>{children}</SessionProvider>
+        <Suspense fallback={null}><AnalyticsConsent /></Suspense>
       </body>
     </html>
   );

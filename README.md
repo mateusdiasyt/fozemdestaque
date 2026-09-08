@@ -7,7 +7,7 @@ Portal de conteúdo e publicidade profissional para Foz do Iguaçu.
 - **Frontend:** Next.js 16 (App Router)
 - **Backend/API:** Node.js (Next.js API Routes)
 - **Banco de Dados:** Neon PostgreSQL
-- **Hospedagem:** Vercel
+- **Hospedagem:** VPS / EasyPanel (`fozemdestaque/site`)
 - **Autenticação:** NextAuth v5
 
 ## Configuração
@@ -63,6 +63,31 @@ as variáveis de ambiente e valide `/api/health` antes de apontar o domínio.
 
 O banco PostgreSQL e o serviço de mídia continuam externos ao contêiner da
 aplicação. Não execute seed ou `db:push` durante um deploy comum.
+
+## Domínio, Meta e Analytics
+
+- A zona DNS autoritativa está no Squarespace (não mais na Vercel). Raiz e
+  `www` apontam para a VPS, com HTTPS e redirecionamento permanente para `www`.
+- A verificação Meta usa o TXT da raiz e a meta tag gerada pelo layout raiz:
+  `facebook-domain-verification=diyx3lh76qaahyzpmoc6p3tb7msi28`.
+  A confirmação em Business Manager é uma etapa separada; isso não garante
+  aprovação no registro de Página de Notícias.
+- GA4: `G-NQ03Z7NBKT`, substituível por `NEXT_PUBLIC_GA_ID` no **build**.
+  Não é uma chave secreta. Não instalar uma segunda tag no painel ou no HTML.
+- O carregamento do GA depende de consentimento explícito para estatísticas,
+  salvo no navegador. O visitante pode recusar ou alterar a escolha no botão
+  `Cookies de estatística`. A recusa desativa a medição e remove cookies GA.
+- Medir somente domínios oficiais e páginas públicas permitidas pelo helper
+  `src/lib/analytics.ts`; nunca localhost, previews, API ou painel administrativo.
+  URLs com parâmetros livres (busca, e-mail etc.) ou hash não são medidas;
+  somente parâmetros de campanha/clique validados são permitidos. Contexto
+  inicial omite query/hash, referrer e título dinâmico de busca.
+  Após uma URL excluída, a primeira navegação seguinte também é omitida para
+  impedir que o histórico automático envie a URL anterior como referrer.
+- Navegações Next.js usam a medição otimizada do GA4 (alterações do histórico).
+  Manter essa opção habilitada no fluxo Web do GA4. Não somar eventos manuais
+  `page_view` à medição automática. Testar acesso inicial e navegação interna.
+- Verificação local: `npx tsx --test tests/analytics.test.ts`, lint e build.
 
 ## Estrutura do Painel Admin
 
